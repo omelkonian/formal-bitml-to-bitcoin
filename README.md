@@ -1,4 +1,4 @@
-## Secure Compilation from BitML calculus to Bitcoin transactions
+## Secure Compilation from BitML calculus to Bitcoin transactions [![Build Status](https://travis-ci.com/omelkonian/formal-bitml-to-bitcoin.svg?branch=master)](https://travis-ci.com/omelkonian/formal-bitml-to-bitcoin)
 
 Based on:
 > Massimo Bartoletti and Roberto Zunino, 2018, January.
@@ -13,4 +13,4 @@ The compilation is based on the following Agda formalizations:
 2. [BitML calculus](https://github.com/omelkonian/formal-bitml)
 
 # HTML
-Browse the Agda code in HTML [here](http://omelkonian.github.io/formal-bitml-to-utxo).
+Browse the Agda code in HTML [here](http://omelkonian.github.io/formal-bitml-to-bitcoin).
