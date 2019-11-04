@@ -1,7 +1,0 @@
-name: formal-bitml-to-utxo
-depend:
-  standard-library
-  my-agda-prelude
-  formal-utxo
-  formal-bitml
-include: .

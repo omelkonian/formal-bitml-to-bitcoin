@@ -1,0 +1,7 @@
+name: formal-bitml-to-bitcoin
+depend:
+  standard-library
+  formal-prelude
+  formal-bitcoin
+  formal-bitml
+include: .
