@@ -1,22 +1,23 @@
 ----------------------------------------------------------------------------
 -- Compiler from BitML to Bitcoin transactions (see BitML paper, Section 7).
 ----------------------------------------------------------------------------
-{-# OPTIONS --allow-unsolved-metas #-}
+-- {-# OPTIONS --allow-unsolved-metas #-}
 
 open import Level    using (0ℓ)
-open import Function using (const)
+open import Function using (_∘_; case_of_)
 
 open import Data.Unit           using (⊤; tt)
 open import Data.Product        using (_×_; _,_; proj₁; proj₂; Σ-syntax; ∃-syntax)
 open import Data.Bool           using (Bool; true; false)
-open import Data.Nat            using (ℕ; _+_; _>_; _≤_; _≤?_)
+open import Data.Nat            using (ℕ; suc; _+_; _>_; _≤_; _≤?_; _⊔_)
 open import Data.Nat.Properties using (≰⇒≥)
-open import Data.Fin as Fin     using (Fin; raise; inject+)
+open import Data.Fin as Fin     using (Fin; raise; inject+; 0F)
 open import Data.Integer        using (ℤ; +_)
-open import Data.List           using (List; []; _∷_; length; map; concatMap; foldr; sum; allFin; zip; upTo)
-open import Data.Vec as V       using ()
+open import Data.List           using (List; []; _∷_; length; map; concatMap; foldr; sum; allFin; zip; upTo; _++_)
+open import Data.Vec as V       using (Vec)
 
-open import Data.List.Relation.Unary.Any using (Any; here; there; index)
+open import Data.List.Membership.Propositional             using (_∈_; mapWith∈)
+open import Data.List.Relation.Unary.Any                   using (Any; here; there; index)
 open import Data.List.Relation.Binary.Subset.Propositional using (_⊆_)
 
 open import Relation.Nullary                      using (yes; no)
@@ -27,7 +28,7 @@ open import Prelude.Lists
 
 -- Bitcoin
 open import Bitcoin.BasicTypes
-  using ($)
+  using (HashId)
 open import Bitcoin.Script.Base
   using ( ty; ScriptType; `Bool; `ℤ
         ; ctx; Ctx; ScriptContext
@@ -37,11 +38,13 @@ open import Bitcoin.Script.Base
         ; ∣_∣
         )
 open import Bitcoin.Tx.Base
-  using ( TxInput
-        ; ∃Tx
+  using ( _at_; TxInput
+        ; Tx; ∃Tx
         )
 open import Bitcoin.Tx.DecidableEquality
   using (module SETₜₓ; Set⟨Tx⟩)
+open import Bitcoin.Tx.Crypto
+  using (hashTx; sig)
 
 module SecureCompilation.Compiler
 
@@ -55,22 +58,19 @@ module SecureCompilation.Compiler
   where
 
 -- BitML
-open import BitML.BasicTypes Participant _≟ₚ_ Honest
-  using ( Secret
-        ; Time
-        ; Value
-        ; Values
-        ; Iᵖ[_,_]
-        ; ss; ss′; Predicate
-        ; Arith
-        )
+open import BitML.BasicTypes
+  using (Secret; Time; Value; Values)
+open import BitML.Predicate.Base as Pred
+  using (Predicate)
 open import BitML.Contracts.Types Participant _≟ₚ_ Honest
-  using ( Iᶜ[_,_]
+  using ( Iᵖ[_,_]; Iᶜ[_,_]
         ; ci; Contract; ∃Contract
+        ; ContractCases
         ; put_&reveal_if_⇒_∶-_; withdraw; split_∶-_; _∶_; after_∶_
         ; ∃Contracts
         ; ⟨_⟩_∶-_; ∃Advertisement
         ; participantsᵍ; toStipulate
+        ; module SETₚ
         )
 open import BitML.Semantics.Configurations.Helpers Participant _≟ₚ_ Honest
   using (removeTopDecorations)
@@ -105,11 +105,18 @@ inject≤ m≤n fn = Fin.inject≤ fn m≤n
 ⋀ = foldr _`∧_ `true
 
 bitml-compiler : ∃Advertisement → Set⟨Tx⟩
+{-# NON_TERMINATING #-} -- due to interaction between Bc and Bd :(
 bitml-compiler (_ , Iᵖ[ _ , vsᵖ ] , (⟨ G ⟩ C ∶- _))
   = SETₜₓ.fromList (Tinit ∷ concatMap compileChoice C)
   where
     postulate
+      -- maps secrets in G to the corresponding committed hashes
       sechash : Secret → ℤ
+      -- maps deposits in G to *pre-existing* transactions with the corresponding value
+      txout   : ∀ {d} → d ∈ toStipulate G → Tx 0 1
+
+    txout′ : ∀ {d} → d ∈ toStipulate G → TxInput
+    txout′ = _at 0 ∘ hashTx ∘ txout
 
     partG : List Participant
     partG = participantsᵍ G
@@ -120,68 +127,129 @@ bitml-compiler (_ , Iᵖ[ _ , vsᵖ ] , (⟨ G ⟩ C ∶- _))
     V : Value
     V = sum vsᵖ -- (map proj₂ (toStipulate G))
 
-    txout : Participant × Value → TxInput
-    txout (p , vp) = record { txId  = {!!}
-                            ; index = 0 }
-
     Bout : Contract ci → ∃[ ctx ] Script ctx `Bool
     Bout D with removeTopDecorations D
-    ... | put zs &reveal as if p ⇒ C ∶- ss⊆
-        = Ctx (ς + length as) , versig {!!} (map (inject+ (length as)) (allFin ς))
-                             `∧ B p {-ss⊆ = proj₂ (proj₂ (ss⊆))-}
-                             `∧ ⋀ (map (λ{ (i , a) → let bi = var (raise ς i) in
-                                                      (hash bi `= ` (sechash a)) `∧ (` η `< ∣ bi ∣) })
-                                   (zip (allFin (length as)) as))
+    ... | put_&reveal_if_⇒_∶-_ {n = n} zs as p C _
+        = Ctx (ς + n) , ( versig {!!} (map (inject+ n) (allFin ς))
+                       `∧ B p
+                       `∧ ⋀ (map (λ{ (i , a) → let bi = var (raise ς i) in
+                                               (hash bi `= ` (sechash a)) `∧ (` η `< ∣ bi ∣) })
+                                 (zip (allFin n) (V.toList as)))
+                        )
           where
-            Bᵃ : Arith ss → {-ss⊆ : ss ⊆ as →-} Script (Ctx (ς + length as)) `ℤ
-            Bᵃ (Arith.` x)          = ` (+ x)
-            Bᵃ (Arith.`len s) = let bi = var (raise ς {!!} {-(index (ss⊆ (here refl)))-})
-                                      in ∣ bi ∣ `- ` η
-            Bᵃ (x Arith.`+ y) = Bᵃ x `+ Bᵃ y
-            Bᵃ (x Arith.`- y) = Bᵃ x `- Bᵃ y
 
-            B : Predicate ss → {-ss⊆ : ss ⊆ as →-} Script (Ctx (ς + length as)) `Bool
-            B Predicate.`True     = `true
-            B (p Predicate.`∧ p′) = B p `∧ B p′
-            B (Predicate.`¬ p)    = `not (B p)
-            B (x Predicate.`≡ y)  = Bᵃ x `= Bᵃ y
-            B (x Predicate.`< y)  = Bᵃ x `< Bᵃ y
+            Bᵗʸ : Pred.ExpressionType → ScriptType
+            Bᵗʸ Pred.`Bool = `Bool
+            Bᵗʸ Pred.`ℤ    = `ℤ
+
+            B : Pred.Expression (Pred.Ctx n) Pred.ty → Script (Ctx (ς + n)) (Bᵗʸ Pred.ty)
+            B (Pred.∣ s ∣)   = ∣ var (raise ς s) ∣ `- ` η
+            B (Pred.` x)     = ` x
+            B (x Pred.`+ y)  = B x `+ B y
+            B (x Pred.`- y)  = B x `- B y
+            B (x Pred.`= y)  = B x `= B y
+            B (x Pred.`< y)  = B x `< B y
+            B Pred.`true     = `true
+            B (p Pred.`∧ p′) = B p `∧ B p′
+            B (Pred.`¬ p)    = `not (B p)
     ... | _
         = _ , versig {!!} (allFin ς)
 
     Tinit : ∃Tx
-    Tinit = _ , _ , record { inputs  = V.fromList (map txout (toStipulate G))
+    Tinit = _ , _ , record { inputs  = V.fromList (mapWith∈ (toStipulate G) txout′)
                            ; wit     = V.replicate (_ , V.[])
                            ; relLock = V.replicate 0
-                           ; outputs = V.[ _ , record { value     = $ V
+                           ; outputs = V.[ _ , record { value     = V
                                                       ; validator = ƛ (proj₂ (⋁ (map Bout C))) } ]
                            ; absLock = 0 }
+    Tinit♯ = hashTx (proj₂ (proj₂ Tinit))
 
     Bc : ∃Contracts
        → ∃Contract
-       → ∃Tx
+       → HashId
        → ℕ
        → Value
        → Values
        → List Participant
        → Time
        → List ∃Tx
+
     Bd : ∃Contract
        → ∃Contract
-       → ∃Tx
+       → HashId
        → ℕ
        → Value
        → List Participant
        → Time
        → List ∃Tx
+    Bpar : ∃[ vs ] (ContractCases vs)
+         → ∃Contract
+         → HashId
+         → ℕ
+         → List Participant
+         → Time
+         → List ∃Tx
 
-    Bc C Dp T o v I P t = {!!}
 
-    Bd (_ , (put zs &reveal as if p ⇒ C ∶- _)) Dp T o v P t = Bc (_ , C) Dp T o (v + {!!}) zs P t
-    Bd (_ , (withdraw A)) Dp T o v P t = {!!}
-    Bd (_ , (split cs ∶- _)) Dp T o v P t = {!!}
-    Bd (_ , (A ∶ D′)) Dp T o v P t = {!!}
-    Bd (_ , (after t′ ∶ D′)) Dp T o v P t = {!!}
+    Bd (_ , (put zs &reveal _ if _ ⇒ C ∶- _)) Dp T o v P t
+      = Bc (_ , C) Dp T o (v + sum zs) zs P t
+
+    Bd (_ , (withdraw A)) Dp T o v P t
+      = [ _ , _ , record { inputs  = V.[ T at 0 ]
+                         ; wit     = V.[ _ , V.[ sig {!!} {!!} {!!} ] ]
+                         ; relLock = V.[ 0 ]
+                         ; outputs = V.[ _ , record { value = v ; validator = ƛ (versig {!!} (allFin _)) } ]
+                         ; absLock = t } ]
+    Bd (_ , (split Cs ∶- _)) Dp T o v P t
+      = Bpar (_ , Cs) Dp T o P t
+    Bd (_ , (A ∶ D′)) Dp T o v P t
+      = Bd (_ , D′) Dp T o v (P SETₚ.\\ [ A ]) t
+    Bd (_ , (after t′ ∶ D′)) Dp T o v P t
+      = Bd (_ , D′) Dp T o v P (t ⊔ t′)
 
     compileChoice : Contract ci → List ∃Tx
-    compileChoice Di = Bd (_ , Di) (_ , Di) Tinit 0 V partG 0
+    compileChoice Di = Bd (_ , Di) (_ , Di) Tinit♯ 0 V partG 0
+
+    Bc (_ , C) Dp T o v I P t = Tc ∷ concatMap compileChoice′ C
+      where
+        postulate
+          i  : ℕ
+          I′ : Vec Value i
+
+        Tc : ∃Tx
+        Tc = suc i
+           , _
+           , record { inputs  = T at o
+                            V.∷ V.map (txout′ ∘ {!!}) I′
+                    ; wit     = (_ , V.[ sig {!!} {!!} {!!} ])
+                            V.∷ V.map (λ v′ → _ , V.[ sig {!!} {!!} {!!} ]) I′
+                    ; relLock = V.replicate 0
+                    ; outputs = V.[ _ , (record { value     = v
+                                                ; validator = ƛ (proj₂ (⋁ (map Bout C))) }) ]
+                    ; absLock = t }
+        Tc♯ = hashTx (proj₂ (proj₂ Tc))
+
+        compileChoice′ : Contract ci → List ∃Tx
+        compileChoice′ Di = Bd (_ , Di) (_ , Di) Tc♯ 0 v partG t
+
+    Bpar (vs , Cs) Dp T o P t = Tc ∷ concatMap compileCases Cs
+      where
+        n = length Cs
+
+        Tc : ∃Tx
+        Tc = _
+           , _
+           , record { inputs  = V.[ T at o ]
+                    ; wit     = V.[ _ , V.[ sig {!!} {!!} {!!} ] ]
+                    ; relLock = V.replicate 0
+                    ; outputs = V.map (λ _ →
+                                        let Ci = {!!} {- Cs ‼ i -}
+                                            vi = {!!} {- vs ‼ i -}
+                                        in _ , record { value     = vi
+                                                      ; validator = ƛ (proj₂ (⋁ (map Bout Ci))) })
+                                      (V.fromList (upTo n))
+                    ; absLock = t }
+        Tc♯ = hashTx (proj₂ (proj₂ Tc))
+
+        compileCases : ∃[ v ] Contract Iᶜ[ v , vs ] → List ∃Tx
+        compileCases (_ , Di) = Bd (_ , Di) (_ , Di) Tc♯ {!!} {- i - 1 -} {!!} {- vs ‼ i -} partG 0
