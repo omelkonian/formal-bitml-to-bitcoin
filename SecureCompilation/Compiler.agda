@@ -1,32 +1,31 @@
 ----------------------------------------------------------------------------
 -- Compiler from BitML to Bitcoin transactions (see BitML paper, Section 7).
 ----------------------------------------------------------------------------
--- {-# OPTIONS --allow-unsolved-metas #-}
+{-# OPTIONS --allow-unsolved-metas #-}
 
-open import Level    using (0ℓ)
-open import Function using (_∘_; case_of_)
+open import Function using (_∘_)
 
 open import Data.Unit           using (⊤; tt)
 open import Data.Product        using (_×_; _,_; proj₁; proj₂; Σ-syntax; ∃-syntax)
+open import Data.Sum            using (inj₁; inj₂)
 open import Data.Bool           using (Bool; true; false)
-open import Data.Nat            using (ℕ; suc; _+_; _>_; _≤_; _≤?_; _⊔_)
-open import Data.Nat.Properties using (≰⇒≥)
-open import Data.Fin as Fin     using (Fin; raise; inject+; 0F; toℕ)
+open import Data.Nat            using (ℕ; suc; _+_; _>_; _≤?_; _⊔_)
+open import Data.Fin as Fin     using (Fin; raise; inject+; toℕ)
 open import Data.Integer        using (ℤ; +_)
-open import Data.List           using ( List; []; _∷_; [_]; length; map; concatMap; foldr
-                                      ; sum; allFin; zip; upTo; _++_; take
-                                      )
+open import Data.List           using (List; []; _∷_; [_]; length; map; concat; sum; allFin; zip; take)
 open import Data.Vec as V       using (Vec)
 
 open import Data.List.Membership.Propositional             using (_∈_; mapWith∈)
-open import Data.List.Membership.Propositional.Properties  using (∈-++⁺ˡ; ∈-++⁺ʳ)
+open import Data.List.Membership.Propositional.Properties  using (∈-++⁺ˡ; ∈-++⁺ʳ; ∈-map⁺)
+open import Data.List.Membership.Setoid.Properties         using (length-mapWith∈)
 open import Data.List.Relation.Unary.Any                   using (Any; here; there; index)
 open import Data.List.Relation.Unary.All                   using (All; []; _∷_; lookup)
 open import Data.List.Relation.Binary.Subset.Propositional using (_⊆_)
 
 open import Relation.Nullary                      using (yes; no)
 open import Relation.Binary                       using (Decidable)
-open import Relation.Binary.PropositionalEquality using (_≡_; refl)
+open import Relation.Binary.PropositionalEquality using (_≡_; refl; sym; inspect; setoid)
+  renaming ([_] to ≡[_])
 
 open import Prelude.Lists
 
@@ -39,12 +38,11 @@ open import Bitcoin.Script.Base
         ; var; `; _`+_; _`-_; _`=_; _`<_; `if_then_else_; hash; versig; absAfter_⇒_; relAfter_⇒_; Script
         ; _`∧_; `true; _`∨_; `false; `not
         ; ƛ_; BitcoinScript; ∃BitcoinScript
-        ; ∣_∣
-        )
+        ; ∣_∣; ⋁; ⋀ )
 open import Bitcoin.Tx.Base
   using ( _at_; TxInput
         ; Tx; ∃Tx
-        )
+        ; Witness; ∃Witness )
 open import Bitcoin.Tx.DecidableEquality
   using (module SETₜₓ; Set⟨Tx⟩)
 open import Bitcoin.Tx.Crypto
@@ -63,54 +61,29 @@ module SecureCompilation.Compiler
 
 -- BitML
 open import BitML.BasicTypes
-  using (Secret; Time; Value; Values; Id; Ids)
+  using ( Secret; Time; Value; Values; Id; Ids; Name; Names
+        ; {-variables-} v; x; xs; as; t )
 open import BitML.Predicate.Base
-  using (Predicate; Arith; secretsᵖʳ; secretsᵃʳ)
+  using ( Predicate; Arith; secretsᵖʳ; secretsᵃʳ
+        ; {-variables-} p )
 open import BitML.Contracts.Types Participant _≟ₚ_ Honest
   using ( Contract; Contracts
         ; put_&reveal_if_⇒_; withdraw; split; _⇒_; after_⇒_
+        ; Precondition
         ; ⟨_⟩_; Advertisement; G
         ; module SETₚ
-        )
+        ; {-variables-} A; d; d′; ds; ds′; vcs )
 open import BitML.Contracts.Helpers Participant _≟ₚ_ Honest
-  using ( allSecretsᵖ; participantsᵖ; depositsᵖ; persistentDepositsᵖ; removeTopDecorations
-        ; putComponentsᶜ; putComponentsᶜˢ
-        )
+  using ( namesᵖ; secretsᵖ; participantsᵖ; depositsᵖ; persistentDepositsᵖ; removeTopDecorations
+        ; namesᶜ; secretsᶜ; putComponentsᶜ
+        ; namesᶜˢ; secretsᶜˢ; putComponentsᶜˢ
+        ; namesᵛᶜˢ; secretsᵛᶜˢ; putComponentsᵛᶜˢ
+        ; remove-names; remove-putComponents
+        ; getDeposit; getName )
 open import BitML.Contracts.Validity Participant _≟ₚ_ Honest
-  using (ValidAdvertisement)
+  using (ValidAdvertisement; _~_; _~′_; _~″_; _&_; map~; map~′; map~″; mapEnum~″)
 
 --------------------------------------------
-
-mapFin : ∀ {n m} → (Fin n → Fin m) → Script (Ctx n) ty → Script (Ctx m) ty
-mapFin f (var x)                 = var (f x)
-mapFin f (` x)                   = ` x
-mapFin f (s `+ s₁)               = mapFin f s `+ mapFin f s₁
-mapFin f (s `- s₁)               = mapFin f s `- mapFin f s₁
-mapFin f (s `= s₁)               = mapFin f s `= mapFin f s₁
-mapFin f (s `< s₁)               = mapFin f s `< mapFin f s₁
-mapFin f (`if s then s₁ else s₂) = `if mapFin f s then mapFin f s₁ else mapFin f s₂
-mapFin f ∣ s ∣                   = ∣ mapFin f s ∣
-mapFin f (hash s)                = hash (mapFin f s)
-mapFin f (versig x x₁)           = versig x (map f x₁)
-mapFin f (absAfter x ⇒ s)        = absAfter x ⇒ mapFin f s
-mapFin f (relAfter x ⇒ s)        = relAfter x ⇒ mapFin f s
-
-inject≤ : ∀ {m n} → .(n ≤ m) → Fin n → Fin m
-inject≤ m≤n fn = Fin.inject≤ fn m≤n
-
-⋁ : List (∃[ ctx ] Script ctx `Bool) → ∃[ ctx′ ] Script ctx′ `Bool
-⋁ [] = Ctx 0 , `false
-⋁ ((Ctx n , x) ∷ xs) with ⋁ xs
-... | Ctx m , y      with n ≤? m
-... | yes n≤m      = Ctx m , (mapFin (inject≤ n≤m) x `∨ y)
-... | no  n≰m      = Ctx n , (x `∨ mapFin (inject≤ (≰⇒≥ n≰m)) y)
-
-⋀ : List (Script ctx `Bool) → Script ctx `Bool
-⋀ = foldr _`∧_ `true
-
--- names→secrets : ∀ {c : Contract} {g : Precondition}
---   → namesᶜ c ⊆ namesᵖ g
---   → secretsᶜ ⊆ allSecretsᵖ g
 
 bitml-compiler :
     -- the input contract & precondition
@@ -118,41 +91,42 @@ bitml-compiler :
     -- only compile valid advertisements
   → ValidAdvertisement ad
     -- sechash: maps secrets in G to the corresponding committed hashes
-  → (∀ {a} → a ∈ allSecretsᵖ (G ad) → ℤ)
+  → (∀ {a} → inj₁ a ∈ namesᵖ (G ad) → ℤ)
     -- txout: maps deposits in G to *pre-existing* transactions with the corresponding value
-  → (∀ {d} → d ∈ persistentDepositsᵖ (G ad) → ∃[ i ] ∃[ o ] (Tx i o × Fin o))
-    -- val: maps deposit names in G to the value contained in the deposit
-  → (∀ {x} → x ∈ depositsᵖ (G ad) → Value)
+  → (∀ {d} → inj₂ d ∈ namesᵖ (G ad) → TxInput)
     -- a set of transaction to be submitted
   → Set⟨Tx⟩
 {-# NON_TERMINATING #-} -- due to interaction between Bc and Bd :(
-bitml-compiler (⟨ G ⟩ C) (uniqNames , names⊆ , putComponents , parts⊆) sechash txout val
-  = SETₜₓ.fromList (Tinit ∷ concatMap compileChoice C)
+bitml-compiler (⟨ G₀ ⟩ C₀) (uniqNames , names⊆ , putComponents , parts⊆) sechash txout
+  = SETₜₓ.fromList (Tinit ∷ concat (map~ C₀ λ Dᵢ Dᵢ~C₀ → Bd (Dᵢ , Dᵢ~C₀) Dᵢ Tinit♯ 0 V partG 0))
   where
-    txout′ : ∀ {d} → d ∈ persistentDepositsᵖ G → TxInput
-    txout′ d∈ with txout d∈
-    ... | (_ , _ , tx , o) = hashTx tx at toℕ o
-
     partG : List Participant
-    partG = participantsᵖ G
+    partG = participantsᵖ G₀
+
+    -- part: maps deposit names in G to the corresponding participant
+    part : ∀ {x} → inj₂ x ∈ namesᵖ G₀ → Participant
+    part = proj₁ ∘ getDeposit {g = G₀}
+
+    -- val: maps deposit names in G to the value contained in the deposit
+    val : ∀ {x} → inj₂ x ∈ namesᵖ G₀ → Value
+    val = proj₁ ∘ proj₂ ∘ getDeposit {g = G₀}
 
     ς : ℕ
     ς = length partG
 
     V : Value
-    V = sum (map (proj₁ ∘ proj₂) (persistentDepositsᵖ G))
+    V = sum (map (proj₁ ∘ proj₂) (persistentDepositsᵖ G₀))
 
-    Bout : (c : Contract)
-         → (putComponentsᶜ c ⊆ putComponentsᶜˢ C)
-         × (secretsᶜ c ⊆ allSecretsᵖ G)
+    Bout : (d : Contract)
+         → (d ~ C₀)
          → ∃[ ctx ] Script ctx `Bool
-    Bout D (put⊆ , secrets⊆) with removeTopDecorations D
-    ... | put zs &reveal as if p ⇒ C
+    Bout D (p⊆ & n⊆) with removeTopDecorations D | inspect removeTopDecorations D
+    ... | put zs &reveal as if p ⇒ C | ≡[ eq ]
         = Ctx (ς + m) , ( versig {!!} (take ς (allFin (ς + m)))
-                     `∧ B p p⊆as
+                     `∧ Bᵖʳ p p⊆as
                      `∧ ⋀ (mapEnumWith∈ as (λ i a a∈ →
                              let bi = var (raise ς i)
-                             in (hash bi `= ` (sechash {a} (as⊆ a∈))) `∧ (` η `< ∣ bi ∣)))
+                             in (hash bi `= ` (sechash (as⊆ a∈))) `∧ (` η `< ∣ bi ∣)))
                         )
 
           where
@@ -160,13 +134,13 @@ bitml-compiler (⟨ G ⟩ C) (uniqNames , names⊆ , putComponents , parts⊆) s
             m = length as
 
             put∈ : (zs , as , p) ∈ putComponentsᶜ D
-            put∈ = {!here refl!}
-
-            as⊆ : as ⊆ allSecretsᵖ G
-            as⊆ = {!names⊆!}
+            put∈ rewrite remove-putComponents {D} | eq = here refl
 
             p⊆as : secretsᵖʳ p ⊆ as
-            p⊆as = proj₂ (lookup putComponents (put⊆ put∈))
+            p⊆as = proj₂ (lookup putComponents (p⊆ put∈))
+
+            as⊆ : ∀ {a} → a ∈ as → inj₁ a ∈ namesᵖ G₀
+            as⊆ rewrite remove-names {D} | eq = names⊆ ∘ n⊆ ∘ ∈-++⁺ʳ (map inj₂ zs) ∘ ∈-++⁺ˡ ∘ ∈-map⁺ inj₁
 
             Bᵃʳ : (e : Arith) → secretsᵃʳ e ⊆ as → Script (Ctx (ς + m)) `ℤ
             Bᵃʳ (Arith.` x)    _   = ` x
@@ -174,35 +148,37 @@ bitml-compiler (⟨ G ⟩ C) (uniqNames , names⊆ , putComponents , parts⊆) s
             Bᵃʳ (x Arith.`+ y) ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `+ Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
             Bᵃʳ (x Arith.`- y) ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `- Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
 
-            B : (e : Predicate) → secretsᵖʳ e ⊆ as → Script (Ctx (ς + m)) `Bool
-            B Predicate.`true     _   = `true
-            B (p Predicate.`∧ p′) ⊆as = B p (⊆as ∘ ∈-++⁺ˡ) `∧ B p′ (⊆as ∘ ∈-++⁺ʳ _)
-            B (Predicate.`¬ p)    ⊆as = `not (B p ⊆as)
-            B (x Predicate.`= y)  ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `= Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
-            B (x Predicate.`< y)  ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `< Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
-    ... | _
+            Bᵖʳ : (e : Predicate) → secretsᵖʳ e ⊆ as → Script (Ctx (ς + m)) `Bool
+            Bᵖʳ Predicate.`true     _   = `true
+            Bᵖʳ (p Predicate.`∧ p′) ⊆as = Bᵖʳ p (⊆as ∘ ∈-++⁺ˡ) `∧ Bᵖʳ p′ (⊆as ∘ ∈-++⁺ʳ _)
+            Bᵖʳ (Predicate.`¬ p)    ⊆as = `not (Bᵖʳ p ⊆as)
+            Bᵖʳ (x Predicate.`= y)  ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `= Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
+            Bᵖʳ (x Predicate.`< y)  ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `< Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
+    ... | _ | _
         = _ , versig {!!} (allFin ς)
 
     Tinit : ∃Tx
-    Tinit = _ , _ , record { inputs  = V.fromList (mapWith∈ (persistentDepositsᵖ G) txout′)
-                           ; wit     = V.replicate (_ , V.[])
-                           ; relLock = V.replicate 0
-                           ; outputs = V.[ _ , record { value     = V
-                                                      ; validator = ƛ (proj₂ (⋁ (map (λ c → Bout c {!!}) C))) } ]
-                           ; absLock = 0 }
+    Tinit = _
+          , _
+          , record { inputs  = V.fromList (mapWith∈ (persistentDepositsᵖ G₀) (txout ∘ getName {g = G₀}))
+                   ; wit     = V.replicate (_ , V.[])
+                   ; relLock = V.replicate 0
+                   ; outputs = V.[ _ , record { value     = V
+                                              ; validator = ƛ (proj₂ (⋁ (map~ C₀ Bout))) } ]
+                   ; absLock = 0 }
     Tinit♯ = hashTx (proj₂ (proj₂ Tinit))
 
-    Bc : Contracts
+    Bc : Σ[ C ∈ Contracts ] C ~′ C₀
        → Contract
        → HashId
        → ℕ
        → Value
-       → Ids
+       → Σ[ I ∈ Ids ] (∀ {i} → i ∈ I → inj₂ i ∈ namesᵖ G₀)
        → List Participant
        → Time
        → List ∃Tx
 
-    Bd : Contract
+    Bd : Σ[ D ∈ Contract ] D ~ C₀
        → Contract
        → HashId
        → ℕ
@@ -210,7 +186,8 @@ bitml-compiler (⟨ G ⟩ C) (uniqNames , names⊆ , putComponents , parts⊆) s
        → List Participant
        → Time
        → List ∃Tx
-    Bpar : List (Value × Contracts)
+
+    Bpar : Σ[ vcs ∈ List (Value × Contracts) ] vcs ~″ C₀
          → Contract
          → HashId
          → ℕ
@@ -218,72 +195,74 @@ bitml-compiler (⟨ G ⟩ C) (uniqNames , names⊆ , putComponents , parts⊆) s
          → Time
          → List ∃Tx
 
+    Bd (put zs &reveal as if _ ⇒ C , p⊆ & n⊆) Dp T o v P t
+      = Bc (C , C~C₀) Dp T o (v + sum (mapWith∈ zs (val ∘ zs⊆))) zs′ P t
+          where
+            C~C₀ : C ~′ C₀
+            C~C₀ = (p⊆ ∘ ∈-++⁺ʳ _) & (n⊆ ∘ ∈-++⁺ʳ (map inj₂ zs) ∘ ∈-++⁺ʳ (map inj₁ as))
 
-    Bd (put zs &reveal _ if _ ⇒ C ) Dp T o v P t
-      = Bc C Dp T o (v + sum (map val {!!} {-zs-})) zs P t
+            zs′ : Σ[ I ∈ Ids ] (∀ {i} → i ∈ I → inj₂ i ∈ namesᵖ G₀)
+            zs′ = zs , λ z∈ → names⊆ (n⊆ (∈-++⁺ˡ (∈-map⁺ inj₂ z∈)))
 
-    Bd (withdraw A) Dp T o v P t
+            zs⊆ : ∀ {z} → z ∈ zs → inj₂ z ∈ namesᵖ G₀
+            zs⊆ = names⊆ ∘ n⊆ ∘ ∈-++⁺ˡ ∘ ∈-map⁺ inj₂
+
+    Bd (withdraw A , D~C₀) Dp T o v P t
       = [ _ , _ , record { inputs  = V.[ T at 0 ]
-                         ; wit     = V.[ _ , V.[ sig {!!} {!!} {!!} ] ]
+                         ; wit     = V.[ _ , V.[ {! sig ? ? ? !} ] ]
                          ; relLock = V.[ 0 ]
                          ; outputs = V.[ _ , record { value = v ; validator = ƛ (versig {!!} (allFin _)) } ]
                          ; absLock = t } ]
-    Bd (split Cs) Dp T o v P t
-      = Bpar Cs Dp T o P t
-    Bd (A ⇒ D′) Dp T o v P t
-      = Bd D′ Dp T o v (P SETₚ.\\ [ A ]) t
-    Bd (after t′ ⇒ D′) Dp T o v P t
-      = Bd D′ Dp T o v P (t ⊔ t′)
+    Bd (split Cs , p⊆ & n⊆) Dp T o v P t
+      = Bpar (Cs , p⊆ & n⊆) Dp T o P t
+    Bd (A ⇒ D′ , p⊆ & n⊆) Dp T o v P t
+      = Bd (D′ , p⊆ & n⊆) Dp T o v (P SETₚ.\\ [ A ]) t
+    Bd (after t′ ⇒ D′ , p⊆ & n⊆) Dp T o v P t
+      = Bd (D′ , p⊆ & n⊆) Dp T o v P (t ⊔ t′)
 
-    compileChoice : Contract → List ∃Tx
-    compileChoice Di = Bd Di Di Tinit♯ 0 V partG 0
-
-    Bc C Dp T o v I P t = Tc ∷ concatMap compileChoice′ C
+    Bc (C , C~C₀) Dp T o v (I , I⊆) P t = Tc ∷ concat (map~′ C C~C₀ λ Dᵢ Dᵢ~C₀ → Bd (Dᵢ , Dᵢ~C₀) Dᵢ Tc♯ 0 v partG t)
       where
-        postulate
-          i  : ℕ
-          I′ : Vec Value i
+        k = length I
+
+        ins : Vec TxInput k
+        ins rewrite sym (length-mapWith∈ (setoid _) I {f = txout ∘ I⊆})
+                  = V.fromList (mapWith∈ I (txout ∘ I⊆))
+
+        wits : Vec ∃Witness k
+        wits rewrite sym (length-mapWith∈ (setoid _) I {f = λ i∈ → _ , V.[ {!sig ? ? ?!} ]})
+                   = V.fromList (mapWith∈ I λ i∈ → _ , V.[ {!sig ? ? ?!} ])
 
         Tc : ∃Tx
-        Tc = suc i
+        Tc = suc k
            , _
-           , record { inputs  = T at o
-                            V.∷ V.map (txout′ ∘ {!!}) I′
-                    ; wit     = (_ , V.[ sig {!!} {!!} {!!} ])
-                            V.∷ V.map (λ v′ → _ , V.[ sig {!!} {!!} {!!} ]) I′
+           , record { inputs  = T at o                       V.∷ ins
+                    ; wit     = (_ , V.[ {! sig ? ? ? !} ]) V.∷ wits
                     ; relLock = V.replicate 0
-                    ; outputs = V.[ _ , (record { value     = v
-                                                ; validator = ƛ (proj₂ (⋁ (map (λ c → Bout c {!!}) C))) }) ]
+                    ; outputs = V.[ _ , record { value     = v
+                                               ; validator = ƛ (proj₂ (⋁ (map~′ C C~C₀ Bout))) } ]
                     ; absLock = t }
         Tc♯ = hashTx (proj₂ (proj₂ Tc))
 
-        compileChoice′ : Contract → List ∃Tx
-        compileChoice′ Di = Bd Di Di Tc♯ 0 v partG t
-
-    Bpar vcs Dp T o P t = Tc ∷ concatMap compileCases Cs
+    Bpar (vcs , vcs~C₀) Dp T o P t
+      = Tc ∷ Tᵢⱼ
       where
-        Cs : List Contracts
-        Cs = map proj₂ vcs
-
-        n = length Cs
+        eᵢⱼ : List (Value × List (∃[ ctx ] Script ctx `Bool))
+        eᵢⱼ = map~″ vcs vcs~C₀ λ v Cᵢ Cᵢ~C₀ →
+                v , map~′ Cᵢ Cᵢ~C₀ Bout
 
         Tc : ∃Tx
         Tc = _
            , _
            , record { inputs  = V.[ T at o ]
-                    ; wit     = V.[ _ , V.[ sig {!!} {!!} {!!} ] ]
+                    ; wit     = V.[ _ , V.[ {! sig ? ? ? !} ] ]
                     ; relLock = V.replicate 0
-                    ; outputs = V.map (λ _ →
-                                        let Ci = {!!} {- Cs ‼ i -}
-                                            vi = {!!} {- vs ‼ i -}
-                                        in _ , record { value     = vi
-                                                      ; validator = ƛ (proj₂ (⋁ (map (λ c → Bout c {!!}) Ci))) })
-                                      (V.fromList (upTo n))
+                    ; outputs = V.map (λ{ (vᵢ , eᵢ) → _ , record { value     = vᵢ
+                                                                 ; validator = ƛ (proj₂ (⋁ eᵢ)) }})
+                                      (V.fromList eᵢⱼ)
                     ; absLock = t }
         Tc♯ = hashTx (proj₂ (proj₂ Tc))
 
-        compileCases : Contracts → List ∃Tx
-        compileCases = concatMap go
-          where
-            go : Contract → List ∃Tx
-            go Di = Bd Di Di Tc♯ {!!} {- i - 1 -} {!!} {- vs ‼ i -} partG 0
+        Tᵢⱼ : List ∃Tx
+        Tᵢⱼ = concat (mapEnum~″ vcs vcs~C₀ λ i vᵢ Cᵢ Cᵢ~C₀ →
+                concat (map~′ Cᵢ Cᵢ~C₀ λ Dᵢⱼ Dᵢⱼ~C₀ →
+                  Bd (Dᵢⱼ , Dᵢⱼ~C₀) Dᵢⱼ Tc♯ (toℕ i) vᵢ partG 0))
