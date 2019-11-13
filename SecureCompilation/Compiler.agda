@@ -1,7 +1,6 @@
 ----------------------------------------------------------------------------
 -- Compiler from BitML to Bitcoin transactions (see BitML paper, Section 7).
 ----------------------------------------------------------------------------
-{-# OPTIONS --allow-unsolved-metas #-}
 
 open import Function using (_∘_)
 
@@ -10,7 +9,7 @@ open import Data.Product        using (_×_; _,_; proj₁; proj₂; Σ-syntax; �
 open import Data.Sum            using (inj₁; inj₂)
 open import Data.Bool           using (Bool; true; false)
 open import Data.Nat            using (ℕ; suc; _+_; _>_; _≤?_; _⊔_)
-open import Data.Fin as Fin     using (Fin; raise; inject+; toℕ)
+open import Data.Fin as Fin     using (Fin; raise; inject+; toℕ; 0F)
 open import Data.Integer        using (ℤ; +_)
 open import Data.List           using (List; []; _∷_; [_]; length; map; concat; sum; allFin; zip; take)
 open import Data.Vec as V       using (Vec)
@@ -32,6 +31,8 @@ open import Prelude.Lists
 -- Bitcoin
 open import Bitcoin.BasicTypes
   using (HashId)
+open import Bitcoin.Crypto
+  using (KeyPair)
 open import Bitcoin.Script.Base
   using ( ty; ScriptType; `Bool; `ℤ
         ; ctx; Ctx; ScriptContext
@@ -46,7 +47,7 @@ open import Bitcoin.Tx.Base
 open import Bitcoin.Tx.DecidableEquality
   using (module SETₜₓ; Set⟨Tx⟩)
 open import Bitcoin.Tx.Crypto
-  using (hashTx; sig)
+  using (hashTx; sig⋆; wit⊥)
 
 module SecureCompilation.Compiler
 
@@ -94,10 +95,13 @@ bitml-compiler :
   → (∀ {a} → inj₁ a ∈ namesᵖ (G ad) → ℤ)
     -- txout: maps deposits in G to *pre-existing* transactions with the corresponding value
   → (∀ {d} → inj₂ d ∈ namesᵖ (G ad) → TxInput)
+    -- Exchanged keypairs K(A) and K(D,A)
+  → (Participant → KeyPair)
+  → (Contract → Participant → KeyPair)
     -- a set of transaction to be submitted
   → Set⟨Tx⟩
 {-# NON_TERMINATING #-} -- due to interaction between Bc and Bd :(
-bitml-compiler (⟨ G₀ ⟩ C₀) (uniqNames , names⊆ , putComponents , parts⊆) sechash txout
+bitml-compiler (⟨ G₀ ⟩ C₀) (_ , names⊆ , putComponents , _) sechash txout K K²
   = SETₜₓ.fromList (Tinit ∷ concat (map~ C₀ λ Dᵢ Dᵢ~C₀ → Bd (Dᵢ , Dᵢ~C₀) Dᵢ Tinit♯ 0 V partG 0))
   where
     partG : List Participant
@@ -111,6 +115,10 @@ bitml-compiler (⟨ G₀ ⟩ C₀) (uniqNames , names⊆ , putComponents , parts
     val : ∀ {x} → inj₂ x ∈ namesᵖ G₀ → Value
     val = proj₁ ∘ proj₂ ∘ getDeposit {g = G₀}
 
+    -- K(D,ℙ): abbreviation for keys coming from multiple participant
+    K⋆ : Contract → List Participant → List KeyPair
+    K⋆ D = map (K² D)
+
     ς : ℕ
     ς = length partG
 
@@ -122,7 +130,7 @@ bitml-compiler (⟨ G₀ ⟩ C₀) (uniqNames , names⊆ , putComponents , parts
          → ∃[ ctx ] Script ctx `Bool
     Bout D (p⊆ & n⊆) with removeTopDecorations D | inspect removeTopDecorations D
     ... | put zs &reveal as if p ⇒ C | ≡[ eq ]
-        = Ctx (ς + m) , ( versig {!!} (take ς (allFin (ς + m)))
+        = Ctx (ς + m) , ( versig (K⋆ D partG) (take ς (allFin (ς + m)))
                      `∧ Bᵖʳ p p⊆as
                      `∧ ⋀ (mapEnumWith∈ as (λ i a a∈ →
                              let bi = var (raise ς i)
@@ -155,13 +163,13 @@ bitml-compiler (⟨ G₀ ⟩ C₀) (uniqNames , names⊆ , putComponents , parts
             Bᵖʳ (x Predicate.`= y)  ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `= Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
             Bᵖʳ (x Predicate.`< y)  ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `< Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
     ... | _ | _
-        = _ , versig {!!} (allFin ς)
+        = _ , versig (K⋆ D partG) (allFin ς)
 
     Tinit : ∃Tx
     Tinit = _
           , _
           , record { inputs  = V.fromList (mapWith∈ (persistentDepositsᵖ G₀) (txout ∘ getName {g = G₀}))
-                   ; wit     = V.replicate (_ , V.[])
+                   ; wit     = wit⊥
                    ; relLock = V.replicate 0
                    ; outputs = V.[ _ , record { value     = V
                                               ; validator = ƛ (proj₂ (⋁ (map~ C₀ Bout))) } ]
@@ -208,13 +216,19 @@ bitml-compiler (⟨ G₀ ⟩ C₀) (uniqNames , names⊆ , putComponents , parts
             zs⊆ = names⊆ ∘ n⊆ ∘ ∈-++⁺ˡ ∘ ∈-map⁺ inj₂
 
     Bd (withdraw A , D~C₀) Dp T o v P t
-      = [ _ , _ , record { inputs  = V.[ T at 0 ]
-                         ; wit     = V.[ _ , V.[ {! sig ? ? ? !} ] ]
-                         ; relLock = V.[ 0 ]
-                         ; outputs = V.[ _ , record { value = v ; validator = ƛ (versig {!!} (allFin _)) } ]
-                         ; absLock = t } ]
+      = [ _
+        , _
+        , sig⋆ V.[ K⋆ Dp P ]
+               (record { inputs  = V.[ T at 0 ]
+                       ; wit     = wit⊥
+                       ; relLock = V.[ 0 ]
+                       ; outputs = V.[ Ctx 1 , record { value = v ; validator = ƛ (versig [ K A ] [ 0F ]) } ]
+                       ; absLock = t })
+        ]
     Bd (split Cs , p⊆ & n⊆) Dp T o v P t
-      = Bpar (Cs , p⊆ & n⊆) Dp T o P t
+      with sum (map proj₁ Cs) ≤? v
+    ... | no  _ = []
+    ... | yes _ = Bpar (Cs , p⊆ & n⊆) Dp T o P t
     Bd (A ⇒ D′ , p⊆ & n⊆) Dp T o v P t
       = Bd (D′ , p⊆ & n⊆) Dp T o v (P SETₚ.\\ [ A ]) t
     Bd (after t′ ⇒ D′ , p⊆ & n⊆) Dp T o v P t
@@ -228,19 +242,20 @@ bitml-compiler (⟨ G₀ ⟩ C₀) (uniqNames , names⊆ , putComponents , parts
         ins rewrite sym (length-mapWith∈ (setoid _) I {f = txout ∘ I⊆})
                   = V.fromList (mapWith∈ I (txout ∘ I⊆))
 
-        wits : Vec ∃Witness k
-        wits rewrite sym (length-mapWith∈ (setoid _) I {f = λ i∈ → _ , V.[ {!sig ? ? ?!} ]})
-                   = V.fromList (mapWith∈ I λ i∈ → _ , V.[ {!sig ? ? ?!} ])
+        wits : Vec (List KeyPair) k
+        wits rewrite sym (length-mapWith∈ (setoid _) I {[_] ∘ K ∘ part ∘ I⊆})
+                   = V.fromList (mapWith∈ I ([_] ∘ K ∘ part ∘ I⊆))
 
         Tc : ∃Tx
         Tc = suc k
            , _
-           , record { inputs  = T at o                       V.∷ ins
-                    ; wit     = (_ , V.[ {! sig ? ? ? !} ]) V.∷ wits
-                    ; relLock = V.replicate 0
-                    ; outputs = V.[ _ , record { value     = v
-                                               ; validator = ƛ (proj₂ (⋁ (map~′ C C~C₀ Bout))) } ]
-                    ; absLock = t }
+           , sig⋆ (K⋆ Dp P V.∷ wits)
+                  (record { inputs  = T at o V.∷ ins
+                          ; wit     = wit⊥
+                          ; relLock = V.replicate 0
+                          ; outputs = V.[ _ , record { value     = v
+                                                     ; validator = ƛ (proj₂ (⋁ (map~′ C C~C₀ Bout))) } ]
+                          ; absLock = t })
         Tc♯ = hashTx (proj₂ (proj₂ Tc))
 
     Bpar (vcs , vcs~C₀) Dp T o P t
@@ -253,13 +268,14 @@ bitml-compiler (⟨ G₀ ⟩ C₀) (uniqNames , names⊆ , putComponents , parts
         Tc : ∃Tx
         Tc = _
            , _
-           , record { inputs  = V.[ T at o ]
-                    ; wit     = V.[ _ , V.[ {! sig ? ? ? !} ] ]
-                    ; relLock = V.replicate 0
-                    ; outputs = V.map (λ{ (vᵢ , eᵢ) → _ , record { value     = vᵢ
-                                                                 ; validator = ƛ (proj₂ (⋁ eᵢ)) }})
-                                      (V.fromList eᵢⱼ)
-                    ; absLock = t }
+           , sig⋆ V.[ K⋆ Dp P ]
+                  (record { inputs  = V.[ T at o ]
+                          ; wit     = wit⊥
+                          ; relLock = V.replicate 0
+                          ; outputs = V.map (λ{ (vᵢ , eᵢ) → _ , record { value     = vᵢ
+                                                                       ; validator = ƛ (proj₂ (⋁ eᵢ)) }})
+                                            (V.fromList eᵢⱼ)
+                          ; absLock = t })
         Tc♯ = hashTx (proj₂ (proj₂ Tc))
 
         Tᵢⱼ : List ∃Tx
