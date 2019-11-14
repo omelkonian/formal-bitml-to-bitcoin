@@ -99,13 +99,13 @@ bitml-compiler :
   → (Participant → KeyPair)
   → (Contract → Participant → KeyPair)
     -- a set of transaction to be submitted
-  → Set⟨Tx⟩
-{-# NON_TERMINATING #-} -- due to interaction between Bc and Bd :(
+  → {-Set⟨Tx⟩-} List ∃Tx
+{-# TERMINATING #-} -- due to interaction between Bc and Bd :(
 bitml-compiler (⟨ G₀ ⟩ C₀) (_ , names⊆ , putComponents , _) sechash txout K K²
-  = SETₜₓ.fromList (Tinit ∷ concat (map~ C₀ λ Dᵢ Dᵢ~C₀ → Bd (Dᵢ , Dᵢ~C₀) Dᵢ Tinit♯ 0 V partG 0))
+  = {-SETₜₓ.fromList-} (Tinit ∷ concat (map~ C₀ λ Dᵢ Dᵢ~C₀ → Bd (Dᵢ , Dᵢ~C₀) Dᵢ Tinit♯ 0 V partG 0))
   where
     partG : List Participant
-    partG = participantsᵖ G₀
+    partG = SETₚ.nub (participantsᵖ G₀)
 
     -- part: maps deposit names in G to the corresponding participant
     part : ∀ {x} → inj₂ x ∈ namesᵖ G₀ → Participant
@@ -130,7 +130,7 @@ bitml-compiler (⟨ G₀ ⟩ C₀) (_ , names⊆ , putComponents , _) sechash tx
          → ∃[ ctx ] Script ctx `Bool
     Bout D (p⊆ & n⊆) with removeTopDecorations D | inspect removeTopDecorations D
     ... | put zs &reveal as if p ⇒ C | ≡[ eq ]
-        = Ctx (ς + m) , ( versig (K⋆ D partG) (take ς (allFin (ς + m)))
+        = Ctx (ς + m) , ( versig (K⋆ D partG) (map (inject+ m) (allFin ς))
                      `∧ Bᵖʳ p p⊆as
                      `∧ ⋀ (mapEnumWith∈ as (λ i a a∈ →
                              let bi = var (raise ς i)
@@ -163,7 +163,7 @@ bitml-compiler (⟨ G₀ ⟩ C₀) (_ , names⊆ , putComponents , _) sechash tx
             Bᵖʳ (x Predicate.`= y)  ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `= Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
             Bᵖʳ (x Predicate.`< y)  ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `< Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
     ... | _ | _
-        = _ , versig (K⋆ D partG) (allFin ς)
+        = Ctx ς , versig (K⋆ D partG) (allFin ς)
 
     Tinit : ∃Tx
     Tinit = _
@@ -174,7 +174,7 @@ bitml-compiler (⟨ G₀ ⟩ C₀) (_ , names⊆ , putComponents , _) sechash tx
                    ; outputs = V.[ _ , record { value     = V
                                               ; validator = ƛ (proj₂ (⋁ (map~ C₀ Bout))) } ]
                    ; absLock = 0 }
-    Tinit♯ = hashTx (proj₂ (proj₂ Tinit))
+    Tinit♯ = hashTx Tinit
 
     Bc : Σ[ C ∈ Contracts ] C ~′ C₀
        → Contract
@@ -256,7 +256,7 @@ bitml-compiler (⟨ G₀ ⟩ C₀) (_ , names⊆ , putComponents , _) sechash tx
                           ; outputs = V.[ _ , record { value     = v
                                                      ; validator = ƛ (proj₂ (⋁ (map~′ C C~C₀ Bout))) } ]
                           ; absLock = t })
-        Tc♯ = hashTx (proj₂ (proj₂ Tc))
+        Tc♯ = hashTx Tc
 
     Bpar (vcs , vcs~C₀) Dp T o P t
       = Tc ∷ Tᵢⱼ
@@ -276,7 +276,7 @@ bitml-compiler (⟨ G₀ ⟩ C₀) (_ , names⊆ , putComponents , _) sechash tx
                                                                        ; validator = ƛ (proj₂ (⋁ eᵢ)) }})
                                             (V.fromList eᵢⱼ)
                           ; absLock = t })
-        Tc♯ = hashTx (proj₂ (proj₂ Tc))
+        Tc♯ = hashTx Tc
 
         Tᵢⱼ : List ∃Tx
         Tᵢⱼ = concat (mapEnum~″ vcs vcs~C₀ λ i vᵢ Cᵢ Cᵢ~C₀ →
