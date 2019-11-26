@@ -4,15 +4,16 @@
 
 open import Function using (_∘_; _∋_)
 
-open import Data.Empty   using (⊥)
-open import Data.Unit    using (⊤)
-open import Data.Product using (∃-syntax; Σ-syntax; _×_; _,_; proj₁; proj₂; map₂)
-open import Data.Sum     using (_⊎_)
-open import Data.Nat     using (ℕ; _>_; _≥_)
-open import Data.Integer using (ℤ)
-open import Data.Fin     using (Fin; 0F)
-open import Data.Maybe   using (Maybe; just; nothing)
-open import Data.List    using (List; []; _∷_; [_]; length; map; concatMap; sum; mapMaybe; unzip; head)
+open import Data.Empty        using (⊥)
+open import Data.Unit         using (⊤)
+open import Data.Product      using (∃-syntax; Σ-syntax; _×_; _,_; proj₁; proj₂; map₂)
+open import Data.Sum          using (_⊎_)
+open import Data.Nat          using (ℕ; _>_; _≥_)
+open import Data.Integer      using (ℤ)
+open import Data.Fin          using (Fin)
+open import Data.Fin.Patterns using (0F)
+open import Data.Maybe        using (Maybe; just; nothing)
+open import Data.List         using (List; []; _∷_; [_]; length; map; concatMap; sum; mapMaybe; unzip; head)
 import Data.Vec as V
 
 
