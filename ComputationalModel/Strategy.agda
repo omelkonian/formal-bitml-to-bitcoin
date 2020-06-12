@@ -17,12 +17,12 @@ open import Data.List         using (List; []; _∷_; [_]; length; map; concatMa
 import Data.Vec as V
 
 
-open import Data.List.Membership.Propositional              using (_∈_; _∉_; mapWith∈)
-open import Data.List.Relation.Permutation.Inductive        using (_↭_)
-open import Data.List.Relation.Binary.Prefix.Heterogeneous  using (Prefix)
-open import Data.List.Relation.Binary.Sublist.Propositional using (_⊆_)
-open import Data.List.Relation.Unary.All                    using (All)
-open import Data.List.Relation.Unary.Any                    using (Any)
+open import Data.List.Membership.Propositional                  using (_∈_; _∉_; mapWith∈)
+open import Data.List.Relation.Binary.Permutation.Propositional using (_↭_)
+open import Data.List.Relation.Binary.Prefix.Heterogeneous      using (Prefix)
+open import Data.List.Relation.Binary.Sublist.Propositional     using (_⊆_)
+open import Data.List.Relation.Unary.All                        using (All)
+open import Data.List.Relation.Unary.Any                        using (Any)
 
 open import Data.Vec.Relation.Unary.All using ()
   renaming (All to Allᵥ)
