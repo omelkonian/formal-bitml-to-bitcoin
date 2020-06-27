@@ -3,30 +3,25 @@
 ------------------------------------------------------------------------
 {-# OPTIONS --allow-unsolved-metas #-}
 
-open import Data.Product using (∃-syntax; Σ-syntax; _×_; _,_)
-open import Data.Nat     using (_>_)
-open import Data.List    using (List; length)
-
+open import Data.List using (length)
 open import Data.List.Membership.Propositional using (_∉_)
 
-open import Relation.Nullary                      using (¬_)
-open import Relation.Binary                       using (Decidable)
-open import Relation.Binary.PropositionalEquality using (_≡_)
-
+open import Prelude.Init
 open import Prelude.Lists
+open import Prelude.DecEq
 
 open import Bitcoin.Crypto using (KeyPair)
 
 module ComputationalModel.Lemmas
   (Participant : Set)
-  (_≟ₚ_ : Decidable {A = Participant} _≡_)
-  (Honest : Σ[ ps ∈ List Participant ] (length ps > 0))
+  {{_ : DecEq Participant}}
+  (Honest : List⁺ Participant)
 
   (finPart : Finite Participant)
   (keypairs : ∀ (A : Participant) → KeyPair × KeyPair)
   where
 
-open import ComputationalModel.Strategy Participant _≟ₚ_ Honest finPart keypairs
+open import ComputationalModel.Strategy Participant Honest finPart keypairs
 
 ----------------------------------------
 -- Lemma 5

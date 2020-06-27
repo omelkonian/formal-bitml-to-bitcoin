@@ -3,51 +3,23 @@
 ------------------------------------------------------------------------
 {-# OPTIONS --allow-unsolved-metas #-}
 
-open import Function using (_∋_; _∘_; case_of_)
-
-open import Data.Empty   using (⊥; ⊥-elim)
-open import Data.Unit    using (⊤; tt)
-open import Data.Product using (∃; ∃-syntax; Σ; Σ-syntax; _×_; _,_; proj₁; proj₂; map₁; map₂)
-open import Data.Sum     using (_⊎_; inj₁; inj₂)
-open import Data.Nat     using (_>_; _≥_)
-open import Data.Fin     using (Fin; fromℕ; toℕ)
-  renaming (zero to 0ᶠ; suc to sucᶠ; _≟_ to _≟ᶠ_)
-open import Data.String  using (String)
-  renaming (length to lengthₛ)
-
-open import Data.List using (List; []; _∷_; [_]; length; map; concatMap; _++_; zip)
+open import Data.List using (length; map; concatMap; _++_; zip)
 open import Data.List.Membership.Propositional using (_∈_; _∉_; mapWith∈)
-open import Data.List.Relation.Unary.All as All using (All)
-open import Data.List.Relation.Unary.Any using (Any)
 
-import Data.Vec as V
-
-open import Data.Maybe using (Maybe; just; nothing)
-open import Data.Maybe.Relation.Unary.All using () renaming (All to Allₘ)
-
-open import Relation.Binary                       using (Decidable)
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; cong; sym; trans) -- ; inspect)
-
+open import Prelude.Init
 open import Prelude.Lists
-import Prelude.Set' as SET
+open import Prelude.DecEq
+open import Prelude.Set'
 
 open import BitML.BasicTypes
 
 module SymbolicModel.Lemmas
   (Participant : Set)
-  (_≟ₚ_ : Decidable {A = Participant} _≡_)
-  (Honest : Σ[ ps ∈ List Participant ] (length ps > 0))
+  {{_ : DecEq Participant}}
+  (Honest : List⁺ Participant)
   where
 
-open import BitML.Contracts.Types                  Participant _≟ₚ_ Honest
-open import BitML.Contracts.DecidableEquality      Participant _≟ₚ_ Honest
-open import BitML.Semantics.Actions.Types          Participant _≟ₚ_ Honest
-open import BitML.Semantics.Configurations.Types   Participant _≟ₚ_ Honest
-open import BitML.Semantics.Configurations.Helpers Participant _≟ₚ_ Honest
-open import BitML.Semantics.InferenceRules         Participant _≟ₚ_ Honest
-open import BitML.Semantics.Labels.Types           Participant _≟ₚ_ Honest
-
-open import SymbolicModel.Strategy Participant _≟ₚ_ Honest as SM
+open import SymbolicModel.Strategy Participant Honest as SM
 
 ----------------------------------------
 -- Lemma 3
@@ -58,12 +30,12 @@ module _ (α≢₁ : ∀ A s      → α ≢ auth-rev[ A , s ])
   strip-preserves-semantics :
       ( ∀ T′ → R   ——→[ α ] T′
                --------------------
-             → R ∗ ——→[ α ] T′ ∗ᵗ )
+             → R ∗ ——→[ α ] T′ ∗ )
 
     × ( ∀ T′ → R ∗ ——→[ α ] T′
                --------------------------
              → ∃[ T″ ] ( (R ——→[ α ] T″)
-                       × T′ ∗ᵗ ≡ T″ ∗ᵗ ))
+                       × T′ ∗ ≡ T″ ∗ ))
   strip-preserves-semantics = {!!}
 
 {-
@@ -71,7 +43,7 @@ module _ (α≢₁ : ∀ A s      → α ≢ auth-rev[ A , s ])
     where
       strip-→ : Γ —→[ α ] Γ′
             ------------------------------------------------
-          → Γ ∗ᶜ —→[ α ] Γ′ ∗ᶜ
+          → Γ ∗ —→[ α ] Γ′ ∗
       strip-→ ([C-AuthRev] {s = s} {A = A} _)
         = ⊥-elim (α≢₁ A s refl)
       strip-→ ([C-AuthCommit] {A = A} {ci = ci} {pi = pi} {ad = ad} {secrets = secrets}  _ _)
@@ -103,18 +75,18 @@ module _ (α≢₁ : ∀ A s      → α ≢ auth-rev[ A , s ])
       strip-→ ([C-PutRev] {Γ = Γ} {ds′ = ds′} {Δ = ss} pr x x₁ x₂)
         rewrite strip-ds {ds′ = ds′} {Γ = V.toList ss ∣∣ˢˢ Γ}
               | strip-ss {ss = V.toList ss} {Γ = Γ}
-              = [C-PutRev] {Γ = Γ ∗ᶜ} {ds′ = ds′} {Δ = ss} pr x x₁ x₂
+              = [C-PutRev] {Γ = Γ ∗} {ds′ = ds′} {Δ = ss} pr x x₁ x₂
 
       strip-→ ([C-Control] {contract = c} {i = i})
-        rewrite strip-b {Γ = ⟨ c ⟩ᶜ} {ps = authDecorations (c ‼ i)} {i = 0ᶠ} {j = i}
+        rewrite strip-b {Γ = ⟨ c ⟩ᶜ} {ps = authDecorations (c ‼ i)} {i = 0F} {j = i}
               = [C-Control]
 
       strip-→ₜ : Γ      at t —→ₜ[ α ] Γ′      at t′
-               → (Γ ∗ᶜ) at t —→ₜ[ α ] (Γ′ ∗ᶜ) at t′
+               → (Γ ∗) at t —→ₜ[ α ] (Γ′ ∗) at t′
       strip-→ₜ ([Action] Γ→) = [Action] (strip-→ Γ→)
       strip-→ₜ [Delay]       = [Delay]
       strip-→ₜ {t = t} {t′ = t′} ([Timeout] {Γ = Γ} {Γ′ = Γ′} ∀≤t c‼i→)
-          = [Timeout] {Γ = Γ ∗ᶜ} {Γ′ = Γ′ ∗ᶜ} ∀≤t (strip-→ c‼i→)
+          = [Timeout] {Γ = Γ ∗} {Γ′ = Γ′ ∗} ∀≤t (strip-→ c‼i→)
 
       pr₁ : ∀ T′
         → R   ——→[ α ] T′
@@ -125,10 +97,10 @@ module _ (α≢₁ : ∀ A s      → α ≢ auth-rev[ A , s ])
 
       pr0 : ∀ (Γ₀ : Configuration Iᶜᶠ[ ads , cs , ds ])
         → Γ₀ —→[ α ] Γ′
-        → Γ₀ ≡ Γ ∗ᶜ
+        → Γ₀ ≡ Γ ∗
           ---------------------------------
         → ∃[ Γ″ ] ( (Γ —→[ α ] Γ″)
-                  × Γ′ ∗ᶜ ≡ Γ″ ∗ᶜ )
+                  × Γ′ ∗ ≡ Γ″ ∗ )
       pr0 {Γ′ = Γ′} {Γ = Γ} Γ₀ Γ→ Γ₀≡
         with Γ→
       ... | _ = {!!}
@@ -147,7 +119,7 @@ module _ (α≢₁ : ∀ A s      → α ≢ auth-rev[ A , s ])
       --                  , strip-strip-rewrite {l = l} {γ = γ} {pr = refl & refl & refl & refl & refl & refl} }
       -- ... | [C-AuthControl] {A = A} {Γ = γ∗} {ci = ci} {contract = c} {i = i} p
       --     = let l = ⟨ c  ⟩ᶜ ∣∣ A auth[ c ▷ᵇ i ]∶- refl & refl & refl & refl & refl & refl
-      --                       ∶- refl & refl & refl & SETᶜ.\\-same {[ ci , c ]} & refl & refl
+      --                       ∶- refl & refl & refl & \\-same {[ ci , c ]} & refl & refl
       --           in case destruct-γ∗ {Γ = Γ} {Γ₀ = Γ₀} {l = ⟨ c ⟩ᶜ} {γ∗ = γ∗}
       --                               {pr = refl & refl & refl & refl & refl & refl}
       --                               Γ₀≡ refl
@@ -158,10 +130,10 @@ module _ (α≢₁ : ∀ A s      → α ≢ auth-rev[ A , s ])
 
       pr1 : ∀ {Γ₀ : Configuration Iᶜᶠ[ ads , cs , ds ]}
         → Γ₀ at t —→ₜ[ α ] Γ′ at t′
-        → Γ₀ ≡ Γ ∗ᶜ
+        → Γ₀ ≡ Γ ∗
           ------------------------------------
         → ∃[ Γ″ ] ( (Γ at t —→ₜ[ α ] Γ″ at t′)
-                  × (Γ′ ∗ᶜ ≡ Γ″ ∗ᶜ) )
+                  × (Γ′ ∗ ≡ Γ″ ∗) )
       pr1 {Γ′ = Γ′} {Γ = Γ} {Γ₀ = Γ₀} Γ→ₜ Γ₀≡ with Γ→ₜ
       ... | [Action] Γ→
           = case pr0 {Γ′ = Γ′} {Γ = Γ} Γ₀ Γ→ Γ₀≡
@@ -195,7 +167,7 @@ module _ (α≢₁ : ∀ A s      → α ≢ auth-rev[ A , s ])
       ... | (Γ′ at t′) with≡ eqt′
         with (eq , eq′ , eqt , eqt′)
       ... | refl , refl , refl , refl
-        with pr1 {t = t} {Γ′ = Γ′} {t′ = t′} {Γ = Γ} {Γ₀ = Γ ∗ᶜ} (help {R = R} {T′ = T′} R→) refl
+        with pr1 {t = t} {Γ′ = Γ′} {t′ = t′} {Γ = Γ} {Γ₀ = Γ ∗} (help {R = R} {T′ = T′} R→) refl
       ... | Γ″ , Γ→ , Γ≡ = (cfi′ , Γ″ at t′) , Γ→ , cong (λ g → (cfi′ , g at t′)) Γ≡
 -}
 

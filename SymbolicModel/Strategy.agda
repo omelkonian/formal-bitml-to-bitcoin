@@ -1,43 +1,30 @@
 ------------------------------------------------------------------------
 -- Symbolic strategies.
 ------------------------------------------------------------------------
-
-open import Function using (_∘_)
-
-open import Data.Empty   using (⊥)
-open import Data.Product using (∃; ∃-syntax; Σ-syntax; _×_; _,_; proj₁; proj₂; map₂; <_,_>; uncurry)
-open import Data.Sum     using (_⊎_)
-open import Data.Nat     using (ℕ; _>_; _≥_)
-open import Data.Maybe   using (Maybe; just; nothing; Is-just)
-open import Data.List    using (List; []; _∷_; [_]; length; map; concatMap; _++_)
-
-open import Data.Maybe.Relation.Unary.All using () renaming (All to Allₘ)
-
+open import Data.List using (length; map; concatMap; _++_)
 open import Data.List.Membership.Propositional using (_∈_; _∉_; mapWith∈)
-open import Data.List.Relation.Unary.All       using (All)
-open import Data.List.Relation.Unary.Any       using (Any)
+import Data.Maybe.Relation.Unary.All as M
 
-open import Relation.Binary                       using (Decidable)
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_)
-
+open import Prelude.Init hiding (Σ)
 open import Prelude.Lists
-import Prelude.Set' as SET
+open import Prelude.DecEq
+open import Prelude.Bifunctor
+open import Prelude.Collections
 
 open import BitML.BasicTypes
 
 module SymbolicModel.Strategy
   (Participant : Set)
-  (_≟ₚ_ : Decidable {A = Participant} _≡_)
-  (Honest : Σ[ ps ∈ List Participant ] (length ps > 0))
+  {{_ : DecEq Participant}}
+  (Honest : List⁺ Participant)
   where
 
-open import BitML.Contracts.Types                  Participant _≟ₚ_ Honest hiding (_∙)
-open import BitML.Contracts.DecidableEquality      Participant _≟ₚ_ Honest
-open import BitML.Semantics.Actions.Types          Participant _≟ₚ_ Honest
-open import BitML.Semantics.Configurations.Types   Participant _≟ₚ_ Honest
-open import BitML.Semantics.Configurations.Helpers Participant _≟ₚ_ Honest
-open import BitML.Semantics.InferenceRules         Participant _≟ₚ_ Honest
-open import BitML.Semantics.Labels.Types           Participant _≟ₚ_ Honest
+open import BitML.Contracts.Types                  Participant Honest hiding (_∙) public
+open import BitML.Semantics.Action                 Participant Honest public
+open import BitML.Semantics.Configurations.Types   Participant Honest public
+open import BitML.Semantics.Configurations.Helpers Participant Honest public
+open import BitML.Semantics.InferenceRules         Participant Honest public
+open import BitML.Semantics.Label                  Participant Honest public
 
 -- Symbolic runs.
 
@@ -49,7 +36,7 @@ infix  6 _∙
 infixr 5 _∷⟦_⟧_
 
 variable
-  R R′ R″ : Run
+  R R′ R″ Rˢ : Run
 
 mapRun : (TimedConfiguration → TimedConfiguration)
        → (Label → Label)
@@ -65,23 +52,39 @@ prefixRuns : Run → List Run
 prefixRuns (tc ∙)        = [ tc ∙ ]
 prefixRuns (tc ∷⟦ α ⟧ R) = let rs = prefixRuns R in rs ++ map (tc ∷⟦ α ⟧_) rs
 
+instance
+  HNʳ : Run has Name
+  HNʳ .collect r with r
+  ... | Γₜ ∙         = collect Γₜ
+  ... | Γₜ ∷⟦ _ ⟧ r′ = collect Γₜ ++ collect r′
+
+  HSʳ : Run has Secret
+  HSʳ .collect = filter₂ ∘ collect {B = Name}
+
 -- Stripping.
 
-_∗ᶜ : Configuration → Configuration
-⟨ p ∶ a ♯ _ ⟩ ∗ᶜ = ⟨ p ∶ a ♯ nothing ⟩
-(l ∣ r)       ∗ᶜ = l ∗ᶜ ∣ r ∗ᶜ
-c             ∗ᶜ = c
+record Strippable (A : Set) : Set where
+  field
+    _∗ : A → A
+open Strippable {{...}} public
 
-_∗ᵗ : TimedConfiguration → TimedConfiguration
-(Γ at t) ∗ᵗ = (Γ ∗ᶜ) at t
+instance
+  ∗ᶜ : Strippable Configuration
+  ∗ᶜ ._∗ c with c
+  ... | ⟨ p ∶ a ♯ _ ⟩ = ⟨ p ∶ a ♯ nothing ⟩
+  ... | l ∣ r         = l ∗ ∣ r ∗
+  ... | _             = c
 
-_✴ˡ : Label → Label
-_✴ˡ auth-commit[ p , ad , _ ] = auth-commit[ p , ad , [] ]
-_✴ˡ a = a
+  ∗ᵗ : Strippable TimedConfiguration
+  ∗ᵗ ._∗ (Γ at t) = (Γ ∗) at t
 
--- Hide all committed secrets in a symbolic run.
-_∗ : Run → Run
-_∗ = mapRun _∗ᵗ _✴ˡ
+  ∗ˡ : Strippable Label
+  ∗ˡ ._∗ l with l
+  ... | auth-commit[ p , ad , _ ] = auth-commit[ p , ad , [] ]
+  ... | _                         = l
+
+  ∗ʳ : Strippable Run
+  ∗ʳ ._∗ = mapRun _∗ _∗
 
 infix -1 _——→[_]_
 _——→[_]_ : Run → Label → TimedConfiguration → Set
@@ -106,7 +109,7 @@ record ParticipantStrategy (A : Participant) : Set where
             -- (2) only self-authorizations
           × (∀ {R α}
              → α ∈ Σ (R ∗)
-             → Allₘ (_≡ A) (authDecoration α))
+             → M.All (_≡ A) (authDecoration α))
             -- (3) coherent secret lengths
           × (∀ {R ad Δ Δ′}
              → auth-commit[ A , ad , Δ  ] ∈ Σ (R ∗)
@@ -130,8 +133,9 @@ HonestMoves = List (Participant × Labels)
 variable
   moves : HonestMoves
 
-_✴ᵐ : HonestMoves → HonestMoves
-_✴ᵐ = map (map₂ (map _✴ˡ))
+instance
+  ∗ᵐ : Strippable HonestMoves
+  ∗ᵐ ._∗ = map (map₂ (map _∗))
 
 module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
 
@@ -141,7 +145,7 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
 
       valid :
         ∀ {R moves} →
-          let α = Σₐ (R ∗) (moves ✴ᵐ) in
+          let α = Σₐ (R ∗) (moves ∗) in
           ( -- (1) pick from honest moves
             ∃[ A ]
               ( A ∈ Hon

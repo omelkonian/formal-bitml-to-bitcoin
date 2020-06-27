@@ -2,61 +2,41 @@
 -- Computational strategies.
 ------------------------------------------------------------------------
 
-open import Function using (_∘_; _∋_)
-
-open import Data.Empty        using (⊥)
-open import Data.Unit         using (⊤)
-open import Data.Product      using (∃-syntax; Σ-syntax; _×_; _,_; proj₁; proj₂; map₂)
-open import Data.Sum          using (_⊎_)
-open import Data.Nat          using (ℕ; _>_; _≥_)
-open import Data.Integer      using (ℤ)
-open import Data.Fin          using (Fin)
-open import Data.Fin.Patterns using (0F)
-open import Data.Maybe        using (Maybe; just; nothing)
-open import Data.List         using (List; []; _∷_; [_]; length; map; concatMap; sum; mapMaybe; unzip; head)
+open import Data.List using (length; map; concatMap; sum; mapMaybe; unzip; head)
+import Data.List.NonEmpty as NE
 import Data.Vec as V
-
+import Data.Vec.Relation.Unary.All as V
 
 open import Data.List.Membership.Propositional                  using (_∈_; _∉_; mapWith∈)
 open import Data.List.Relation.Binary.Permutation.Propositional using (_↭_)
 open import Data.List.Relation.Binary.Prefix.Heterogeneous      using (Prefix)
 open import Data.List.Relation.Binary.Sublist.Propositional     using (_⊆_)
-open import Data.List.Relation.Unary.All                        using (All)
-open import Data.List.Relation.Unary.Any                        using (Any)
 
-open import Data.Vec.Relation.Unary.All using ()
-  renaming (All to Allᵥ)
+open import Relation.Binary using (Decidable)
 
-open import Data.Maybe.Relation.Unary.All using ()
-  renaming (All to Allₘ)
-
-open import Relation.Nullary                      using (yes; no)
-open import Relation.Binary                       using (Decidable)
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_)
-
+open import Prelude.Init hiding (Σ)
 open import Prelude.Lists
-import Prelude.Set' as SET
+open import Prelude.DecEq
+open import Prelude.Bifunctor
 
-open import Bitcoin.Crypto                using (KeyPair; pub; sec)
-open import Bitcoin.BasicTypes            using (Time)
-open import Bitcoin.Script.Base           using (ƛ_; versig; Ctx)
-open import Bitcoin.Tx.Base               using (∃Tx; outputs; inputs; wit; _at_; validator; txId)
-open import Bitcoin.Tx.Crypto             using (hashTx)
-open import Bitcoin.Semantics.Consistency using (Blockchain; _▷_,_; ConsistentBlockchain)
-
--- open import BitML.BasicTypes
+open import Bitcoin.Crypto using (KeyPair; pub; sec)
+open import Bitcoin.BasicTypes  using (Time)
+open import Bitcoin.Script.Base using (ƛ_; versig; Ctx)
+open import Bitcoin.Tx.Base     using (∃Tx; outputs; inputs; wit; _at_; validator; txId)
+open import Bitcoin.Tx.Crypto   using (hashTx)
+open import Bitcoin.Consistency using (Blockchain; _▷_,_; ConsistentBlockchain)
 
 module ComputationalModel.Strategy
   (Participant : Set)
-  (_≟ₚ_ : Decidable {A = Participant} _≡_)
-  (Honest : Σ[ ps ∈ List Participant ] (length ps > 0))
+  {{_ : DecEq Participant}}
+  (Honest : List⁺ Participant)
 
   (finPart : Finite Participant)
   (keypairs : ∀ (A : Participant) → KeyPair × KeyPair)
   where
 
 Hon : List Participant
-Hon = proj₁ Honest
+Hon = NE.toList Honest
 
 allParticipants : List Participant
 allParticipants = finList finPart
@@ -80,7 +60,7 @@ Message = List ℤ
 
 data Label : Set where
   -- broadcast message
-  _→✴∶_ : Participant → Message → Label
+  _→∗∶_ : Participant → Message → Label
 
   -- append new transaction
   submit : ∃Tx → Label
@@ -98,19 +78,17 @@ Run    = List Label
 Labels = List Label
 
 variable
-  R R′ R″ : Run
+  m m′ : Message
+  R R′ R″ Rᶜ : Run
+  λᶜ : Label
 
 strip : Participant → Run → Run
 strip A = mapMaybe go
   where
     go : Label → Maybe Label
-    go l@(B →O∶  _) with A ≟ₚ B
-    ... | yes _ = just l
-    ... | no  _ = nothing
-    go l@(O→ B ∶ _) with A ≟ₚ B
-    ... | yes _ = just l
-    ... | no  _ = nothing
-    go x = just x
+    go l@(B →O∶  _) = if A == B then just l else nothing
+    go l@(O→ B ∶ _) = if A == B then just l else nothing
+    go x            = just x
 
 δʳ : Run → Time
 δʳ = sum ∘ map δˡ
@@ -129,14 +107,14 @@ strip A = mapMaybe go
 Coinbase : ∃Tx → Set
 Coinbase (_ , _ , tx) =
   ∀ {A} → A ∈ allParticipants →
-    (Ctx 1 , (ƛ (versig [ K̂ A ] [ 0F ]))) ∈ map (map₂ validator) (V.toList (outputs tx))
+    (Ctx 1 , (ƛ (versig [ K̂ A ] [ # 0 ]))) ∈ map ({-map₂-} λ{ (x , y) → x , validator y }) (V.toList (outputs tx))
 
 -- Initially, all participants broadcast both their public keys.
 initialBroadcasts : Labels
 initialBroadcasts = map go allParticipants
   where
     go : Participant → Label
-    go A = A →✴∶ (Kᵖ A ∷ K̂ᵖ A ∷ [])
+    go A = A →∗∶ (Kᵖ A ∷ K̂ᵖ A ∷ [])
 
 -- An initial run begins with a coinbase transaction and all appropriate initial broadcasts.
 Initial : Run → Set
@@ -155,9 +133,9 @@ _▷ʳ_ : Run → ∃Tx → Set
 R ▷ʳ ∃tx =
   let tx = proj₂ (proj₂ ∃tx) in
     (𝔹 R ▷ tx , δʳ R)
-  × ∃[ B ] (B →✴∶ [ hashTx ∃tx ] ∈ R)
-  × Allᵥ (λ i → ∃[ tx′ ] ((submit tx′ ∈ R) × (hashTx tx′ ≡ txId i))) (inputs tx)
-  × Allᵥ (λ w → ∃[ B ] (B →✴∶ V.toList (proj₂ w) ∈ R)) (wit tx)
+  × ∃[ B ] (B →∗∶ [ hashTx ∃tx ] ∈ R)
+  × V.All (λ i → ∃[ tx′ ] ((submit tx′ ∈ R) × (hashTx tx′ ≡ txId i))) (inputs tx)
+  × V.All (λ w → ∃[ B ] (B →∗∶ V.toList (proj₂ w) ∈ R)) (wit tx)
 
 record ParticipantStrategy (A : Participant) : Set where
   field
@@ -166,16 +144,16 @@ record ParticipantStrategy (A : Participant) : Set where
     valid : -- participant is honest
             A ∈ Hon
             -- only valid computational labels
-          × (∀ {R α} → let R✴ = strip A R in
-               α ∈ Σ R✴
+          × (∀ {R α} → let R∗ = strip A R in
+               α ∈ Σ R∗
              → ( -- (1) message from A
                  ∃[ m ]
-                   ( (α ≡ A →✴∶ m)
+                   ( (α ≡ A →∗∶ m)
                    ⊎ (α ≡ A →O∶ m) )
                  -- (2) new transaction
                ⊎ ∃[ tx ]
                     ( (α ≡ submit tx)
-                    × (R✴ ▷ʳ tx) )
+                    × (R∗ ▷ʳ tx) )
                  -- (3) delay
                ⊎ ∃[ δ ] (α ≡ delay δ)
                )
@@ -183,16 +161,16 @@ record ParticipantStrategy (A : Participant) : Set where
             -- persistence
           × (∀ {R α}
              → let
-                 R✴ = strip A R
-                 Λ  = Σ R✴
-                 R′ = α ∷ R✴
+                 R∗ = strip A R
+                 Λ  = Σ R∗
+                 R′ = α ∷ R∗
                  Λ′ = Σ R′
                in
                α ∈ Λ
              → ConsistentBlockchain (𝔹 R′)
              → (∀ {α′} → α′ ∈ Λ → α′ ≢ α → α′ ∈ Λ′)
              -- → (∀ {tx} → submit tx ∈ Λ → 𝔹 R′ → submit tx ∈ Λ′)
-             -- × (∀ {m} → (A →✴∶ m) ∈ Λ → (A →✴∶ m) ≢ α → (A →✴∶ m) ∈ Λ′)
+             -- × (∀ {m} → (A →∗∶ m) ∈ Λ → (A →∗∶ m) ≢ α → (A →∗∶ m) ∈ Λ′)
              -- × (∀ {m} → (A →O∶ m) ∈ Λ → (A →O∶ m) ≢ α → (A →O∶ m) ∈ Λ′)
             )
 
@@ -217,17 +195,17 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
       valid :
         ∀ {R moves} →
           let
-            R✴ = strip Adv R
-            α  = Σₐ R✴ moves -- T0D0 should the honest moves be stripped?
+            R∗ = strip Adv R
+            α  = Σₐ R∗ moves -- T0D0 should the honest moves be stripped?
           in
           ( -- (1) impersonate another participant
             ∃[ m ]
-              ( ∃[ A ] (α ≡ A →✴∶ m)
+              ( ∃[ A ] (α ≡ A →∗∶ m)
               ⊎ (α ≡ Adv →O∶ m) )
             -- (2) consistently update the blockchain
           ⊎ ∃[ tx ]
               ( (α ≡ submit tx)
-              × (R✴ ▷ʳ tx) )
+              × (R∗ ▷ʳ tx) )
             -- (3) delay, if all honest participants agree
           ⊎ ∃[ δ ]
               ( (α ≡ delay δ)
@@ -249,7 +227,7 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
   runAdversary : Strategies → Run → Label
   runAdversary (S† , S) R = Σₐ S† (strip Adv R) (runHonestAll R S)
 
-  oracleMessages : Labels → Labels
+  oracleMessages : Run → Labels
   oracleMessages = mapMaybe go
     where
       go : Label → Maybe Label
@@ -257,12 +235,30 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
       go l@(O→ _ ∶ _) = just l
       go _            = nothing
 
+
+  OracleQuery = Participant × Message
+  OracleReply = Participant × Message
+  OracleInteraction = Participant × Message × Message
+
   oracleRequests : Participant → Run → List (Label × Label)
-  oracleRequests A (l@(A′ →O∶ m) ∷ l′@(O→ A″ ∶ hm) ∷ R) with A ≟ₚ A′ | A′ ≟ₚ A″
+  oracleRequests A (l@(A′ →O∶ m) ∷ l′@(O→ A″ ∶ hm) ∷ R) with A ≟ A′ | A′ ≟ A″
   ... | yes _ | yes _      = (l , l′) ∷ oracleRequests A R
   ... | _     | _          = oracleRequests A R
   oracleRequests A (_ ∷ R) = oracleRequests A R
   oracleRequests _ []      = []
+
+  oracleInteractions : Run → List OracleInteraction
+  oracleInteractions r = go r []
+    where
+      go : Run → List OracleQuery → List OracleInteraction
+      go []       ws = []
+      go (l ∷ ls) ws
+        with l
+      ... | A →O∶ m   = go ls ((A , m) ∷ ws)
+      ... | O→ A ∶ m′ = case findElem ((_≟ A) ∘ proj₁) ws of λ
+        { (just (m , ws′)) → (A , proj₂ m , m′) ∷ go ls ws′
+        ; nothing          → go ls ws }
+      ... | _         = go ls ws
 
   infix -1 _-pre-conforms-to-_
   data _-pre-conforms-to-_ : Run → Strategies → Set where

@@ -2,49 +2,30 @@
 -- Helpers for stripping.
 ------------------------------------------------------------------------
 
-open import Function using (_∋_; _∘_; case_of_)
-
-open import Data.Empty   using (⊥; ⊥-elim)
-open import Data.Unit    using (⊤; tt)
-open import Data.Product using (∃; ∃-syntax; Σ; Σ-syntax; _×_; _,_; proj₁; proj₂; map₁; map₂)
-open import Data.Sum     using (_⊎_)
-open import Data.Nat     using (_>_; _≥_)
-open import Data.Fin     using (Fin; fromℕ; toℕ)
-  renaming (zero to 0ᶠ; suc to sucᶠ; _≟_ to _≟ᶠ_)
-open import Data.String  using (String)
-  renaming (length to lengthₛ)
-
-open import Data.List using (List; []; _∷_; [_]; length; map; concatMap; _++_; zip)
+open import Data.List using (length; map; concatMap; _++_; zip)
 open import Data.List.Membership.Propositional using (_∈_; _∉_; mapWith∈)
-open import Data.List.Relation.Unary.All as All using (All)
-open import Data.List.Relation.Unary.Any using (Any)
 
-open import Data.Maybe using (Maybe; just; nothing)
-open import Data.Maybe.Relation.Unary.All using () renaming (All to Allₘ)
-
-open import Relation.Binary                       using (Decidable)
-open import Relation.Binary.PropositionalEquality using (_≡_; _≢_; refl; cong; sym; trans; inspect)
-
+open import Prelude.Init
 open import Prelude.Lists
-import Prelude.Set' as SET
+open import Prelude.DecEq
+open import Prelude.Set'
 
 open import BitML.BasicTypes
 
 module SymbolicModel.Helpers
   (Participant : Set)
-  (_≟ₚ_ : Decidable {A = Participant} _≡_)
-  (Honest : Σ[ ps ∈ List Participant ] (length ps > 0))
+  {{_ : DecEq Participant}}
+  (Honest : List⁺ Participant)
   where
 
-open import BitML.Contracts.Types                  Participant _≟ₚ_ Honest hiding (c)
-open import BitML.Contracts.DecidableEquality      Participant _≟ₚ_ Honest
-open import BitML.Semantics.Actions.Types          Participant _≟ₚ_ Honest
-open import BitML.Semantics.Configurations.Types   Participant _≟ₚ_ Honest
-open import BitML.Semantics.Configurations.Helpers Participant _≟ₚ_ Honest
-open import BitML.Semantics.InferenceRules         Participant _≟ₚ_ Honest
-open import BitML.Semantics.Labels.Types           Participant _≟ₚ_ Honest
+open import BitML.Contracts.Types                  Participant Honest hiding (c)
+open import BitML.Semantics.Action                 Participant Honest
+open import BitML.Semantics.Configurations.Types   Participant Honest
+open import BitML.Semantics.Configurations.Helpers Participant Honest
+open import BitML.Semantics.InferenceRules         Participant Honest
+open import BitML.Semantics.Label                  Participant Honest
 
-open import SymbolicModel.Strategy Participant _≟ₚ_ Honest as SM
+open import SymbolicModel.Strategy Participant Honest as SM
 
 {-
 variable
@@ -63,7 +44,7 @@ variable
 strip-cases-helper : ((ci , c) ∷ cs′ ∣∣ᶜˢ Γ) ∗ᶜ
                    ≡ (  ⟨ c ⟩ᶜ
                      ∣∣ (cs′ ∣∣ᶜˢ Γ) ∗ᶜ
-                     ∶- refl & refl & refl & (SETᶜ.\\-left {[ ci , c ]}) & refl & refl )
+                     ∶- refl & refl & refl & (\\-left {[ ci , c ]}) & refl & refl )
 strip-cases-helper = refl
 
 strip-cases : (cs′ ∣∣ᶜˢ Γ) ∗ᶜ ≡ (cs′ ∣∣ᶜˢ (Γ ∗ᶜ))
@@ -103,8 +84,8 @@ strip-committedParticipants {Γp = l ∣∣ r ∶- _} {ad = ad}
         = refl
 
 strip-committedParticipants₂ :
-    All (λ p → p SETₚ.∈ committedParticipants Γp ad)                ps
-  → All (λ p → p SETₚ.∈ committedParticipants (Γp ∗ᶜ) ad) ps
+    All (λ p → p ∈ committedParticipants Γp ad)                ps
+  → All (λ p → p ∈ committedParticipants (Γp ∗ᶜ) ad) ps
 strip-committedParticipants₂ {Γp = Γp} {ad = ad} p
   rewrite strip-committedParticipants {Γp = Γp} {ad = ad} = p
 
@@ -187,11 +168,11 @@ destruct-γ∗ : ∀ {Γ Γ₀ : Configuration′ Iᶜᶠ[ ads & rads , cs & rcs
                 {l    : Configuration Iᶜᶠ[ ads′ , cs′ , ds′ ]}
                 {γ∗   : Configuration′ Iᶜᶠ[ adsʳ & radsʳ , csʳ & rcsʳ , dsʳ & rdsʳ ]}
                 {pr   : ads  ≡ ads′ ++ adsʳ
-                      × rads ≡ [] ++ (radsʳ SETₐ.\\ ads′)
+                      × rads ≡ [] ++ (radsʳ \\ ads′)
                       × cs   ≡ cs′  ++ csʳ
-                      × rcs  ≡ [] ++ (rcsʳ SETᶜ.\\ cs′)
-                      × ds   ≡ (ds′ SETₑ.\\ rdsʳ) ++ dsʳ
-                      × rds  ≡ [] ++ (rdsʳ SETₑ.\\ ds′) }
+                      × rcs  ≡ [] ++ (rcsʳ \\ cs′)
+                      × ds   ≡ (ds′ \\ rdsʳ) ++ dsʳ
+                      × rds  ≡ [] ++ (rdsʳ \\ ds′) }
   → Γ₀ ≡ Γ ∗ᶜ
   → Γ₀ ≡ (l ∗ᶜ ∣∣ γ∗ ∶- pr)
   → ∃[ γ ] ( (γ∗ ≡ γ ∗ᶜ)
