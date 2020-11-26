@@ -8,7 +8,9 @@ open import Data.List.Membership.Propositional using (_∈_)
 import Data.Vec as V
 
 open import Prelude.Init
-open import Prelude.Lists
+open import Prelude.Applicative
+open import Prelude.Semigroup
+open import Prelude.Nary
 
 -- Bitcoin
 open import Bitcoin.Crypto               using (KeyPair; HASH)

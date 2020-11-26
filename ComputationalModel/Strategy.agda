@@ -2,18 +2,6 @@
 -- Computational strategies.
 ------------------------------------------------------------------------
 
-open import Data.List using (length; map; concatMap; sum; mapMaybe; unzip; head)
-import Data.List.NonEmpty as NE
-import Data.Vec as V
-import Data.Vec.Relation.Unary.All as V
-
-open import Data.List.Membership.Propositional                  using (_∈_; _∉_; mapWith∈)
-open import Data.List.Relation.Binary.Permutation.Propositional using (_↭_)
-open import Data.List.Relation.Binary.Prefix.Heterogeneous      using (Prefix)
-open import Data.List.Relation.Binary.Sublist.Propositional     using (_⊆_)
-
-open import Relation.Binary using (Decidable)
-
 open import Prelude.Init hiding (Σ)
 open import Prelude.Lists
 open import Prelude.DecEq
@@ -32,27 +20,16 @@ module ComputationalModel.Strategy
   (Honest : List⁺ Participant)
 
   (finPart : Finite Participant)
-  (keypairs : ∀ (A : Participant) → KeyPair × KeyPair)
+  (keypairs : Participant → KeyPair × KeyPair)
   where
 
 Hon : List Participant
-Hon = NE.toList Honest
+Hon = L.NE.toList Honest
 
 allParticipants : List Participant
 allParticipants = finList finPart
 
--- Key pairs.
-K : Participant → KeyPair
-K = proj₁ ∘ keypairs
-
-K̂ : Participant → KeyPair
-K̂ = proj₂ ∘ keypairs
-
-Kᵖ : Participant → ℤ
-Kᵖ = pub ∘ K
-
-K̂ᵖ : Participant → ℤ
-K̂ᵖ = pub ∘ K̂
+open import ComputationalModel.KeyPairs Participant keypairs public
 
 -- Computational runs.
 
@@ -124,6 +101,38 @@ Initial R = ∃[ T₀ ] (Coinbase T₀ × (R ↭ (submit T₀ ∷ initialBroadca
 Valid : Run → Set
 Valid R = ∃[ R₀ ] (Initial R₀ × Prefix _≡_ R₀ R)
 
+oracleMessages : Run → Labels
+oracleMessages = mapMaybe go
+  where
+    go : Label → Maybe Label
+    go l@(_ →O∶  _) = just l
+    go l@(O→ _ ∶ _) = just l
+    go _            = nothing
+
+OracleQuery = Participant × Message
+OracleReply = Participant × Message
+OracleInteraction = Participant × Message × Message
+
+oracleRequests : Participant → Run → List (Label × Label)
+oracleRequests A (l@(A′ →O∶ m) ∷ l′@(O→ A″ ∶ hm) ∷ R) with A ≟ A′ | A′ ≟ A″
+... | yes _ | yes _      = (l , l′) ∷ oracleRequests A R
+... | _     | _          = oracleRequests A R
+oracleRequests A (_ ∷ R) = oracleRequests A R
+oracleRequests _ []      = []
+
+oracleInteractions : Run → List OracleInteraction
+oracleInteractions r = go r []
+  where
+    go : Run → List OracleQuery → List OracleInteraction
+    go []       ws = []
+    go (l ∷ ls) ws
+       with l
+    ... | A →O∶ m   = go ls ((A , m) ∷ ws)
+    ... | O→ A ∶ m′ = case findElem ((_≟ A) ∘ proj₁) ws of λ
+      { (just (m , ws′)) → (A , proj₂ m , m′) ∷ go ls ws′
+      ; nothing          → go ls ws }
+    ... | _         = go ls ws
+
 ----------------------------------
 -- Computational strategies.
 
@@ -134,8 +143,8 @@ R ▷ʳ ∃tx =
   let tx = proj₂ (proj₂ ∃tx) in
     (𝔹 R ▷ tx , δʳ R)
   × ∃[ B ] (B →∗∶ [ hashTx ∃tx ] ∈ R)
-  × V.All (λ i → ∃[ tx′ ] ((submit tx′ ∈ R) × (hashTx tx′ ≡ txId i))) (inputs tx)
-  × V.All (λ w → ∃[ B ] (B →∗∶ V.toList (proj₂ w) ∈ R)) (wit tx)
+  × V.All.All (λ i → ∃[ tx′ ] ((submit tx′ ∈ R) × (hashTx tx′ ≡ txId i))) (inputs tx)
+  × V.All.All (λ w → ∃[ B ] (B →∗∶ V.toList (proj₂ w) ∈ R)) (wit tx)
 
 record ParticipantStrategy (A : Participant) : Set where
   field
@@ -227,39 +236,6 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
   runAdversary : Strategies → Run → Label
   runAdversary (S† , S) R = Σₐ S† (strip Adv R) (runHonestAll R S)
 
-  oracleMessages : Run → Labels
-  oracleMessages = mapMaybe go
-    where
-      go : Label → Maybe Label
-      go l@(_ →O∶  _) = just l
-      go l@(O→ _ ∶ _) = just l
-      go _            = nothing
-
-
-  OracleQuery = Participant × Message
-  OracleReply = Participant × Message
-  OracleInteraction = Participant × Message × Message
-
-  oracleRequests : Participant → Run → List (Label × Label)
-  oracleRequests A (l@(A′ →O∶ m) ∷ l′@(O→ A″ ∶ hm) ∷ R) with A ≟ A′ | A′ ≟ A″
-  ... | yes _ | yes _      = (l , l′) ∷ oracleRequests A R
-  ... | _     | _          = oracleRequests A R
-  oracleRequests A (_ ∷ R) = oracleRequests A R
-  oracleRequests _ []      = []
-
-  oracleInteractions : Run → List OracleInteraction
-  oracleInteractions r = go r []
-    where
-      go : Run → List OracleQuery → List OracleInteraction
-      go []       ws = []
-      go (l ∷ ls) ws
-        with l
-      ... | A →O∶ m   = go ls ((A , m) ∷ ws)
-      ... | O→ A ∶ m′ = case findElem ((_≟ A) ∘ proj₁) ws of λ
-        { (just (m , ws′)) → (A , proj₂ m , m′) ∷ go ls ws′
-        ; nothing          → go ls ws }
-      ... | _         = go ls ws
-
   infix -1 _-pre-conforms-to-_
   data _-pre-conforms-to-_ : Run → Strategies → Set where
 
@@ -301,7 +277,7 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
         Λ = Σ (S A∈) (strip A R)
       in
         R -pre-conforms-to- SS
-      → head (oracleMessages Λ) ≡ just (Adv →O∶ m)
+      → L.head (oracleMessages Λ) ≡ just (Adv →O∶ m)
       → (∀ {hm′} → (A →O∶ m , O→ A ∶ hm′ ) ∈ oracleRequests A R
                  → hm ≡ hm′)
         -------------------------------------------------------
