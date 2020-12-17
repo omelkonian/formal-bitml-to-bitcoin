@@ -66,12 +66,6 @@ open import BitML.Contracts.Helpers Participant Honest
 open import BitML.Contracts.Induction Participant Honest
 open import BitML.Contracts.Validity Participant Honest
 
-∈-drop⁻ : ∀ {n} {A : Set} {x : A} {xs : List A}
-  → x ∈ drop n xs
-  → x ∈ xs
-∈-drop⁻ {n = 0} x∈ = x∈
-∈-drop⁻ {n = suc n} {xs = _ ∷ xs} x∈ = there $ ∈-drop⁻ {n = n} x∈
-
 bitml-compiler :
     -- the input contract & precondition (only compile valid advertisements)
     ValidAdvertisement (⟨ g ⟩ ds)
@@ -165,7 +159,7 @@ bitml-compiler {g = G₀} {ds = C₀} (_ , names⊆ , putComponents⊆ , part⊆
 
     Tᵢₙᵢₜ : ∃Tx
     Tᵢₙᵢₜ = -, -, record
-      { inputs  = V.fromList (mapWith∈ (persistentDeposits G₀) (txout₀ ∘ getName {g = G₀}))
+      { inputs  = V.fromList (codom txout₀)
       ; wit     = wit⊥
       ; relLock = V.replicate 0
       ; outputs = V.[ -, record { value = V₀ ; validator = ƛ proj₂ (⋁ (mapWith∈ C₀ (Bout ∘ cs⊆))) } ]
@@ -256,11 +250,11 @@ bitml-compiler {g = G₀} {ds = C₀} (_ , names⊆ , putComponents⊆ , part⊆
     ... | after t′ ⇒ d
         = f (C d) ≺-after (T,o & v & (P , P⊆) & t ⊔ t′ & p⊆ & s⊆ & ∃s & sechash & txout & part & val)
     -- Bc
-    ... | c′@(put zs &reveal as if _ ⇒ cs) = λ
+    ... | c′@(put zs &reveal as if p ⇒ cs) = λ
       { (here refl) → Tc
       ; (there x∈)  → f (CS cs) ≺-put
           ((Tc♯ at 0) & v & (partG , ⊆-refl) & 0
-          & p⊆ ∘ participants-helperᶜˢ {ds = cs} & s⊆ & tt
+          & p⊆ ∘ participants-helperᶜˢ {ds = cs}{zs}{as}{p} & s⊆ & tt
           & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
           & part ∘ mapMaybe-⊆ isInj₂ n⊆ & val ∘ mapMaybe-⊆ isInj₂ n⊆)
           x∈

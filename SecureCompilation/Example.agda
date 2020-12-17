@@ -3,30 +3,28 @@
 ----------------------------------------------------------------------------
 module SecureCompilation.Example where
 
-open import Data.List using (length; allFin; map; head; tail)
-open import Data.List.Membership.Propositional using (_∈_)
-import Data.Vec as V
-
 open import Prelude.Init
 open import Prelude.Applicative
 open import Prelude.Semigroup
 open import Prelude.Nary
+open import Prelude.Lists
 
 -- Bitcoin
-open import Bitcoin.Crypto               using (KeyPair; HASH)
+open import Bitcoin.Crypto using (KeyPair; HASH)
 open import Bitcoin.Script.Base
 open import Bitcoin.Tx.Base
-open import Bitcoin.Tx.Crypto            using (sig⋆; hashTx; wit⊥)
+open import Bitcoin.Tx.Crypto using (sig⋆; hashTx; wit⊥)
 
 -- BitML
-open import BitML.Example.Setup using (Participant; Honest; A; B)
-open import BitML.BasicTypes hiding (t; a; v)
-open import BitML.Contracts.Types    Participant Honest hiding (A; B)
-open import BitML.Contracts.Helpers  Participant Honest
-open import BitML.Contracts.Validity Participant Honest using (ValidAdvertisement; validAd?)
+open import BitML.Example.Setup       using (Participant; Honest; A; B)
+open import BitML.BasicTypes          hiding (t; a; v)
+open import BitML.Contracts.Types     Participant Honest hiding (A; B)
+open import BitML.Contracts.Induction Participant Honest using (CS)
+open import BitML.Contracts.Helpers   Participant Honest
+open import BitML.Contracts.Validity  Participant Honest using (ValidAdvertisement; validAd?)
 
 -- BitML compiler
-η = + 1
+η = 1
 open import SecureCompilation.Compiler Participant Honest η
 
 module Section7 where -- (see BitML paper, Section 7).
@@ -34,58 +32,63 @@ module Section7 where -- (see BitML paper, Section 7).
   ex-ad : Advertisement
   ex-ad = ⟨ A :! 1 at "x" ∣∣ B :! 1 at "y" ⟩ withdraw B ∙
 
+  partG = nub-participants (ex-ad .G)
+
   postulate
     Tˣ Tʸ : TxInput -- pre-existing deposits
-
 
   valid : ValidAdvertisement ex-ad
   valid = toWitness {Q = validAd? ex-ad} tt
 
-  sechash : ∀ {a} → inj₁ a ∈ names (G ex-ad) → ℤ
-  sechash (here ())
-  sechash (there (here ()))
-  sechash (there (there ()))
+  sechash : namesˡ (ex-ad .G) ↦ ℤ
+  sechash ()
 
-  txout : ∀ {d} → inj₂ d ∈ names (G ex-ad) → TxInput
-  txout (here  _)          = Tˣ
-  txout (there (here _))   = Tʸ
-  txout (there (there ()))
+  txout : namesʳ (ex-ad .G) ↦ TxInput
+  txout = case_of λ where
+    {- "x" -} (here _)         → Tˣ
+    {- "y" -} (there (here _)) → Tʸ
 
   postulate
     Kᵃ Kᵇ : KeyPair
     Kʷᵇ : Participant → KeyPair
 
-  K : Participant → KeyPair
-  K A = Kᵃ
-  K B = Kᵇ
+  K : partG ↦ KeyPair
+  K = case_of λ where
+    {- A -} (here _)         → Kᵃ
+    {- B -} (there (here _)) → Kᵇ
 
-  K² : Contract → Participant → KeyPair
-  K² (withdraw B) P = Kʷᵇ P
-  K² _            _ = ⊥-elim impossible
-    where postulate impossible : ⊥
+  K² : subterms′ (CS $ ex-ad .C) ↦ (partG ↦ KeyPair)
+  K² = case_of λ where
+    (here _) → case_of λ where
+      {- A -} (here _)         → Kʷᵇ A
+      {- B -} (there (here _)) → Kʷᵇ B
 
-  K⋆ : Contract → List Participant → List KeyPair
-  K⋆ D = map (K² D)
+  Ks : List KeyPair
+  Ks = mapWith∈ partG (K² $ here refl)
 
-  Tinit : Tx 2 1
-  Tinit = record { inputs  = Tˣ ∷ Tʸ ∷ []
-                 ; wit     = wit⊥
-                 ; relLock = V.replicate 0
-                 ; outputs = V.[ Ctx 2 , record { value     = 2
-                                                ; validator = ƛ (versig (K⋆ (withdraw B) (A ∷ B ∷ [])) (allFin _))}]
-                 ; absLock = 0 }
+  Tᵢₙᵢₜ : Tx 2 1
+  Tᵢₙᵢₜ = record
+    { inputs  = Tˣ ∷ Tʸ ∷ []
+    ; wit     = wit⊥
+    ; relLock = V.replicate 0
+    ; outputs = V.[ Ctx 2 , record { value = 2; validator = ƛ versig Ks (allFin _) }]
+    ; absLock = 0 }
 
   Tᵇ : Tx 1 1
-  Tᵇ = sig⋆ V.[ K⋆ (withdraw B) (A ∷ B ∷ []) ]
-            (record { inputs  = V.[ hashTx (_ , _ , Tinit) at 0 ]
-                    ; wit     = wit⊥
-                    ; relLock = V.replicate 0
-                    ; outputs = V.[ Ctx 1 , record { value     = 2
-                                                   ; validator = ƛ (versig [ K B ] [ # 0 ]) }]
-                    ; absLock = 0 })
+  Tᵇ = sig⋆ V.[ Ks ] record
+    { inputs  = V.[ hashTx (-, -, Tᵢₙᵢₜ) at 0 ]
+    ; wit     = wit⊥
+    ; relLock = V.replicate 0
+    ; outputs = V.[ Ctx 1 , record { value = 2; validator = ƛ versig [ K (there (here refl)) ] [ 0F ] }]
+    ; absLock = 0 }
 
-  _ : {-SETₜₓ.list-} (bitml-compiler ex-ad valid sechash txout K K²)
-    ≡ (_ , _ , Tinit) ∷ (_ , _ , Tᵇ) ∷ []
+  out : ∃Tx × (subterms⁺ (CS $ ex-ad .C) ↦ ∃Tx)
+  out = bitml-compiler {g = ex-ad .G} {ds = ex-ad .C} valid sechash txout K K²
+
+  outTxs : List ∃Tx
+  outTxs = let t₀ , m = out in t₀ ∷ m (here refl) ∷ []
+
+  _ : outTxs ≡ (-, -, Tᵢₙᵢₜ) ∷ (-, -, Tᵇ) ∷ []
   _ = refl
 
 module TimedCommitment where -- (see BitML, Appendix A.5)
@@ -98,91 +101,111 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
        ⊕ after t ⇒ withdraw B
        ∙
 
+  partG = nub-participants (tc .G)
+
   postulate
     Tᵃ Tᵇ : TxInput -- pre-existing deposits
 
   valid : ValidAdvertisement tc
   valid = toWitness {Q = validAd? tc} tt
 
-  sechash : ∀ {a} → inj₁ a ∈ names (G tc) → ℤ
-  sechash (here ())
-  sechash (there (here refl)) = Ha
-  sechash (there (there (here ())))
-  sechash (there (there (there ())))
+  sechash : namesˡ (tc .G) ↦ ℤ
+  sechash = case_of λ where
+    {- "a" -} (here _) → Ha
 
-  txout : ∀ {d} → inj₂ d ∈ names (G tc) → TxInput
-  txout (here  refl) = Tᵃ
-  txout (there (here ()))
-  txout (there (there (here refl))) = Tᵇ
-  txout (there (there (there ())))
+  txout : namesʳ (tc .G) ↦ TxInput
+  txout = case_of λ where
+    {- "x" -} (here _)         → Tᵃ
+    {- "y" -} (there (here _)) → Tᵇ
 
   postulate
     Kᵃ Kᵇ : KeyPair
     Kᵈ¹ Kᵈ² Kʷᵃ : Participant → KeyPair
 
-  K : Participant → KeyPair
-  K A = Kᵃ
-  K B = Kᵇ
+  K : partG ↦ KeyPair
+  K = case_of λ where
+    {- A -} (here _)         → Kᵃ
+    {- B -} (there (here _)) → Kᵇ
 
-  K² : Contract → Participant → KeyPair
-  K² (reveal ("a" ∷ []) ⇒ (withdraw A ∷ [])) P = Kᵈ² P
-  K² (withdraw A) P                            = Kʷᵃ P
-  K² (after t ⇒ withdraw B) P                  = Kᵈ² P
-  K² _            _                            = ⊥-elim impossible
-    where postulate impossible : ⊥
+  K² : subterms′ (CS $ tc .C) ↦ (partG ↦ KeyPair)
+  K² = case_of λ where
+    {- reveal "a" ⇒ withdraw A -}
+    (here _) → case_of λ where
+      {- A -} (here _)         → Kᵈ² A
+      {- B -} (there (here _)) → Kᵈ² B
+    {- withdraw A -}
+    (there (here _)) → case_of λ where
+      {- A -} (here _)         → Kʷᵃ A
+      {- B -} (there (here _)) → Kʷᵃ B
+    {- after t ⇒ withdraw B -}
+    (there (there (here _))) → case_of λ where
+      {- A -} (here _)         → Kᵈ² A
+      {- B -} (there (here _)) → Kᵈ² B
 
-  K⋆ : Contract → List Participant → List KeyPair
-  K⋆ D = map (K² D)
+  K⋆ : subterms′ (CS $ tc .C) ↦ List KeyPair
+  K⋆ = mapWith∈ partG ∘ K²
 
   e₁ : Script (Ctx 3) `Bool
-  e₁ = versig (K⋆ (reveal [ "a" ] ⇒ [ withdraw A ]) ⟦ A , B ⟧) ⟦ # 0 , # 1 ⟧
+  e₁ = versig (K⋆ $ here refl) ⟦ # 0 , # 1 ⟧
     `∧ `true
-    `∧ ⋀ [ hash (var (# 2)) `= ` (sechash (there (here refl))) `∧ ` η `< ∣ var (# 2) ∣ ]
+    `∧ ⋀ [ hash (var (# 2)) `= ` (sechash (here refl)) `∧ (` (+ η) `< ∣ var (# 2) ∣) ]
 
   e₂ : Script (Ctx 3) `Bool
-  e₂ = versig (K⋆ (after t ⇒ withdraw B) ⟦ A , B ⟧) ⟦ # 0 , # 1 ⟧
+  e₂ = versig (K⋆ $ there (there (here refl))) ⟦ # 0 , # 1 ⟧
 
   e′ : Script (Ctx 2) `Bool
-  e′ = versig (K⋆ (withdraw A) ⟦ A , B ⟧) ⟦ # 0 , # 1 ⟧
+  e′ = versig (K⋆ $ there (here refl)) ⟦ # 0 , # 1 ⟧
 
-  Tinit : ∃Tx
-  Tinit = 2 , 1 , record { inputs   = Tᵃ ∷ Tᵇ ∷ []
-                          ; wit     = wit⊥
-                          ; relLock = V.replicate 0
-                          ; outputs = V.[ _ , record { value     = v
-                                                     ; validator = ƛ (e₁ `∨ e₂) }]
-                          ; absLock = 0 }
+  Tᵢₙᵢₜ : Tx 2 1
+  Tᵢₙᵢₜ = record
+    { inputs   = Tᵃ ∷ Tᵇ ∷ []
+    ; wit     = wit⊥
+    ; relLock = V.replicate 0
+    ; outputs = V.[ _ , record { value = v ; validator = ƛ (e₁ `∨ e₂) }]
+    ; absLock = 0 }
+  Tᵢₙᵢₜ♯ = hashTx (-, -, Tᵢₙᵢₜ)
 
-  Tinit♯ = hashTx Tinit
+  T′ : Tx 1 1
+  T′ = sig⋆ V.[ K⋆ $ here refl ] record
+    { inputs  = V.[ Tᵢₙᵢₜ♯ at 0 ]
+    ; wit     = wit⊥
+    ; relLock = V.replicate 0
+    ; outputs = V.[ _ , record { value = v ; validator = ƛ e′ }]
+    ; absLock = 0 }
 
-  T′ : ∃Tx
-  T′ = 1 , 1 , sig⋆ V.[ K⋆ (reveal [ "a" ] ⇒ [ withdraw A ]) ⟦ A , B ⟧ ]
-                    (record { inputs  = V.[ Tinit♯ at 0 ]
-                            ; wit     = wit⊥
-                            ; relLock = V.replicate 0
-                            ; outputs = V.[ _ , record { value     = v
-                                                       ; validator = ƛ e′ }]
-                            ; absLock = 0 })
+  T′ᵃ : Tx 1 1
+  T′ᵃ = sig⋆ V.[ K⋆ $ there (here refl) ] record
+    { inputs  = V.[ hashTx (-, -, T′) at 0 ]
+    ; wit     = wit⊥
+    ; relLock = V.replicate 0
+    ; outputs = V.[ Ctx 1 , record { value = v ; validator = ƛ versig [ K $ here refl ] [ # 0 ] }]
+    ; absLock = 0 }
 
-  T′♯ = hashTx T′
+  T′ᵇ : Tx 1 1
+  T′ᵇ = sig⋆ V.[ K⋆ $ there (there (here refl)) ] record
+    { inputs  = V.[ Tᵢₙᵢₜ♯ at 0 ]
+    ; wit     = wit⊥
+    ; relLock = V.replicate 0
+    ; outputs = V.[ Ctx 1 , record { value = v ; validator = ƛ versig [ K $ there (here refl) ] [ # 0 ] }]
+    ; absLock = t }
 
-  T′ᵃ : ∃Tx
-  T′ᵃ = 1 , 1 , sig⋆ V.[ K⋆ (withdraw A) ⟦ A , B ⟧ ]
-                     (record { inputs  = V.[ T′♯ at 0 ]
-                             ; wit     = wit⊥
-                             ; relLock = V.replicate 0
-                             ; outputs = V.[ Ctx 1 , record { value     = v
-                                                            ; validator = ƛ (versig [ K A ] [ # 0 ]) }]
-                             ; absLock = 0 })
+  out : ∃Tx × (subterms⁺ (CS $ tc .C) ↦ ∃Tx)
+  out = bitml-compiler {g = tc .G} {ds = tc .C} valid sechash txout K K²
 
-  T′ᵇ : ∃Tx
-  T′ᵇ = 1 , 1 , sig⋆ V.[ K⋆ (after t ⇒ withdraw B) ⟦ A , B ⟧ ]
-                     (record { inputs  = V.[ Tinit♯ at 0 ]
-                             ; wit     = wit⊥
-                             ; relLock = V.replicate 0
-                             ; outputs = V.[ Ctx 1 , record { value     = v
-                                                            ; validator = ƛ (versig [ K B ] [ # 0 ]) }]
-                             ; absLock = t })
+  outTxs : List ∃Tx
+  outTxs = let t₀ , m = out in t₀ ∷ m (here refl) ∷ m (there (here refl)) ∷ m (there (there (here refl))) ∷ []
 
-  _ : bitml-compiler tc valid sechash txout K K² ≡ (Tinit ∷ T′ ∷ T′ᵃ ∷ T′ᵇ ∷ [])
-  _ = refl
+  _ : (outTxs ‼ # 0) ≡ (-, -, Tᵢₙᵢₜ)
+  _ = {!refl!}
+
+  _ : (outTxs ‼ # 1) ≡ (-, -, T′)
+  _ = {!refl!}
+
+  _ : (outTxs ‼ # 2) ≡ (-, -, T′ᵃ)
+  _ = {!refl!}
+
+  _ : (outTxs ‼ # 3) ≡ (-, -, T′ᵇ)
+  _ = {!refl!}
+
+  _ : outTxs ≡ (-, -, Tᵢₙᵢₜ) ∷ (-, -, T′) ∷ (-, -, T′ᵃ) ∷ (-, -, T′ᵇ) ∷ []
+  _ = {!refl!}
