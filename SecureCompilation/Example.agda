@@ -195,17 +195,5 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
   outTxs : List ∃Tx
   outTxs = let t₀ , m = out in t₀ ∷ m (here refl) ∷ m (there (here refl)) ∷ m (there (there (here refl))) ∷ []
 
-  _ : (outTxs ‼ # 0) ≡ (-, -, Tᵢₙᵢₜ)
-  _ = {!refl!}
-
-  _ : (outTxs ‼ # 1) ≡ (-, -, T′)
-  _ = {!refl!}
-
-  _ : (outTxs ‼ # 2) ≡ (-, -, T′ᵃ)
-  _ = {!refl!}
-
-  _ : (outTxs ‼ # 3) ≡ (-, -, T′ᵇ)
-  _ = {!refl!}
-
   _ : outTxs ≡ (-, -, Tᵢₙᵢₜ) ∷ (-, -, T′) ∷ (-, -, T′ᵃ) ∷ (-, -, T′ᵇ) ∷ []
-  _ = {!refl!}
+  _ = refl

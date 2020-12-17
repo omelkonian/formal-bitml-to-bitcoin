@@ -124,10 +124,10 @@ bitml-compiler {g = G₀} {ds = C₀} (_ , names⊆ , putComponents⊆ , part⊆
             m = length as
 
             p⊆ : putComponents D ⊆ putComponents C₀
-            p⊆ = subterms′-putComponents⊆ {ds = C₀} D∈
+            p⊆ = subterms′-collect⊆ᶜˢ {ds = C₀} D∈
 
             n⊆ : names D ⊆ names C₀
-            n⊆ = subterms′-names⊆ {d = D} {ds = C₀} D∈
+            n⊆ = subterms′-collect⊆ᶜˢ {d = D} {ds = C₀} D∈
 
             put∈ : (zs , as , p) ∈ putComponents D
             put∈ rewrite remove-putComponents {D} | eq = here refl
@@ -254,7 +254,7 @@ bitml-compiler {g = G₀} {ds = C₀} (_ , names⊆ , putComponents⊆ , part⊆
       { (here refl) → Tc
       ; (there x∈)  → f (CS cs) ≺-put
           ((Tc♯ at 0) & v & (partG , ⊆-refl) & 0
-          & p⊆ ∘ participants-helperᶜˢ {ds = cs}{zs}{as}{p} & s⊆ & tt
+          & p⊆ & s⊆ & tt
           & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
           & part ∘ mapMaybe-⊆ isInj₂ n⊆ & val ∘ mapMaybe-⊆ isInj₂ n⊆)
           x∈
@@ -295,7 +295,7 @@ bitml-compiler {g = G₀} {ds = C₀} (_ , names⊆ , putComponents⊆ , part⊆
       { (here refl) → Tc
       ; (there x∈)  → f (VCS vcs) ≺-split
           ((Tc♯ at 0) & v & (partG , ⊆-refl) & 0
-          & p⊆ ∘ participants-helperᵛᶜˢ {vcs = vcs} & s⊆ & tt
+          & p⊆ & s⊆ & tt
           & sechash & txout & part & val)
           x∈
       }
