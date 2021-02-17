@@ -16,7 +16,7 @@ open import Prelude.Init
 open import Prelude.General
 open import Prelude.Lists
 open import Prelude.DecEq
-open import Prelude.Set'
+open import Prelude.Sets
 open import Prelude.Collections
 
 -- Bitcoin
@@ -124,10 +124,10 @@ bitml-compiler {g = G₀} {ds = C₀} (_ , names⊆ , putComponents⊆ , part⊆
             m = length as
 
             p⊆ : putComponents D ⊆ putComponents C₀
-            p⊆ = subterms′-collect⊆ᶜˢ {ds = C₀} D∈
+            p⊆ = subterms′-putComponents⊆ᶜˢ {ds = C₀} D∈
 
             n⊆ : names D ⊆ names C₀
-            n⊆ = subterms′-collect⊆ᶜˢ {d = D} {ds = C₀} D∈
+            n⊆ = subterms′-names⊆ᶜˢ {d = D} {ds = C₀} D∈
 
             put∈ : (zs , as , p) ∈ putComponents D
             put∈ rewrite remove-putComponents {D} | eq = here refl

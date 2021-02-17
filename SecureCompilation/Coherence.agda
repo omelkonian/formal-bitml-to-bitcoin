@@ -272,7 +272,7 @@ data coher₁₁ where
         sechash″ = weaken-↦ sechash′ {!!}
 
         Tᵢₙᵢₜ : ∃Tx
-        Tᵢₙᵢₜ = L.NE.head $ bitml-compiler ⟨G⟩C vad {!!} {-sechash″-} {!!}{-txout″-} K̂ {!!} {-κ′ (here refl)-}
+        Tᵢₙᵢₜ = L.NE.head $ bitml-compiler vad {!!} {-sechash″-} {!!}{-txout″-} K̂ {!!} {-κ′ (here refl)-}
 
         -- (i) broadcast Tᵢₙᵢₜ , signed with A's private key
         m = [ SIG (K̂ A) Tᵢₙᵢₜ ]
@@ -318,7 +318,7 @@ data coher₁₁ where
         sechash″ = weaken-↦ sechash′ {!!}
 
         Tᵢₙᵢₜ : ∃Tx
-        Tᵢₙᵢₜ = L.NE.head $ bitml-compiler ⟨G⟩C vad sechash″ txout″ K̂ {!!} {-κ′ (here refl)-}
+        Tᵢₙᵢₜ = L.NE.head $ bitml-compiler vad sechash″ txout″ K̂ {!!} {-κ′ (here refl)-}
 
         -- (ii) append Tᵢₙᵢₜ to the blockchain
         λᶜ = submit Tᵢₙᵢₜ
@@ -385,7 +385,7 @@ data coher₁₁ where
         T : ∃Tx
         T = {!!}
         -- T = L.NE.head $ Bd d ? d⊆C₀ d (hashTx T′) o v partG 0
-        --   where open Bitml-compiler ⟨G⟩C vad {!!} {-sechash″-} {!!}{-txout″-} K̂ {!!} {-κ′ (here refl)-}
+        --   where open Bitml-compiler vad {!!} {-sechash″-} {!!}{-txout″-} K̂ {!!} {-κ′ (here refl)-}
 
         λᶜ = B →∗∶ [ SIGᵖ (proj₂ κ′ ad∈ d∈ A∈) T ]
       in
@@ -494,7 +494,7 @@ data coher₁₁ where
         T : ∃Tx
         T = {!!}
         -- T = L.NE.head $ Bd d ? d⊆C₀ d (hashTx T′) o v partG 0
-        --   where open Bitml-compiler ⟨G⟩C vad {!!} {-sechash″-} {!!}{-txout″-} K̂ {!!} {-κ′ (here refl)-}
+        --   where open Bitml-compiler vad {!!} {-sechash″-} {!!}{-txout″-} K̂ {!!} {-κ′ (here refl)-}
 
         λᶜ = submit T
 
@@ -536,7 +536,7 @@ data coher₁₁ where
         T : ∃Tx
         T = {!!}
         -- T = L.NE.head $ Bd d ? d⊆C₀ d (hashTx T′) o v partG 0
-        --   where open Bitml-compiler ⟨G⟩C vad {!!} {-sechash″-} {!!}{-txout″-} K̂ {!!} {-κ′ (here refl)-}
+        --   where open Bitml-compiler vad {!!} {-sechash″-} {!!}{-txout″-} K̂ {!!} {-κ′ (here refl)-}
 
         λᶜ = submit T
 

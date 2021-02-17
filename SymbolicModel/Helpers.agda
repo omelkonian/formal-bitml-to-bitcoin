@@ -8,7 +8,7 @@ open import Data.List.Membership.Propositional using (_∈_; _∉_; mapWith∈)
 open import Prelude.Init
 open import Prelude.Lists
 open import Prelude.DecEq
-open import Prelude.Set'
+open import Prelude.Sets
 
 open import BitML.BasicTypes
 
