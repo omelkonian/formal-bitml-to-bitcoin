@@ -9,3 +9,5 @@ open import SymbolicModel.Lemmas
 
 open import ComputationalModel.Strategy
 open import ComputationalModel.Lemmas
+
+open import SecureCompilation.Coherence

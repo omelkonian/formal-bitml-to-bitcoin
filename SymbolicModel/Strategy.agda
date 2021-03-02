@@ -11,20 +11,18 @@ open import Prelude.DecEq
 open import Prelude.Bifunctor
 open import Prelude.Collections
 
-open import BitML.BasicTypes
-
 module SymbolicModel.Strategy
   (Participant : Set)
   {{_ : DecEq Participant}}
   (Honest : List⁺ Participant)
   where
 
-open import BitML.Contracts.Types                  Participant Honest hiding (_∙) public
-open import BitML.Semantics.Action                 Participant Honest public
-open import BitML.Semantics.Configurations.Types   Participant Honest public
-open import BitML.Semantics.Configurations.Helpers Participant Honest public
-open import BitML.Semantics.InferenceRules         Participant Honest public
-open import BitML.Semantics.Label                  Participant Honest public
+open import BitML.BasicTypes public
+open import BitML.Predicate public
+  hiding (∣_∣; `)
+open import BitML.Contracts Participant Honest public
+  hiding (_∙)
+open import BitML.Semantics Participant Honest public
 
 -- Symbolic runs.
 
@@ -52,14 +50,27 @@ prefixRuns : Run → List Run
 prefixRuns (tc ∙)        = [ tc ∙ ]
 prefixRuns (tc ∷⟦ α ⟧ R) = let rs = prefixRuns R in rs ++ map (tc ∷⟦ α ⟧_) rs
 
+-- mkCollectʳ : ∀ {X : Set} ⦃ _ : TimedConfiguration has X ⦄ → Run has X
+-- mkCollectʳ ⦃ ht ⦄ .collect r with r
+-- ... | Γₜ ∙         = collect ⦃ ht ⦄ Γₜ
+-- ... | Γₜ ∷⟦ _ ⟧ r′ = collect ⦃ ht ⦄ Γₜ ++ collect ⦃ mkCollectʳ ⦃ ht ⦄ ⦄ r′
+
 instance
+  -- Hᵗᶜᶠ⇒Hʳ : ∀ {X : Set} ⦃ _ : TimedConfiguration has X ⦄ → Run has X
+  -- -- Hᵗᶜᶠ⇒Hʳ ⦃ ht ⦄ = mkCollectʳ ⦃ ht ⦄
+  -- Hᵗᶜᶠ⇒Hʳ ⦃ ht ⦄ .collect = collect ⦃ ht ⦄ ∘ lastCfg
+
+  HAʳ : Run has Advertisement
+  -- HAʳ .collect = mkCollectʳ
+  HAʳ .collect = authorizedHonAds ∘ cfg ∘ lastCfg
+
   HNʳ : Run has Name
-  HNʳ .collect r with r
-  ... | Γₜ ∙         = collect Γₜ
-  ... | Γₜ ∷⟦ _ ⟧ r′ = collect Γₜ ++ collect r′
+  -- HNʳ .collect = mkCollectʳ
+  HNʳ .collect = collect ∘ lastCfg
 
   HSʳ : Run has Secret
   HSʳ .collect = filter₂ ∘ collect {B = Name}
+
 
 -- Stripping.
 

@@ -109,7 +109,7 @@ bitml-compiler {g = G₀} {ds = C₀} (_ , names⊆ , putComponents⊆ , part⊆
     val₀ : namesʳ G₀ ↦ Value
     val₀ = proj₁ ∘ proj₂ ∘ proj₁ ∘ getDeposit {g = G₀}
 
-    -- Bout:
+    -- Bout
     Bout : subterms′ CS₀ ↦ (∃[ ctx ] Script ctx `Bool)
     Bout {D} D∈ with removeTopDecorations D | inspect removeTopDecorations D
     ... | put zs &reveal as if p ⇒ _ | ≡[ eq ]
