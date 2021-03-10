@@ -1,3 +1,4 @@
+{-# OPTIONS --allow-unsolved-metas #-}
 ------------------------------------------------------------------------
 -- Symbolic strategies.
 ------------------------------------------------------------------------
@@ -50,6 +51,30 @@ prefixRuns : Run → List Run
 prefixRuns (tc ∙)        = [ tc ∙ ]
 prefixRuns (tc ∷⟦ α ⟧ R) = let rs = prefixRuns R in rs ++ map (tc ∷⟦ α ⟧_) rs
 
+allCfgs⁺ : Run → List⁺ Configuration
+allCfgs⁺ (tc ∙)        = cfg tc ∷ []
+allCfgs⁺ (tc ∷⟦ _ ⟧ r) = cfg tc ∷⁺ allCfgs⁺ r
+
+allCfgs : Run → List Configuration
+allCfgs = L.NE.tail ∘ allCfgs⁺
+
+-- ** ancestor advertisement of an active contract
+
+Ancestor : Run → ActiveContract → Advertisement → Set
+Ancestor R (c , v , x) ad
+  = (c ⊆ subtermsᶜ′ (C ad))
+  × Any ((` ad) ∈ᶜ_) Rᶜ
+  × Any (⟨ c , v ⟩at x ∈ᶜ_) Rᶜ
+  where Rᶜ = allCfgs R
+
+Ancestor⇒∈ : Ancestor R (c , v , x) ad → c ⊆ subtermsᶜ′ (C ad)
+Ancestor⇒∈ = proj₁
+
+-- T0D0: replace with SymbolicModel.Ancestor, with proper provenance
+
+------------------
+-- ** Collections
+
 -- mkCollectʳ : ∀ {X : Set} ⦃ _ : TimedConfiguration has X ⦄ → Run has X
 -- mkCollectʳ ⦃ ht ⦄ .collect r with r
 -- ... | Γₜ ∙         = collect ⦃ ht ⦄ Γₜ
@@ -71,6 +96,12 @@ instance
   HSʳ : Run has Secret
   HSʳ .collect = filter₂ ∘ collect {B = Name}
 
+  HLʳ : Run has Label
+  HLʳ .collect (_ ∙)        = []
+  HLʳ .collect (_ ∷⟦ α ⟧ R) = α ∷ collect R
+
+labels : ∀ {X : Set} → ⦃ _ :  X has Label ⦄ → X → Labels
+labels = collect
 
 -- Stripping.
 
@@ -102,7 +133,7 @@ _——→[_]_ : Run → Label → TimedConfiguration → Set
 R ——→[ α ] tc′ = lastCfg R —→ₜ[ α ] tc′
 
 _∈ʳ_ : Configuration → Run → Set
-_∈ʳ_ c R = c ∈ cfgToList (cfg (lastCfg (R ∗)))
+_∈ʳ_ c R = c ∈ᶜ cfg (lastCfg (R ∗))
 
 ----------------------------------
 -- Symbolic strategies.
