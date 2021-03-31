@@ -14,7 +14,7 @@ open import Bitcoin.Crypto using (KeyPair)
 
 module ComputationalModel.Lemmas
   (Participant : Set)
-  {{_ : DecEq Participant}}
+  ⦃ _ : DecEq Participant ⦄
   (Honest : List⁺ Participant)
 
   (finPart : Finite Participant)

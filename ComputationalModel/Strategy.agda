@@ -16,7 +16,7 @@ open import Bitcoin.Consistency using (Blockchain; _▷_,_; ConsistentBlockchain
 
 module ComputationalModel.Strategy
   (Participant : Set)
-  {{_ : DecEq Participant}}
+  ⦃ _ : DecEq Participant ⦄
   (Honest : List⁺ Participant)
 
   (finPart : Finite Participant)

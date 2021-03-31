@@ -6,7 +6,7 @@ open import Bitcoin.Crypto
 
 module ComputationalModel.KeyPairs
   (Participant : Set)
-  {{_ : DecEq Participant}}
+  ⦃ _ : DecEq Participant ⦄
 
   (keypairs : Participant → KeyPair × KeyPair)
   where

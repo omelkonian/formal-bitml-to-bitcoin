@@ -1,4 +1,4 @@
-{-# OPTIONS --allow-unsolved-metas #-}
+-- {-# OPTIONS --allow-unsolved-metas #-}
 ------------------------------------------------------------------------
 -- Symbolic strategies.
 ------------------------------------------------------------------------
@@ -14,7 +14,7 @@ open import Prelude.Collections
 
 module SymbolicModel.Strategy
   (Participant : Set)
-  {{_ : DecEq Participant}}
+  ⦃ _ : DecEq Participant ⦄
   (Honest : List⁺ Participant)
   where
 
@@ -56,21 +56,12 @@ allCfgs⁺ (tc ∙)        = cfg tc ∷ []
 allCfgs⁺ (tc ∷⟦ _ ⟧ r) = cfg tc ∷⁺ allCfgs⁺ r
 
 allCfgs : Run → List Configuration
-allCfgs = L.NE.tail ∘ allCfgs⁺
+allCfgs = L.NE.toList ∘ allCfgs⁺
 
--- ** ancestor advertisement of an active contract
+cfg⟨lastCfg⟩≡head⟨allCfgs⟩ : cfg (lastCfg R) ≡ L.NE.head (allCfgs⁺ R)
+cfg⟨lastCfg⟩≡head⟨allCfgs⟩ {R = _ ∙}        = refl
+cfg⟨lastCfg⟩≡head⟨allCfgs⟩ {R = _ ∷⟦ _ ⟧ _} = refl
 
-Ancestor : Run → ActiveContract → Advertisement → Set
-Ancestor R (c , v , x) ad
-  = (c ⊆ subtermsᶜ′ (C ad))
-  × Any ((` ad) ∈ᶜ_) Rᶜ
-  × Any (⟨ c , v ⟩at x ∈ᶜ_) Rᶜ
-  where Rᶜ = allCfgs R
-
-Ancestor⇒∈ : Ancestor R (c , v , x) ad → c ⊆ subtermsᶜ′ (C ad)
-Ancestor⇒∈ = proj₁
-
--- T0D0: replace with SymbolicModel.Ancestor, with proper provenance
 
 ------------------
 -- ** Collections
@@ -87,7 +78,8 @@ instance
 
   HAʳ : Run has Advertisement
   -- HAʳ .collect = mkCollectʳ
-  HAʳ .collect = authorizedHonAds ∘ cfg ∘ lastCfg
+  -- HAʳ .collect = authorizedHonAds ∘ cfg ∘ lastCfg
+  HAʳ .collect = concatMap authorizedHonAds ∘ allCfgs
 
   HNʳ : Run has Name
   -- HNʳ .collect = mkCollectʳ
@@ -103,12 +95,31 @@ instance
 labels : ∀ {X : Set} → ⦃ _ :  X has Label ⦄ → X → Labels
 labels = collect
 
+-- ** ancestor advertisement of an active contract
+
+Ancestor : Run → ActiveContract → Advertisement → Set
+Ancestor R (c , v , x) ad
+  = (c ⊆ subtermsᶜ′ (C ad))
+  × (ad ∈ advertisements R)
+  × Any ((` ad) ∈ᶜ_) Rᶜ
+  × Any (⟨ c , v ⟩at x ∈ᶜ_) Rᶜ
+  where Rᶜ = allCfgs R
+
+Ancestor⇒∈ : Ancestor R (c , v , x) ad → c ⊆ subtermsᶜ′ (C ad)
+Ancestor⇒∈ = proj₁
+
+Ancestor→𝕂 : Ancestor R (c , v , x) ad → ad ∈ advertisements R
+Ancestor→𝕂 = proj₁ ∘ proj₂
+
+-- T0D0: replace with SymbolicModel.Ancestor, with proper provenance
+
+
 -- Stripping.
 
 record Strippable (A : Set) : Set where
   field
     _∗ : A → A
-open Strippable {{...}} public
+open Strippable ⦃ ... ⦄ public
 
 instance
   ∗ᶜ : Strippable Configuration

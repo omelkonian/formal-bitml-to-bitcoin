@@ -15,7 +15,7 @@ open import BitML.BasicTypes
 
 module SymbolicModel.Lemmas
   (Participant : Set)
-  {{_ : DecEq Participant}}
+  ⦃ _ : DecEq Participant ⦄
   (Honest : List⁺ Participant)
   where
 

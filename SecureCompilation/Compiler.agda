@@ -3,11 +3,14 @@
 ----------------------------------------------------------------------------
 
 open import Data.Fin as Fin using (raise; inject+; toℕ)
+
+
 open import Data.Nat.Properties using (≤-refl; <-trans; n<1+n)
 open import Data.List.Membership.Propositional.Properties
 open import Data.List.Membership.Setoid.Properties         using (length-mapWith∈)
 open import Data.List.Relation.Unary.Any                   using (index)
 open import Data.List.Relation.Unary.All                   using (lookup)
+
 open import Data.List.Relation.Binary.Subset.Propositional.Properties using (⊆-refl)
 
 open import Relation.Binary.PropositionalEquality using (setoid)
@@ -42,7 +45,7 @@ module SecureCompilation.Compiler
 
   -- BitML parameters
   (Participant : Set)
-  {{_ : DecEq Participant}}
+  ⦃ _ : DecEq Participant ⦄
   (Honest : List⁺ Participant)
 
   -- Compilation parameters
@@ -51,34 +54,32 @@ module SecureCompilation.Compiler
 
 -- BitML
 open import BitML.BasicTypes
-  using ( Secret; Time; Value; Values; Id; Ids; Name; Names
-        ; {-variables-} v; x; xs; as; t )
-open import BitML.Predicate
-  using ( Predicate; Arith
-        ; {-variables-} p )
-open import BitML.Contracts.Types Participant Honest
-  using ( Contract; Contracts; VContracts
-        ; put_&reveal_if_⇒_; withdraw; split; _⇒_; after_⇒_
-        ; Precondition
-        ; ⟨_⟩_; Advertisement; G
-        ; {-variables-} A; g; d; d′; ds; ds′; vcs )
-open import BitML.Contracts.Helpers Participant Honest
-open import BitML.Contracts.Induction Participant Honest
-open import BitML.Contracts.Validity Participant Honest
+open import BitML.Predicate using (Predicate; Arith)
+open import BitML.Contracts Participant Honest
+  hiding (C)
+open Induction
+open import BitML.Semantics Participant Honest
+  using (advertisements)
 
-bitml-compiler :
+
+-- Useful type aliases for maps over specific sets.
+
+open import SymbolicModel.Helpers Participant Honest
+
+-- The actual compiler.
+
+bitml-compiler : let ad = ⟨ g ⟩ ds in
     -- the input contract & precondition (only compile valid advertisements)
-    ValidAdvertisement (⟨ g ⟩ ds)
+    ValidAdvertisement ad
     -- sechash: maps secrets in G to the corresponding committed hashes
-  → (sechash : namesˡ g ↦ ℤ)
+  → (sechash : Sechash g)
     -- txout: maps deposits in G to *pre-existing* transactions with the corresponding value
-  → (txout : namesʳ g ↦ TxInput)
+  → (txout : Txout g)
     -- Exchanged keypairs K(A) and K(D,A)
-  → let partG = nub-participants g in
-    (K : partG ↦ KeyPair)
-  → (K² : subterms′ (CS ds) ↦ (partG ↦ KeyPair))
+  → (K : 𝕂 g)
+  → (K² : 𝕂²′ ad)
     -- a set of transactions to be submitted
-  → ∃Tx × (subterms⁺ (CS ds) ↦ ∃Tx)
+  → ∃Tx × (subtermsᶜ⁺ ds ↦ ∃Tx)
 bitml-compiler {g = G₀} {ds = C₀} (_ , names⊆ , putComponents⊆ , part⊆) sechash₀ txout₀ K K²
   = Tᵢₙᵢₜ , (≺-rec _ go) CS₀ record
       { T,o     = Tᵢₙᵢₜ♯ at 0
@@ -99,15 +100,28 @@ bitml-compiler {g = G₀} {ds = C₀} (_ , names⊆ , putComponents⊆ , part⊆
     V₀    = sum (map (proj₁ ∘ proj₂) (persistentDeposits G₀))
 
     p⊆₀ : participants C₀ ⊆ participants G₀
-    p⊆₀ = persistent⊆ {G₀} ∘ part⊆ ∘ ∈-++⁺ʳ (participants G₀)
+    p⊆₀ = persistentParticipants⊆ {G₀} ∘ part⊆ ∘ ∈-++⁺ʳ (participants G₀)
 
     -- part: maps deposit names in G to the corresponding participant
     part₀ : namesʳ G₀ ↦ ∃ (_∈ partG)
-    part₀ x∈ = _ , ∈-nub⁺ (proj₂ (getDeposit {g = G₀} x∈))
+    part₀ = -,_ ∘ ∈-nub⁺ ∘ proj₂ ∘ getDeposit {g = G₀}
+
+    -- Part₀ : Pred₀ Precondition
+    -- Part₀ g = volatileNamesʳ g ↦ ∃ (_∈ nub-participants g)
+    private variable X : Set
+
+    Part : ⦃ _ : X has Name ⦄ → Pred₀ X
+    Part x = namesʳ x ↦ ∃ (_∈ partG)
 
     -- val: maps deposit names in G to the value contained in the deposit
     val₀ : namesʳ G₀ ↦ Value
     val₀ = proj₁ ∘ proj₂ ∘ proj₁ ∘ getDeposit {g = G₀}
+
+    -- Val₀ : Pred₀ Precondition
+    -- Val₀ g = volatileNamesʳ g ↦ Value
+
+    Val : ⦃ _ : X has Name ⦄ → Pred₀ X
+    Val x = namesʳ x ↦ Value
 
     -- Bout
     Bout : subterms′ CS₀ ↦ (∃[ ctx ] Script ctx `Bool)
@@ -186,10 +200,10 @@ bitml-compiler {g = G₀} {ds = C₀} (_ , names⊆ , putComponents⊆ , part⊆
         s⊆ : subterms′ c ⊆ subterms′ CS₀
         ∃s : case c of λ{ (C _) → ∃ (_∈ subterms′ CS₀) ; _ → ⊤}
 
-        sechash : namesˡ c ↦ ℤ
-        txout   : namesʳ c ↦ TxInput
-        part    : namesʳ c ↦ ∃ (_∈ partG)
-        val     : namesʳ c ↦ Value
+        sechash : Sechash c
+        txout   : Txout c
+        part    : Part c
+        val     : Val c
     open State
 
     Return : ℂ → Set
