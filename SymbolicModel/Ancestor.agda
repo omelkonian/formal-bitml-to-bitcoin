@@ -6,11 +6,11 @@ module SymbolicModel.Ancestor where
 
 -- transitionsᵗ : Run → TransitionList TimeConfiguration
 -- transitionsᵗ (_ ∙) = []
--- transitionsᵗ (tc ∷⟦ α ⟧ R) = (tc , α , lastCfg R) ∷ transitionsᵗ R
+-- transitionsᵗ (tc ∷⟦ α ⟧ R) = (tc , α , lastCfgᵗ R) ∷ transitionsᵗ R
 
 -- transitions : Run → TransitionList Configuration
 -- transitions (_ ∙) = []
--- transitions (tc ∷⟦ α ⟧ R) = (cfg tc , α , cfg $ lastCfg R) ∷ transitions R
+-- transitions (tc ∷⟦ α ⟧ R) = (cfg tc , α , cfg $ lastCfgᵗ R) ∷ transitions R
 
 -- lifetime of a contract
 
@@ -29,7 +29,7 @@ module SymbolicModel.Ancestor where
 
 --   -- base : ℝ (Γₜ ∙) [] ad
 
---   advertise : let Γ = cfg (lastCfg R) in
+--   advertise : let Γ = cfg (lastCfgᵗ R) in
 --       ` ad ∈ᶜ Γ′
 --       ---------------------------------
 --     → ℝ (Γₜ ∷⟦ advertise[ ad ] ⟧ R) [] ad
@@ -44,7 +44,7 @@ module SymbolicModel.Ancestor where
 --       ---------------------
 --     → ℝ (Γₜ ∷⟦ α ⟧ R) ts ad
 
---   init : let Γ = cfg (lastCfg R); Γ′ = cfg Γₜ; ⟨ G ⟩ C = ad in
+--   init : let Γ = cfg (lastCfgᵗ R); Γ′ = cfg Γₜ; ⟨ G ⟩ C = ad in
 
 --       ℝ R [] ad
 --     → ` ad ∈ᶜ Γ
@@ -52,7 +52,7 @@ module SymbolicModel.Ancestor where
 --       ---------------------------------------------------
 --     → ℝ (Γₜ ∷⟦ init[ G , C ] ⟧ R) [(C , v , x)] ad
 
---   auth-control : let Γ = cfg (lastCfg R); Γ′ = cfg Γₜ in
+--   auth-control : let Γ = cfg (lastCfgᵗ R); Γ′ = cfg Γₜ in
 
 --     --   ℝ R ts ad
 --     -- → ⟨ ds , v ⟩at x ∈ᶜ Γ
@@ -65,7 +65,7 @@ module SymbolicModel.Ancestor where
 --       --------------------------------------------------------------
 --     → ℝ (Γₜ ∷⟦ auth-control[ A , x ▷ d ] ⟧ R) ts ad
 
---   split : let Γ = cfg (lastCfg R); Γ′ = cfg Γₜ in
+--   split : let Γ = cfg (lastCfgᵗ R); Γ′ = cfg Γₜ in
 
 --       ℝ R ts ad
 --     → ⟨ ds , v ⟩at y ∈ᶜ Γ
@@ -75,7 +75,7 @@ module SymbolicModel.Ancestor where
 --       ----------------------------------------------
 --     → ℝ (Γₜ ∷⟦ split[ y ] ⟧ R) ((c , v , x) ∷ ts) ad
 
---   put : let Γ = cfg (lastCfg R); Γ′ = cfg Γₜ in
+--   put : let Γ = cfg (lastCfgᵗ R); Γ′ = cfg Γₜ in
 
 --       ℝ R ts ad
 --     → ⟨ ds , v ⟩at y ∈ᶜ Γ
@@ -87,7 +87,7 @@ module SymbolicModel.Ancestor where
 {- T0D0: properly define ancestor/provenance
 data ℝ : Run → List ActiveContract → Advertisement → Set where
 
-  advertise : let Γ = cfg (lastCfg R) in
+  advertise : let Γ = cfg (lastCfgᵗ R) in
       ` ad ∈ᶜ Γ′
       ---------------------------------
     → ℝ (Γₜ ∷⟦ advertise[ ad ] ⟧ R) [] ad
@@ -97,14 +97,14 @@ data ℝ : Run → List ActiveContract → Advertisement → Set where
       ---------------------
     → ℝ (Γₜ ∷⟦ α ⟧ R) ts ad
 
-  init : let Γ = cfg (lastCfg R); Γ′ = cfg Γₜ; ⟨ G ⟩ C = ad in
+  init : let Γ = cfg (lastCfgᵗ R); Γ′ = cfg Γₜ; ⟨ G ⟩ C = ad in
 
       ℝ R [] ad
     → ⟨ C , v ⟩at x ∈ᶜ Γ′
       ---------------------------------------------------
     → ℝ (Γₜ ∷⟦ init[ G , C ] ⟧ R) [(C , v , x)] ad
 
-  auth-control : let Γ = cfg (lastCfg R); Γ′ = cfg Γₜ in
+  auth-control : let Γ = cfg (lastCfgᵗ R); Γ′ = cfg Γₜ in
 
     --   ℝ R ts ad
     -- → ⟨ ds , v ⟩at x ∈ᶜ Γ
@@ -118,7 +118,7 @@ data ℝ : Run → List ActiveContract → Advertisement → Set where
       --------------------------------------------------------------
     → ℝ (Γₜ ∷⟦ auth-control[ A , x ▷ d ] ⟧ R) ts ad
 
-  split : let Γ = cfg (lastCfg R); Γ′ = cfg Γₜ in
+  split : let Γ = cfg (lastCfgᵗ R); Γ′ = cfg Γₜ in
 
       ℝ R ts ad
     → ds ∈ map proj₁ ts
@@ -128,7 +128,7 @@ data ℝ : Run → List ActiveContract → Advertisement → Set where
       ----------------------------------------------
     → ℝ (Γₜ ∷⟦ split[ y ] ⟧ R) ((c , v , x) ∷ ts) ad
 
-  put : let Γ = cfg (lastCfg R); Γ′ = cfg Γₜ in
+  put : let Γ = cfg (lastCfgᵗ R); Γ′ = cfg Γₜ in
 
       ℝ R ts ad
     → ds ∈ map proj₁ ts
@@ -155,7 +155,7 @@ private variable ac : ActiveContract
 
 -- ℝ⇒ :
 --     ℝ R ts ad
---   → ⟨ ds , v ⟩at x ∈ᶜ cfg (lastCfg R)
+--   → ⟨ ds , v ⟩at x ∈ᶜ cfg (lastCfgᵗ R)
 --   -- → ds ∈ map proj₁ ts
 --   → ds ⊆ subtermsᶜ′ (C ad)
 -- ℝ⇒ (advertise x) ds∈ = {!!}

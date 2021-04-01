@@ -43,25 +43,46 @@ mapRun : (TimedConfiguration → TimedConfiguration)
 mapRun f _ (tc ∙)        = f tc ∙
 mapRun f g (tc ∷⟦ α ⟧ s) = f tc ∷⟦ g α ⟧ mapRun f g s
 
-lastCfg : Run → TimedConfiguration
-lastCfg (tc ∙)        = tc
-lastCfg (tc ∷⟦ _ ⟧ _) = tc
-
 prefixRuns : Run → List Run
 prefixRuns (tc ∙)        = [ tc ∙ ]
 prefixRuns (tc ∷⟦ α ⟧ R) = let rs = prefixRuns R in rs ++ map (tc ∷⟦ α ⟧_) rs
 
+
+allTCfgs⁺ : Run → List⁺ TimedConfiguration
+allTCfgs⁺ (tc ∙)        = tc ∷ []
+allTCfgs⁺ (tc ∷⟦ _ ⟧ r) = tc ∷⁺ allTCfgs⁺ r
+
 allCfgs⁺ : Run → List⁺ Configuration
-allCfgs⁺ (tc ∙)        = cfg tc ∷ []
-allCfgs⁺ (tc ∷⟦ _ ⟧ r) = cfg tc ∷⁺ allCfgs⁺ r
+allCfgs⁺ = L.NE.map cfg ∘ allTCfgs⁺
+-- allCfgs⁺ (tc ∙)        = cfg tc ∷ []
+-- allCfgs⁺ (tc ∷⟦ _ ⟧ r) = cfg tc ∷⁺ allCfgs⁺ r
+
+allTCfgs : Run → List TimedConfiguration
+allTCfgs = L.NE.toList ∘ allTCfgs⁺
 
 allCfgs : Run → List Configuration
-allCfgs = L.NE.toList ∘ allCfgs⁺
+allCfgs = map cfg ∘ allTCfgs
 
-cfg⟨lastCfg⟩≡head⟨allCfgs⟩ : cfg (lastCfg R) ≡ L.NE.head (allCfgs⁺ R)
-cfg⟨lastCfg⟩≡head⟨allCfgs⟩ {R = _ ∙}        = refl
-cfg⟨lastCfg⟩≡head⟨allCfgs⟩ {R = _ ∷⟦ _ ⟧ _} = refl
+-- allCfgs = L.NE.toList ∘ allCfgs⁺
 
+-- allCfgs (tc ∙)        = [ cfg tc ]
+-- allCfgs (tc ∷⟦ _ ⟧ r) = cfg tc ∷ allCfgs r
+
+lastCfgᵗ : Run → TimedConfiguration
+lastCfgᵗ = L.NE.head ∘ allTCfgs⁺
+-- lastCfgᵗ (tc ∙)        = tc
+-- lastCfgᵗ (tc ∷⟦ _ ⟧ _) = tc
+
+lastCfg : Run → Configuration
+lastCfg = cfg ∘ lastCfgᵗ
+
+-- cfg⟨lastCfgᵗ⟩≡head⟨allCfgs⁺⟩ : cfg (lastCfgᵗ R) ≡ L.NE.head (allCfgs⁺ R)
+-- cfg⟨lastCfgᵗ⟩≡head⟨allCfgs⁺⟩ {R = _ ∙}        = refl
+-- cfg⟨lastCfgᵗ⟩≡head⟨allCfgs⁺⟩ {R = _ ∷⟦ _ ⟧ _} = refl
+
+-- head∘all≡cfg∘last : L.head (allCfgs R) ≡ just (cfg $ lastCfgᵗ R)
+-- head∘all≡cfg∘last {R = _ ∙}        = refl
+-- head∘all≡cfg∘last {R = _ ∷⟦ _ ⟧ _} = refl
 
 ------------------
 -- ** Collections
@@ -74,16 +95,16 @@ cfg⟨lastCfg⟩≡head⟨allCfgs⟩ {R = _ ∷⟦ _ ⟧ _} = refl
 instance
   -- Hᵗᶜᶠ⇒Hʳ : ∀ {X : Set} ⦃ _ : TimedConfiguration has X ⦄ → Run has X
   -- -- Hᵗᶜᶠ⇒Hʳ ⦃ ht ⦄ = mkCollectʳ ⦃ ht ⦄
-  -- Hᵗᶜᶠ⇒Hʳ ⦃ ht ⦄ .collect = collect ⦃ ht ⦄ ∘ lastCfg
+  -- Hᵗᶜᶠ⇒Hʳ ⦃ ht ⦄ .collect = collect ⦃ ht ⦄ ∘ lastCfgᵗ
 
   HAʳ : Run has Advertisement
   -- HAʳ .collect = mkCollectʳ
-  -- HAʳ .collect = authorizedHonAds ∘ cfg ∘ lastCfg
+  -- HAʳ .collect = authorizedHonAds ∘ cfg ∘ lastCfgᵗ
   HAʳ .collect = concatMap authorizedHonAds ∘ allCfgs
 
   HNʳ : Run has Name
   -- HNʳ .collect = mkCollectʳ
-  HNʳ .collect = collect ∘ lastCfg
+  HNʳ .collect = collect ∘ lastCfgᵗ
 
   HSʳ : Run has Secret
   HSʳ .collect = filter₂ ∘ collect {B = Name}
@@ -94,6 +115,9 @@ instance
 
 labels : ∀ {X : Set} → ⦃ _ :  X has Label ⦄ → X → Labels
 labels = collect
+
+-- authorizedAds : Run → List Advertisement
+-- authorizedAds = concatMap authorizedHonAds ∘ allCfgs
 
 -- ** ancestor advertisement of an active contract
 
@@ -141,10 +165,10 @@ instance
 
 infix -1 _——→[_]_
 _——→[_]_ : Run → Label → TimedConfiguration → Set
-R ——→[ α ] tc′ = lastCfg R —→ₜ[ α ] tc′
+R ——→[ α ] tc′ = lastCfgᵗ R —→ₜ[ α ] tc′
 
 _∈ʳ_ : Configuration → Run → Set
-_∈ʳ_ c R = c ∈ᶜ cfg (lastCfg (R ∗))
+_∈ʳ_ c R = c ∈ᶜ cfg (lastCfgᵗ (R ∗))
 
 ----------------------------------
 -- Symbolic strategies.

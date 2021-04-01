@@ -25,10 +25,7 @@ module SymbolicModel.Helpers
   where
 
 open import SymbolicModel.Strategy Participant Honest
-  hiding ( _∎; begin_
-         ; c; ad; g; Γ; Γ′; Δ; vs; xs; as
-         ; R′
-         )
+  hiding (as; Γ′; R′; _∎; begin_)
 
 -- open import SecureCompilation.Compiler Participant Honest
 private variable X : Set
@@ -50,6 +47,11 @@ Sechash x = namesˡ x ↦ ℤ
 
 𝕂²ᶜ : Pred₀ Configuration
 𝕂²ᶜ x = authorizedHonAds x ↦′ 𝕂²′
+
+--
+
+-- ℝ : Pred₀ Run
+-- ℝ R = Txout R × Sechash R × 𝕂 R
 
 ----
 
@@ -83,57 +85,69 @@ liftᵃ : ∀ {Γ Γ′}
   → Γ  ↝⟨ 𝕂²ᶜ                 ⟩ Γ′
 liftᵃ eq κ′ rewrite eq = κ′
 
-module Lift {Γ R} (cfg≡ : cfg (lastCfg R) ≡ Γ) Γ′ t α where
+-- [BUG] Cannot pass txout′/sechash′/κ′ as indices, Agda seems confused about typeclass resolution :(
+module Lift
+  Γ R Γ′ t α (cfg≡ : lastCfgᵗ R ≡ (Γ at t))
+  (txout′ : Txout R) (txout↝ : Γ ↝⟨ Txout ⟩ Γ′)
+  (sechash′ : Sechash R) (sechash↝ : Γ ↝⟨ Sechash ⟩ Γ′)
+  (κ′ : 𝕂² R) (κ↝ : Γ ↝⟨ 𝕂²ᶜ ⟩ Γ′)
+  where
 
   private R′ = (Γ′ at t) ∷⟦ α ⟧ R
 
-  ↑ᵗ_ : Γ ↝⟨ Txout ⟩ Γ′ → R ↝⟨ Txout ⟩ R′
-  ↑ᵗ f rewrite cfg≡ = f
+  txout : Txout R′
+  txout rewrite cfg≡ = txout↝ txout′
 
-  ↑ˢ_ : Γ ↝⟨ Sechash ⟩ Γ′ → R ↝⟨ Sechash ⟩ R′
-  ↑ˢ f rewrite cfg≡ = f
+  sechash : Sechash R′
+  sechash rewrite cfg≡ = sechash↝ sechash′
 
-  ↑ᵏ_ : Γ ↝⟨ 𝕂²ᶜ ⟩ Γ′ → R ↝⟨ 𝕂² ⟩ R′
-  ↑ᵏ_ κ↝ κ′ ad∈
-    rewrite sym (cfg⟨lastCfg⟩≡head⟨allCfgs⟩ {R}) | cfg≡
-    = case ∈-++⁻ (authorizedHonAds Γ′) ad∈ of λ where
-      (inj₁ ad∈ˡ) → κ↝ (weaken-↦ κ′ ∈-++⁺ˡ) ad∈ˡ
-      (inj₂ ad∈ʳ) → κ′ ad∈ʳ
+  κ : 𝕂² R′
+  κ ad∈ with ∈-++⁻ (authorizedHonAds Γ′) ad∈
+  ... | inj₂ ad∈ʳ = κ′ ad∈ʳ
+  ... | inj₁ ad∈ˡ rewrite cfg≡ = κ↝ (weaken-↦ κ′ ∈-++⁺ˡ) ad∈ˡ
 
--- : ∀ {Γs : List Configuration}
---   → (∀ {Γ} → Γ ∈ Γs → Null $ collect Γ)
---   → Null $ collect (∣∣ Γs)
+-- [WORKAROUND] Just export map transformers, which will eventually be called on the indices Agda couldn't handle..
+module Lift↝
+  Γ R Γ′ t α (cfg≡ : lastCfgᵗ R ≡ (Γ at t))
+  (txout↝′ : Γ ↝⟨ Txout ⟩ Γ′)
+  (sechash↝′ : Γ ↝⟨ Sechash ⟩ Γ′)
+  (κ↝′ : Γ ↝⟨ 𝕂²ᶜ ⟩ Γ′)
+  where
+
+  private R′ = (Γ′ at t) ∷⟦ α ⟧ R
+
+  txout↝ : R ↝⟨ Txout ⟩ R′
+  txout↝ rewrite cfg≡ = txout↝′
+
+  sechash↝ : R ↝⟨ Sechash ⟩ R′
+  sechash↝ rewrite cfg≡ = sechash↝′
+
+  κ↝ : R ↝⟨ 𝕂² ⟩ R′
+  κ↝ κ′ ad∈ with ∈-++⁻ (authorizedHonAds Γ′) ad∈
+  ... | inj₂ ad∈ʳ = κ′ ad∈ʳ
+  ... | inj₁ ad∈ˡ rewrite cfg≡ = κ↝′ (weaken-↦ κ′ ∈-++⁺ˡ) ad∈ˡ
 
 ---
 
-module H₁ Γ ad {R} (cfg≡ : cfg (lastCfg R) ≡ Γ) t α (txout′ : Txout R) (sechash′ : Sechash R) (κ′ : 𝕂² R) where
+module H₁ Γ ad where
   private
     Γ′ = ` ad ∣ Γ
-    R′ = (Γ′ at t) ∷⟦ α ⟧ R
 
-  open Lift {Γ}{R} cfg≡ Γ′ t α
+  -- ** See [BUG] above
+  -- module H₁′ R t α (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (txout′ : Txout R) (sechash′ : Sechash R) (κ′ : 𝕂² R) where
+  --   open Lift Γ R Γ′ t α cfg≡ txout′ id sechash′ id κ′ id public
 
-  txout : Txout R′
-  txout = (↑ᵗ id) txout′
-
-  sechash : Sechash R′
-  sechash = (↑ˢ id) sechash′
-
-  κ : 𝕂² R′
-  κ = (↑ᵏ id) κ′
+  module H₁′ R t α (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) where
+    open Lift↝ Γ R Γ′ t α cfg≡ id id id public
 
 module H₂
   Γ B A ad (Δ : List (Secret × Maybe ℕ))
-  {R} (cfg≡ : cfg (lastCfg R) ≡ Γ) t α
-  (txout′ : Txout R) (sechash′ : Sechash R) (κ′ : 𝕂² R)
-  (sechash″ : map proj₁ Δ ↦ ℤ) (k⃗ : 𝕂²′ ad)
   where
 
   private
     as = map proj₁ Δ
 
     Γ′ = Γ ∣ || map (uncurry ⟨ B ∶_♯_⟩) Δ ∣ A auth[ ♯▷ ad ]
-    R′ = (Γ′ at t) ∷⟦ α ⟧ R
 
     hʳ : ∀ Δ → Null $ namesʳ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ)
     hʳ [] = refl
@@ -196,30 +210,23 @@ module H₂
   ads≡ : authorizedHonAds Γ′ ≡ authorizedHonAds Γ ++ authorizedHonAds (A auth[ ♯▷ ad ])
   ads≡ rewrite hᵃ Δ | L.++-identityʳ (authorizedHonAds Γ) = refl
 
-  open Lift {Γ}{R} cfg≡ Γ′ t α
+  -- [BUG] type annotation for `α : Label` is necessary, otherwise unification errors :S
+  module H₂′ R t (α : Label) (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (sechash″ : map proj₁ Δ ↦ ℤ) (k⃗ : 𝕂²′ ad) where
+    txout↝′ : Γ ↝⟨ Txout ⟩ Γ′
+    txout↝′ = liftʳ {Γ}{Γ′} namesʳ≡
 
-  txout : Txout R′
-  txout = (↑ᵗ go) txout′
-    where
-      go : Γ ↝⟨ Txout ⟩ Γ′
-      go = liftʳ {Γ}{Γ′} namesʳ≡
+    sechash↝′ :  Γ ↝⟨ Sechash ⟩ Γ′
+    sechash↝′ sechash′ = extend-↦ (↭-reflexive namesˡ≡) sechash′ sechash″
 
-  sechash : Sechash R′
-  sechash = (↑ˢ go) sechash′
-    where
-      go : Γ ↝⟨ Sechash ⟩ Γ′
-      go sechash′ = extend-↦ (↭-reflexive namesˡ≡) sechash′ sechash″
+    κ↝′ : Γ ↝⟨ 𝕂²ᶜ ⟩ Γ′
+    κ↝′ κ′ = extend-↦ (↭-reflexive ads≡) κ′ κ″
+      where
+        κ″ : authorizedHonAds (A auth[ ♯▷ ad ]) ↦′ 𝕂²′
+        κ″ x∈ with does (A ∈? Hon) | x∈
+        ... | true  | here refl = k⃗
+        ... | false | ()
 
-  κ : 𝕂² R′
-  κ = (↑ᵏ go) κ′
-    where
-      κ″ : authorizedHonAds (A auth[ ♯▷ ad ]) ↦′ 𝕂²′
-      κ″ x∈ with does (A ∈? Hon) | x∈
-      ... | true  | here refl = k⃗
-      ... | false | ()
-
-      go : Γ ↝⟨ 𝕂²ᶜ ⟩ Γ′
-      go κ′ = extend-↦ (↭-reflexive ads≡) κ′ κ″
+    open Lift↝ Γ R Γ′ t α cfg≡ txout↝′ sechash↝′ κ↝′ public
 
 -- module H₃ Γ A x G C where
 --   private
@@ -238,7 +245,7 @@ module H₂
 --   ads≡ : Γ′ ≡⟨on: authorizedHonAds ⟩ Γ
 --   ads≡ = L.++-identityʳ _
 
---   module H₃′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) t α (cfg≡′ : R′ ≡ (Γ′ at t) ∷⟦ α ⟧ R) where
+--   module H₃′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) t α (cfg≡′ : R′ ≡ (Γ′ at t) ∷⟦ α ⟧ R) where
 
 --     open Lift cfg≡ cfg≡′
 
@@ -279,7 +286,7 @@ module H₂
 --       module _ (A∈ : A ∈ Hon) (A∈′ : A ∈ committedParticipants Γ₀ ad) where
 
 --         ad∈ : ad ∈ advertisements R
---         ad∈ rewrite sym (cfg⟨lastCfg⟩≡head⟨allCfgs⟩ {R}) | cfg≡ | Γ≡ = ∈-++⁺ˡ (committed⇒authAd A∈ {Γ = Γ₀} A∈′)
+--         ad∈ rewrite sym (cfg⟨lastCfgᵗ⟩≡head⟨allCfgs⟩ {R}) | cfg≡ | Γ≡ = ∈-++⁺ˡ (committed⇒authAd A∈ {Γ = Γ₀} A∈′)
 
 --         κ↝′ : 𝕂² R → 𝕂²′ ad
 --         κ↝′ κ′ = κ′ ad∈
@@ -380,7 +387,7 @@ module H₂
 -- --     where open ⊆-Reasoning Advertisement
 -- --     -}
 
--- --   module H₄′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- --   module H₄′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- --     txout↝ : Txout R → TxInput → Txout R′
 -- --     txout↝ txout′ tx rewrite cfg≡ | cfg≡′ | namesʳ≡₀ = cons-↦ z tx $ weaken-↦ txout′ ∈-++⁺ˡ
@@ -434,7 +441,7 @@ module H₂
 -- -- --     Γ  = ⟨ c , v ⟩at x ∣ Γ₀
 -- -- --     Γ′ = ⟨ c , v ⟩at x ∣ A auth[ x ▷ (c ‼ i) ] ∣ Γ₀
 
--- -- --   module H₅′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- --   module H₅′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- --     txout↝ : R ↝⟨ Txout ⟩ R′
 -- -- --     txout↝ txout′ rewrite cfg≡ | cfg≡′ = txout′
@@ -519,7 +526,7 @@ module H₂
 -- -- --       authorizedHonAds Γ
 -- -- --     ∎ where open ≡-Reasoning
 
--- -- --   module H₆′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- --   module H₆′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- --     txout↝ : Txout R → TxInput → Txout R′
 -- -- --     txout↝ txout′ tx rewrite cfg≡ | cfg≡′ | namesʳ≡₀ = cons-↦ y′ tx $ weaken-↦ txout′ (∈-++⁺ʳ _)
@@ -545,7 +552,7 @@ module H₂
 -- -- --     Γ  = ⟨ A ∶ a ♯ just n ⟩ ∣ Γ₀
 -- -- --     Γ′ = A ∶ a ♯ n ∣ Γ₀
 
--- -- --   module H₇′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- --   module H₇′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- --     txout↝ : R ↝⟨ Txout ⟩ R′
 -- -- --     txout↝ txout′ rewrite cfg≡ | cfg≡′ = txout′
@@ -617,7 +624,7 @@ module H₂
 -- -- --       authorizedHonAds Γ
 -- -- --     ∎ where open ≡-Reasoning
 
--- -- --   module H₈′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- --   module H₈′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- --     txout↝ : Txout R → (xs ↦ TxInput) → Txout R′
 -- -- --     txout↝ txout′ f rewrite cfg≡ | cfg≡′ | namesʳ≡₀ = extend-↦ (↭-reflexive namesʳ≡) f (weaken-↦ txout′ there)
@@ -643,7 +650,7 @@ module H₂
 -- -- --     Γ  = ⟨ c , v ⟩at y ∣ Γ₀
 -- -- --     Γ′ = ⟨ A has v ⟩at x ∣ Γ₀
 
--- -- --   module H₉′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- --   module H₉′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- --     txout↝ : Txout R → TxInput → Txout R′
 -- -- --     txout↝ txout′ tx rewrite cfg≡ | cfg≡′ = cons-↦ x tx $ weaken-↦ txout′ there
@@ -669,7 +676,7 @@ module H₂
 -- -- --     Γ  = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀
 -- -- --     Γ′ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
 
--- -- --   module H₁₀′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- --   module H₁₀′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- --     txout↝ : R ↝⟨ Txout ⟩ R′
 -- -- --     txout↝ txout′ rewrite cfg≡ | cfg≡′ = txout′
@@ -686,7 +693,7 @@ module H₂
 -- -- --     Γ  = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ y ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
 -- -- --     Γ′ = ⟨ A has (v + v′) ⟩at y ∣ Γ₀
 
--- -- --   module H₁₁′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- --   module H₁₁′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- --     txout↝ : Txout R → TxInput → Txout R′
 -- -- --     txout↝ txout′ tx rewrite cfg≡ | cfg≡′ = cons-↦ y tx $ weaken-↦ txout′ (λ x∈ → there (there x∈))
@@ -703,7 +710,7 @@ module H₂
 -- -- --     Γ  = ⟨ A has (v + v′) ⟩at x ∣ Γ₀
 -- -- --     Γ′ = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
 
--- -- --   module H₁₂′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- --   module H₁₂′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- --     txout↝ : R ↝⟨ Txout ⟩ R′
 -- -- --     txout↝ txout′ rewrite cfg≡ | cfg≡′ = txout′
@@ -720,7 +727,7 @@ module H₂
 -- -- -- --     Γ  = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
 -- -- -- --     Γ′ = ⟨ A has v ⟩at y ∣ ⟨ A has v′ ⟩at y′ ∣ Γ₀
 
--- -- -- --   module H₁₃′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- -- --   module H₁₃′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- -- --     txout↝ : Txout R → TxInput × TxInput → Txout R′
 -- -- -- --     txout↝ txout′ (tx , tx′) rewrite cfg≡ | cfg≡′ = cons-↦ y tx $ cons-↦ y′ tx′ $ weaken-↦ txout′ there
@@ -736,7 +743,7 @@ module H₂
 -- -- -- --     Γ  = ⟨ A has v ⟩at x ∣ Γ₀
 -- -- -- --     Γ′ = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
 
--- -- -- --   module H₁₄′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- -- --   module H₁₄′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- -- --     txout↝ : R ↝⟨ Txout ⟩ R′
 -- -- -- --     txout↝ txout′ rewrite cfg≡ | cfg≡′ = txout′
@@ -752,7 +759,7 @@ module H₂
 -- -- -- --     Γ  = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
 -- -- -- --     Γ′ = ⟨ B′ has v ⟩at y ∣ Γ₀
 
--- -- -- --   module H₁₅′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- -- --   module H₁₅′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- -- --     txout↝ : Txout R → TxInput → Txout R′
 -- -- -- --     txout↝ txout′ tx rewrite cfg≡ | cfg≡′ = cons-↦ y tx $ weaken-↦ txout′ there
@@ -783,7 +790,7 @@ module H₂
 -- -- -- --   ads≡ : Γ′ ≡⟨on: authorizedHonAds ⟩ Γ
 -- -- -- --   ads≡ rewrite L.++-identityʳ (authorizedHonAds Δ) = refl
 
--- -- -- --   module H₁₆′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- -- --   module H₁₆′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- -- --     txout↝ : R ↝⟨ Txout ⟩ R′
 -- -- -- --     txout↝ txout′ rewrite cfg≡ | cfg≡′ | namesʳ≡ = txout′
@@ -807,7 +814,7 @@ module H₂
 -- -- -- --   namesʳ≡₀ : namesʳ Γ ≡ namesʳ Δ ++ namesʳ Γ₀
 -- -- -- --   namesʳ≡₀ = mapMaybe-++ isInj₂ (names Δ) (names Γ₀)
 
--- -- -- --   module H₁₇′ R R′ (cfg≡ : cfg (lastCfg R) ≡ Γ) (cfg≡′ : cfg (lastCfg R′) ≡ Γ′) where
+-- -- -- --   module H₁₇′ R R′ (cfg≡ : lastCfgᵗ R ≡ (Γ at t)) (cfg≡′ : cfg (lastCfgᵗ R′) ≡ Γ′) where
 
 -- -- -- --     txout↝ : R ↝⟨ Txout ⟩ R′
 -- -- -- --     txout↝ txout′ rewrite cfg≡ | cfg≡′ | namesʳ≡₀ = weaken-↦ txout′ (∈-++⁺ʳ _)
@@ -923,9 +930,9 @@ module H₂
 -- -- -- --         | strip-cfgToList {Γp = Γp′}
 -- -- -- --         = map⁺ (map₂ _∗ᶜ) Γp≈
 
--- -- -- -- strip-lastCfg : lastCfg (R ∗) ≡ (lastCfg R) ∗ᵗ
--- -- -- -- strip-lastCfg {_ ∙ˢ}        = refl
--- -- -- -- strip-lastCfg {_ ∷ˢ⟦ _ ⟧ _} = refl
+-- -- -- -- strip-lastCfgᵗ : lastCfgᵗ (R ∗) ≡ (lastCfgᵗ R) ∗ᵗ
+-- -- -- -- strip-lastCfgᵗ {_ ∙ˢ}        = refl
+-- -- -- -- strip-lastCfgᵗ {_ ∷ˢ⟦ _ ⟧ _} = refl
 
 -- -- -- -- strip-idempotent : ∀ (γ : Configuration′ cf′i) →
 -- -- -- --   (γ ∗ᶜ) ∗ᶜ ≡ γ ∗ᶜ
@@ -951,7 +958,7 @@ module H₂
 -- -- -- --         = refl
 
 -- -- -- -- help : R ∗ ——→[ α ] T′
--- -- -- --      → proj₂ ((lastCfg R) ∗ᵗ) —→ₜ[ α ] proj₂ T′
+-- -- -- --      → proj₂ ((lastCfgᵗ R) ∗ᵗ) —→ₜ[ α ] proj₂ T′
 -- -- -- -- help {R = _ ∙ˢ}        R→ = R→
 -- -- -- -- help {R = _ ∷ˢ⟦ _ ⟧ _} R→ = R→
 

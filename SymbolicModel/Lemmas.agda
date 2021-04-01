@@ -92,7 +92,7 @@ module _ (α≢₁ : ∀ A s      → α ≢ auth-rev[ A , s ])
         → R   ——→[ α ] T′
           -----------------
         → R ∗ ——→[ α ] T′ ∗ᵗ
-      pr₁ T′ R→ rewrite strip-lastCfg {R}
+      pr₁ T′ R→ rewrite strip-lastCfgᵗ {R}
                       = strip-→ₜ R→
 
       pr0 : ∀ (Γ₀ : Configuration Iᶜᶠ[ ads , cs , ds ])
@@ -157,7 +157,7 @@ module _ (α≢₁ : ∀ A s      → α ≢ auth-rev[ A , s ])
         → ∃[ T″ ] ( (R ——→[ α ] T″)
                   × T′ ∗ᵗ ≡ T″ ∗ᵗ )
       pr₂ T′ R→
-        with inspect (lastCfg R)
+        with inspect (lastCfgᵗ R)
       ... | (cfi , tc) with≡ eq
         with inspect T′
       ... | (cfi′ , tc′) with≡ eq′
