@@ -23,6 +23,7 @@ module SecureCompilation.Coherence
 
 open import SymbolicModel.Strategy Participant Honest as S
   renaming (Value to Val)
+  -- hiding (Rˢ)
 open import SymbolicModel.Helpers Participant Honest
 
 open import ComputationalModel.Strategy Participant Honest finPart keypairs as C
@@ -36,6 +37,15 @@ open import Bitcoin.Tx.Crypto as C
 open import Bitcoin.Consistency as C
 
 open import SecureCompilation.Compiler Participant Honest η
+
+private
+  variable
+    ⟨G⟩C ⟨G⟩C′ ⟨G⟩C″ : Advertisement
+    T T′ : ∃Tx
+
+    -- Rˢ : S.Run
+    𝕣  : ℝ Rˢ
+    𝕣′ : ℝ Rˢ′
 
 postulate
   encode : (namesʳ Rˢ ↦ TxInput) → Advertisement → Message
@@ -53,10 +63,6 @@ v -redeemableWith- k = Ctx 1 , record {value = v;  validator = ƛ (versig [ k ] 
 SIGᵐ : KeyPair → Message → Message
 SIGᵐ k = map (SIG k)
 
-private
-  variable
-    ⟨G⟩C ⟨G⟩C′ ⟨G⟩C″ : Advertisement
-    T T′ : ∃Tx
 
 -- ** Types and notation.
 -- data coher : (Rˢ : S.Run) (Rᶜ : C.Run) (txout : Txout Rˢ) (sechash : Sechash Rˢ) (κ : 𝕂² Rˢ) → Set
@@ -70,6 +76,7 @@ private
 --   (κ′ : 𝕂² Rˢ) (κ : 𝕂² Rˢ′)
 --   → Set
 data coher₁₁ :
+  -- (r : ℝ) ...
   (Rˢ : S.Run) (α : S.Label) (Γₜ : TimedConfiguration)
   (Rᶜ : C.Run) (λᶜ : C.Label)
   → let Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ in
@@ -101,14 +108,15 @@ data coher₁₁ :
 data coher₁₁ where
 
   -- ** Advertising a contract
-  [1] : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
-
-    → let
+  [1] :
+      let
+        [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣
         Γ₀ at t = lastCfgᵗ Rˢ
 
         C : Message
         C = encode {Rˢ = Rˢ} txout′ ⟨G⟩C
 
+        α : S.Label
         α  = advertise[ ⟨G⟩C ]
         Γ  = ` ⟨G⟩C ∣ Γ₀
         Γₜ = Γ at t
@@ -116,19 +124,15 @@ data coher₁₁ where
         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
 
         -- txout′ = txout, sechash′ = sechash, κ′ = κ
-        open H₁ Γ₀ ⟨G⟩C
-        open H₁′ Rˢ t α refl
-        txout = txout↝ txout′
-        sechash = sechash↝ sechash′
-        κ = κ↝ κ′
+        open H₁ {Rˢ} 𝕣 t α Γ₀ refl ⟨G⟩C
       in
       --——————————————————————————————————————————————————————————————————————
       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
 
   -- ** Stipulation: committing secrets
-  [2] : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
-          {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)}
-          {k⃗ : 𝕂²′ ⟨G⟩C}
+  [2] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+      ∀ {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)}
+        {k⃗ : 𝕂²′ ⟨G⟩C}
 
       -- T0D0: Γᵣₛ does not necessary keep ⟨G⟩C in its head, replace _≡_ with _≈_?
     → (cfg≡ : lastCfgᵗ Rˢ ≡ (` ⟨G⟩C ∣ Γ₀ at t))
@@ -170,12 +174,7 @@ data coher₁₁ where
               (_ , _ , z) , _ = ∈-map⁻ (λ{ (s , mn , _) → s , mn }) a×m∈
           in z
 
-        open H₂ (` ⟨G⟩C ∣ Γ₀) A A ⟨G⟩C Δ
-        open H₂′ Rˢ t α cfg≡ sechash″ k⃗
-        txout = txout↝ txout′
-        sechash = sechash↝ sechash′
-
-        κ = κ↝ κ′
+        open H₂ {Rˢ} 𝕣 t α (` ⟨G⟩C ∣ Γ₀) cfg≡ A A ⟨G⟩C Δ sechash″ k⃗
       in
 
       -- (i) ⟨G⟩C has been previously advertised in Rᶜ
@@ -201,67 +200,211 @@ data coher₁₁ where
     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
 
 
---   -- ** Stipulation: authorizing deposits
---   [3] : ∀ {Rˢ ⟨G⟩C A Γ₀} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
---           {vad : ValidAdvertisement ⟨G⟩C}
---     → let ⟨ G ⟩ C = ⟨G⟩C; partG = nub-participants G in
+  -- ** Stipulation: authorizing deposits
+  [3] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+      ∀ {⟨G⟩C} {vad : ValidAdvertisement ⟨G⟩C} → let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G in
+      ∀ {A Γ₀}
 
---       (cfg≡ : lastCfgᵗ Rˢ ≡ (` ⟨G⟩C ∣ Γ₀ at t))
+    → (cfg≡ : Rˢ ≡⋯ ` ⟨G⟩C ∣ Γ₀ at t)
 
---       -- hypotheses of [C-AuthInit]
---     → (committedA : All (_∈ committedParticipants Γ₀ ⟨G⟩C) (nub-participants G))
---     → (A∈per : A ∈ persistentParticipants G)
+      -- hypotheses of [C-AuthInit]
+    → (committedA : All (_∈ committedParticipants Γ₀ ⟨G⟩C) partG)
+    → (A∈per : A ∈ persistentParticipants G)
+
+      -- [T0D0] additional hypotheses, should hold since we know the following:
+      --   ∙ from the hypotheses of [C-Advertise]
+      --       ∘ which introduces ` ⟨G⟩C
+      --       ⇒ deposits ⟨G⟩C ⊆ deposits Γ₀
+      --       ⇒ namesʳ ⟨G⟩C ⊆ namesʳ Γ₀
+      --   ∙ from the hypotheses of [C-AuthCommit]
+      --       ∘ which introduces ⟨ Aᵢ ∶ aᵢ ♯ Nᵢ ⟩
+      --       ⇒ secrets ⟨G⟩C ⊆ secrets Γ₀
+      --       ⇒ namesˡ ⟨G⟩C ⊆ namesˡ Γ₀
+    → (names⊆ : G ⊆⟨on:names⟩ Γ₀)
+
+      -- [T0D0] we are invoking the compiler using the `κ` map that is only defined for honest participants
+    → (A∈ : A ∈ S.Hon)
+
+    → let
+        α  = auth-init[ A , ⟨G⟩C , x ]
+        Γ  = ` ⟨G⟩C ∣ Γ₀ ∣ A auth[ x ▷ˢ ⟨G⟩C ]
+        Γₜ = Γ at t
+        Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+        A∈′ : A ∈ committedParticipants Γ₀ ⟨G⟩C
+        A∈′ = L.All.lookup committedA $ ∈-nub⁺ (persistentParticipants⊆ {g = G} A∈per)
+
+        -- (iv) txout = txout′, sechash = sechash′, κ = κ′
+        open H₃ {R = Rˢ} 𝕣 t α ⟨G⟩C Γ₀ cfg≡ A x
+
+        Tᵢₙᵢₜ : ∃Tx
+        Tᵢₙᵢₜ =
+          let -- invoke compiler
+            K : 𝕂 G
+            K {p} _ = K̂ p
+
+            open H₃′ A∈ A∈′ names⊆
+          in
+            proj₁ $ bitml-compiler {ad = ⟨G⟩C} vad sechash₀ txout₀ K κ₀
+
+        -- (i) broadcast Tᵢₙᵢₜ , signed with A's private key
+        m = [ SIG (K̂ A) Tᵢₙᵢₜ ]
+        λᶜ = B →∗∶ m
+      in
+
+      -- (ii) Tᵢₙᵢₜ occurs as a message in Rᶜ
+      (∃ λ B → (B →∗∶ [ HASH Tᵢₙᵢₜ ]) ∈ Rᶜ)
+
+      -- (iii) broadcast message in Rᶜ
+      -- T0D0: make sure that λᶜ is the first occurrence of such a message after Tinit in Rᶜ
+      --——————————————————————————————————————————————————————————————————————
+    → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+
+--   -- ** Stipulation: activating the contract
+--   [4] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+--       ∀ {Γ₀ G C}
+--     → let
+--         ad      = ⟨ G ⟩ C
+--         toSpend = persistentDeposits G
+--         partG   = nub-participants G
+--         v       = sum $ map (proj₁ ∘ proj₂) toSpend
+--       in
+--       {vad : ValidAdvertisement ad}
+--       -- (i) consume {G}C and its persistent deposits from Rˢ
+--       (cfg≡ : lastCfgᵗ Rˢ ≡
+--         ( ` ad ∣ Γ₀
+--         ∣ || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ ad ] }) toSpend
+--         ∣ || map (_auth[ ♯▷ ad ]) partG
+--         at t) )
 
 --       -- [T0D0] additional hypotheses, should hold since we know the following:
 --       --   ∙ from the hypotheses of [C-Advertise]
 --       --       ∘ which introduces ` ⟨G⟩C
 --       --       ⇒ deposits ⟨G⟩C ⊆ deposits Γ₀
---       --       ⇒ namesʳ ⟨G⟩C ⊆ namesʳ Γ₀
+--       --       ⇒ namesʳ ⟨G⟩C ⊆ namesʳ Γ₀ ⊆ namesʳ (_ ∣ Γ₀ ∣ _)
 --       --   ∙ from the hypotheses of [C-AuthCommit]
 --       --       ∘ which introduces ⟨ Aᵢ ∶ aᵢ ♯ Nᵢ ⟩
 --       --       ⇒ secrets ⟨G⟩C ⊆ secrets Γ₀
 --       --       ⇒ namesˡ ⟨G⟩C ⊆ namesˡ Γ₀
 --     → (names⊆ : names G ⊆ names Γ₀)
 
+--       -- [T0D0] additional hypothesis, should hold from the hypotheses of [C-Advertise]
+--     → (honG : Any (_∈ Hon) partG)
+
 --     → let
---         α  = auth-init[ A , ⟨G⟩C , x ]
---         Γ  = ` ⟨G⟩C ∣ Γ₀ ∣ A auth[ x ▷ˢ ⟨G⟩C ]
+--         α  = init[ G , C ]
+--         Γ  = ⟨ C , v ⟩at z ∣ Γ₀
 --         Γₜ = Γ at t
 --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
 
---         -- invoke compiler
---         open H₃ (` ⟨G⟩C ∣ Γ₀) A x G C
---         open H₃′ Rˢ Rˢ′ (cong cfg cfg≡) t α refl
---         open H₃″ Γ₀ refl
+--         open H₄ G C v z Γ₀ toSpend partG
+--         open H₄′ Rˢ Rˢ′ (cong cfg cfg≡) refl
 
 --         Tᵢₙᵢₜ : ∃Tx
 --         Tᵢₙᵢₜ =
 --           let -- invoke compiler
 --             txout″ : Txout G
---             -- txout″ = txout↝′ txout′
 --             txout″ = weaken-↦ (txout↝′ txout′) (mapMaybe-⊆ isInj₂ names⊆)
 
 --             sechash″ : Sechash G
---             -- sechash″ = sechash↝′ sechash′
 --             sechash″ = weaken-↦ (sechash↝′ sechash′) (mapMaybe-⊆ isInj₁ names⊆)
 
---             K : 𝕂 G
---             K {p} _ = K̂ p
+--             K̂ : 𝕂 G
+--             K̂ {p} _ = K̂ p
 
---             A∈ : A ∈ S.Hon
---             A∈ = {!!}
-
---             A∈′ : A ∈ committedParticipants Γ₀ ⟨G⟩C
---             A∈′ = L.All.lookup committedA $ ∈-nub⁺ (persistentParticipants⊆ {g = G} A∈per)
-
---             K₂ : subtermsᶜ′ C ↦ (partG ↦ KeyPair)
---             K₂ = κ↝′ A∈ A∈′ κ′
+--             K₂ : 𝕂²′ ad
+--             K₂ = κ↝′ honG κ′
 --           in
---             proj₁ $ bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K K₂
+--             proj₁ $ bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K̂ K₂
 
---         -- (i) broadcast Tᵢₙᵢₜ , signed with A's private key
---         m = [ SIG (K̂ A) Tᵢₙᵢₜ ]
---         λᶜ = B →∗∶ m
+--         -- (ii) append Tᵢₙᵢₜ to the blockchain
+--         λᶜ = submit Tᵢₙᵢₜ
+
+--         -- (iii) sechash = sechash′, κ = κ′, txout extends txout′ with (z ↦ Tᵢₙᵢₜ)
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′ (hashTx Tᵢₙᵢₜ at 0)
+
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
+
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
+--       --——————————————————————————————————————————————————————————————————————
+--       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+
+--   -- ** Contract actions: authorize control
+--   [5] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+--       ∀ {⟨G⟩C c′} {i : Index c′}
+
+--     → let d = c′ ‼ i; d∗ = removeTopDecorations d in
+
+--       -- D ≡ A ∶ D′
+--       A ∈ authDecorations d
+
+--       -- (i) Rˢ contains ⟨C′ , v⟩ₓ with C′ = D + ∑ᵢ Dᵢ
+--     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ c′ , v ⟩at x ∣ Γ₀ at t))
+
+--       -- (ii) {G}C is the ancestor of ⟨C′, v⟩ₓ in Rˢ
+--     → (anc : Ancestor Rˢ (c′ , v , x) ⟨G⟩C)
+
+--     → let
+--         α  = auth-control[ A , x ▷ d ]
+--         Γ  = ⟨ c′ , v ⟩at x ∣ A auth[ x ▷ d ] ∣ Γ₀
+--         Γₜ = Γ at t
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         ⟨ G ⟩ C = ⟨G⟩C
+
+--         vad : ValidAdvertisement ⟨G⟩C
+--         vad = {!!}
+
+--         ad∈ : ⟨G⟩C ∈ advertisements Rˢ
+--         ad∈ = {!!}
+
+--         open H₅ c′ v x Γ₀ A i
+--         open H₅′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+--         open H₅″ ⟨G⟩C
+
+
+--         -- (iii) broadcast transaction T, as obtained from the compiler, signed by A
+--         --       where ∙ (T′,o) = txout′(x)
+--         --             ∙ T is the first transaction in Bd(d,d,T′,o,v,partG,0)
+--         --       i.e. the one corresponding to subterm `d∗ = removeTopDecorations d`
+--         T : ∃Tx
+--         T =
+--           let
+--             -- invoke compiler
+--             txout″ : Txout G
+--             txout″ = weaken-↦ txout′ {!!}
+
+--             sechash″ : Sechash G
+--             sechash″ = weaken-↦ sechash′ {!!}
+
+--             K̂ : 𝕂 G
+--             K̂ = {!!}
+
+--             K₂ : 𝕂² ad
+--             K₂ = κ′ ad∈
+
+--             -- retrieve transaction for specific subterm
+--             d∈₀ : d ∈ subtermsᶜ′ C
+--             d∈₀ = Ancestor⇒∈ {Rˢ} anc (∈-lookup i)
+
+--             d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C
+--             d∗∈ = {!!}
+--           in
+--             proj₂ (bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K̂ K₂) d∗∈
+
+--         d∈′ : d ∈ subtermsᶜ′ C
+--         d∈′ = {!!}
+
+--         A∈ : A ∈ nub-participants G
+--         A∈ = {!!}
+
+--         λᶜ = B →∗∶ [ SIGᵖ (pub $ κ′ ad∈ d∈′ {A} A∈) T ]
 
 --         -- (iv) txout = txout′, sechash = sechash′, κ = κ′
 --         txout : Txout Rˢ′
@@ -274,950 +417,781 @@ data coher₁₁ where
 --         κ = κ↝ κ′
 --       in
 
---       -- (ii) Tᵢₙᵢₜ occurs as a message in Rᶜ
---       (∃ λ B → (B →∗∶ [ HASH Tᵢₙᵢₜ ]) ∈ Rᶜ)
-
---       -- (iii) broadcast message in Rᶜ
---       -- T0D0: make sure that λᶜ is the first occurrence of such a message after Tinit in Rᶜ
+--       -- (v) transaction T has been previously broadcasted in Rᶜ, and λᶜ is the first signature on T after that
+--       (∃λ : Any (λ l → ∃ λ B → l ≡ B →∗∶ [ hashTx T ]) Rᶜ)
+--     → All (λ l → ¬ ∃ λ B → ¬ ∃ λ k → l ≡ B →∗∶ [ SIGᵖ k T ]) (Any-tail ∃λ)
 
 --       --——————————————————————————————————————————————————————————————————————
 --     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
 
+--   -- ** Contract actions: put
+--   [6] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+--       ∀ {⟨G⟩C″} {i : Index c} {ds : List (Participant × Value × Id)}
+--     → let
+--         -- (i) xs = x₁⋯xₖ
+--         (_ , vs , xs) = unzip₃ ds
+--         Γ = || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds
+--         d = c ‼ i; d∗ = removeTopDecorations d
+--       in
+
+--       -- ii) in Rˢ, α consumes ⟨D+C,v⟩y and the deposits ⟨Aᵢ,vᵢ⟩ₓᵢ to produce ⟨C′,v′⟩y′
+--       --     where D = ⋯ : put⋯reveal⋯.C′
+--       --     let t be the maximum deadline in an after in front of D
+--       --     T0D0: what should t′ be in case there are not after decorations?
+--       d ≡⋯∶ put xs &reveal as if p ⇒ c′
+--     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ c , v ⟩at y ∣ Γ ∣ Γ′ at t))
+
+--       -- (iii) {G}C″ is the ancestor of ⟨D+C,v⟩y in Rˢ
+--     → (anc : Ancestor Rˢ (c , v , y) ⟨G⟩C″)
+
+--     → let
+--         α  = put[ xs , as , y ]
+--         Γ  = ⟨ c′ , v + sum vs ⟩at y′ ∣ Γ′
+--         Γₜ = Γ at t
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         ⟨ G ⟩ C″ = ⟨G⟩C″
+--         partG = nub-participants G
+
+--         vad : ValidAdvertisement ⟨G⟩C″
+--         vad = {!!}
+
+--         -- (iv) submit transaction T
+--         --      where ∙ (T′,o) = txout′(y)
+--         --            ∙ T is the first transaction in Bc(c′,d,T′,o,v′,x⃗,partG,t)
+--         --      i.e. the one corresponding to subterm `d∗ = put xs &reveal as if p → c′`
+--         T : ∃Tx
+--         T =
+--           let
+--             -- invoke compiler
+--             txout″ : Txout G
+--             txout″ = weaken-↦ txout′ {!!}
 
--- --   -- ** Stipulation: activating the contract
--- --   [4] : ∀ {Γ₀ Rˢ G C} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
--- --     → let
--- --         ad      = ⟨ G ⟩ C
--- --         toSpend = persistentDeposits G
--- --         partG   = nub-participants G
--- --         v       = sum $ map (proj₁ ∘ proj₂) toSpend
--- --       in
--- --       {vad : ValidAdvertisement ad}
--- --       -- (i) consume {G}C and its persistent deposits from Rˢ
--- --       (cfg≡ : lastCfgᵗ Rˢ ≡
--- --         ( ` ad ∣ Γ₀
--- --         ∣ || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ ad ] }) toSpend
--- --         ∣ || map (_auth[ ♯▷ ad ]) partG
--- --         at t) )
-
--- --       -- [T0D0] additional hypotheses, should hold since we know the following:
--- --       --   ∙ from the hypotheses of [C-Advertise]
--- --       --       ∘ which introduces ` ⟨G⟩C
--- --       --       ⇒ deposits ⟨G⟩C ⊆ deposits Γ₀
--- --       --       ⇒ namesʳ ⟨G⟩C ⊆ namesʳ Γ₀ ⊆ namesʳ (_ ∣ Γ₀ ∣ _)
--- --       --   ∙ from the hypotheses of [C-AuthCommit]
--- --       --       ∘ which introduces ⟨ Aᵢ ∶ aᵢ ♯ Nᵢ ⟩
--- --       --       ⇒ secrets ⟨G⟩C ⊆ secrets Γ₀
--- --       --       ⇒ namesˡ ⟨G⟩C ⊆ namesˡ Γ₀
--- --     → (names⊆ : names G ⊆ names Γ₀)
-
--- --       -- [T0D0] additional hypothesis, should hold from the hypotheses of [C-Advertise]
--- --     → (honG : Any (_∈ Hon) partG)
-
--- --     → let
--- --         α  = init[ G , C ]
--- --         Γ  = ⟨ C , v ⟩at z ∣ Γ₀
--- --         Γₜ = Γ at t
--- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
-
--- --         open H₄ G C v z Γ₀ toSpend partG
--- --         open H₄′ Rˢ Rˢ′ (cong cfg cfg≡) refl
-
--- --         Tᵢₙᵢₜ : ∃Tx
--- --         Tᵢₙᵢₜ =
--- --           let -- invoke compiler
--- --             txout″ : Txout G
--- --             txout″ = weaken-↦ (txout↝′ txout′) (mapMaybe-⊆ isInj₂ names⊆)
-
--- --             sechash″ : Sechash G
--- --             sechash″ = weaken-↦ (sechash↝′ sechash′) (mapMaybe-⊆ isInj₁ names⊆)
-
--- --             K̂ : 𝕂 G
--- --             K̂ {p} _ = K̂ p
-
--- --             K₂ : 𝕂²′ ad
--- --             K₂ = κ↝′ honG κ′
--- --           in
--- --             proj₁ $ bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K̂ K₂
-
--- --         -- (ii) append Tᵢₙᵢₜ to the blockchain
--- --         λᶜ = submit Tᵢₙᵢₜ
-
--- --         -- (iii) sechash = sechash′, κ = κ′, txout extends txout′ with (z ↦ Tᵢₙᵢₜ)
--- --         txout : Txout Rˢ′
--- --         txout = txout↝ txout′ (hashTx Tᵢₙᵢₜ at 0)
-
--- --         sechash : Sechash Rˢ′
--- --         sechash = sechash↝ sechash′
-
--- --         κ : 𝕂² Rˢ′
--- --         κ = κ↝ κ′
--- --       in
--- --       --——————————————————————————————————————————————————————————————————————
--- --       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
-
--- --   -- ** Contract actions: authorize control
--- --   [5] : ∀ {Rˢ ⟨G⟩C} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
--- --           {c′} {i : Index c′}
--- --     → let d = c′ ‼ i; d∗ = removeTopDecorations d in
-
--- --       -- D ≡ A ∶ D′
--- --       A ∈ authDecorations d
-
--- --       -- (i) Rˢ contains ⟨C′ , v⟩ₓ with C′ = D + ∑ᵢ Dᵢ
--- --     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ c′ , v ⟩at x ∣ Γ₀ at t))
-
--- --       -- (ii) {G}C is the ancestor of ⟨C′, v⟩ₓ in Rˢ
--- --     → (anc : Ancestor Rˢ (c′ , v , x) ⟨G⟩C)
-
--- --     → let
--- --         α  = auth-control[ A , x ▷ d ]
--- --         Γ  = ⟨ c′ , v ⟩at x ∣ A auth[ x ▷ d ] ∣ Γ₀
--- --         Γₜ = Γ at t
--- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
-
--- --         ⟨ G ⟩ C = ⟨G⟩C
-
--- --         vad : ValidAdvertisement ⟨G⟩C
--- --         vad = {!!}
-
--- --         ad∈ : ⟨G⟩C ∈ advertisements Rˢ
--- --         ad∈ = {!!}
-
--- --         open H₅ c′ v x Γ₀ A i
--- --         open H₅′ Rˢ Rˢ′ (cong cfg cfg≡) refl
--- --         open H₅″ ⟨G⟩C
-
-
--- --         -- (iii) broadcast transaction T, as obtained from the compiler, signed by A
--- --         --       where ∙ (T′,o) = txout′(x)
--- --         --             ∙ T is the first transaction in Bd(d,d,T′,o,v,partG,0)
--- --         --       i.e. the one corresponding to subterm `d∗ = removeTopDecorations d`
--- --         T : ∃Tx
--- --         T =
--- --           let
--- --             -- invoke compiler
--- --             txout″ : Txout G
--- --             txout″ = weaken-↦ txout′ {!!}
-
--- --             sechash″ : Sechash G
--- --             sechash″ = weaken-↦ sechash′ {!!}
-
--- --             K̂ : 𝕂 G
--- --             K̂ = {!!}
-
--- --             K₂ : 𝕂² ad
--- --             K₂ = κ′ ad∈
-
--- --             -- retrieve transaction for specific subterm
--- --             d∈₀ : d ∈ subtermsᶜ′ C
--- --             d∈₀ = Ancestor⇒∈ {Rˢ} anc (∈-lookup i)
-
--- --             d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C
--- --             d∗∈ = {!!}
--- --           in
--- --             proj₂ (bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K̂ K₂) d∗∈
-
--- --         d∈′ : d ∈ subtermsᶜ′ C
--- --         d∈′ = {!!}
-
--- --         A∈ : A ∈ nub-participants G
--- --         A∈ = {!!}
-
--- --         λᶜ = B →∗∶ [ SIGᵖ (pub $ κ′ ad∈ d∈′ {A} A∈) T ]
-
--- --         -- (iv) txout = txout′, sechash = sechash′, κ = κ′
--- --         txout : Txout Rˢ′
--- --         txout = txout↝ txout′
-
--- --         sechash : Sechash Rˢ′
--- --         sechash = sechash↝ sechash′
-
--- --         κ : 𝕂² Rˢ′
--- --         κ = κ↝ κ′
--- --       in
-
--- --       -- (v) transaction T has been previously broadcasted in Rᶜ, and λᶜ is the first signature on T after that
--- --       (∃λ : Any (λ l → ∃ λ B → l ≡ B →∗∶ [ hashTx T ]) Rᶜ)
--- --     → All (λ l → ¬ ∃ λ B → ¬ ∃ λ k → l ≡ B →∗∶ [ SIGᵖ k T ]) (Any-tail ∃λ)
-
--- --       --——————————————————————————————————————————————————————————————————————
--- --     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
--- -- --   -- ** Contract actions: put
--- -- --   [6] : ∀ {Rˢ ⟨G⟩C″} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
--- -- --           {i : Index c}
--- -- --           {ds : List (Participant × Value × Id)}
--- -- --           -- {ss : List (Participant × Secret × ℕ)}
--- -- --     → let
--- -- --         -- (i) xs = x₁⋯xₖ
--- -- --         (_ , vs , xs) = unzip₃ ds
--- -- --         Γ = || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds
--- -- --         d = c ‼ i; d∗ = removeTopDecorations d
--- -- --       in
-
--- -- --       -- ii) in Rˢ, α consumes ⟨D+C,v⟩y and the deposits ⟨Aᵢ,vᵢ⟩ₓᵢ to produce ⟨C′,v′⟩y′
--- -- --       --     where D = ⋯ : put⋯reveal⋯.C′
--- -- --       --     let t be the maximum deadline in an after in front of D
--- -- --       --     T0D0: what should t′ be in case there are not after decorations?
--- -- --       d ≡⋯∶ put xs &reveal as if p ⇒ c′
--- -- --     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ c , v ⟩at y ∣ Γ ∣ Γ′ at t))
-
--- -- --       -- (iii) {G}C″ is the ancestor of ⟨D+C,v⟩y in Rˢ
--- -- --     → (anc : Ancestor Rˢ (c , v , y) ⟨G⟩C″)
-
--- -- --     → let
--- -- --         α  = put[ xs , as , y ]
--- -- --         Γ  = ⟨ c′ , v + sum vs ⟩at y′ ∣ Γ′
--- -- --         Γₜ = Γ at t
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
-
--- -- --         ⟨ G ⟩ C″ = ⟨G⟩C″
--- -- --         partG = nub-participants G
+--             sechash″ : Sechash G
+--             sechash″ = weaken-↦ sechash′ {!!}
 
--- -- --         vad : ValidAdvertisement ⟨G⟩C″
--- -- --         vad = {!!}
+--             K : 𝕂 G
+--             K {p} _ = K̂ p
 
--- -- --         -- (iv) submit transaction T
--- -- --         --      where ∙ (T′,o) = txout′(y)
--- -- --         --            ∙ T is the first transaction in Bc(c′,d,T′,o,v′,x⃗,partG,t)
--- -- --         --      i.e. the one corresponding to subterm `d∗ = put xs &reveal as if p → c′`
--- -- --         T : ∃Tx
--- -- --         T =
--- -- --           let
--- -- --             -- invoke compiler
--- -- --             txout″ : Txout G
--- -- --             txout″ = weaken-↦ txout′ {!!}
+--             ad∈ : ⟨G⟩C″ ∈ advertisements Rˢ
+--             ad∈ = {!!} -- (∈-++⁺ˡ $ ∈-++⁺ˡ {xs = advertisements (` ⟨G⟩C ∣ Γ₀)} $ here refl)
 
--- -- --             sechash″ : Sechash G
--- -- --             sechash″ = weaken-↦ sechash′ {!!}
+--             K₂ : 𝕂² ⟨G⟩C″
+--             K₂ = κ′ ad∈
+
+--             -- retrieve transaction for specific subterm
+--             d∗∈ : d∗ ∈ subtermsᶜ⁺ C″
+--             d∗∈ = {!!}
+--           in
+--             proj₂ (bitml-compiler {g = G} {ds = C″} vad sechash″ txout″ K K₂) d∗∈
+
+--         λᶜ = submit T
+
+--         -- (v) extend txout′ with {y′↦(T,0)}, sechash = sechash′, κ = κ′
+--         open H₆ c v y c′ y′ ds Γ′
+--         open H₆′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′ (hashTx T at 0)
+
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
+
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
+
+--       --——————————————————————————————————————————————————————————————————————
+--       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+--   -- ** Contract actions: authorize reveal
+--   [7] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+--       ∀ {n : ℕ} {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)} {k⃗ : 𝕂² ⟨G⟩C}
+
+--     → ∣ m ∣ᵐ ≤ η
+--     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A ∶ a ♯ just n ⟩ ∣ Γ₀ at t))
+
+--     → let
+--         α  = auth-rev[ A , a ]
+--         Γ  = A ∶ a ♯ n ∣ Γ₀
+--         Γₜ = Γ at t
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         C : Message
+--         C = encode {Rˢ = Rˢ} txout′ ⟨G⟩C
+
+--         Δ : List (Secret × Maybe ℕ)
+--         Δ = map (λ{ (s , mn , _) → s , mn }) Δ×h̅
+
+--         h̅ : Message
+--         h̅ = map (proj₂ ∘ proj₂) Δ×h̅
+
+--         k̅ : Message
+--         k̅ = concatMap codom (codom k⃗)
 
--- -- --             K : 𝕂 G
--- -- --             K {p} _ = K̂ p
+--         a∈ : a ∈ namesˡ Rˢ
+--         a∈ = {!!}
+
+--         -- T0D0: should we search for a signature of this message instead?
+--         C,h̅,k̅ : Message
+--         C,h̅,k̅ = C ◇ h̅ ◇ k̅
 
--- -- --             ad∈ : ⟨G⟩C″ ∈ advertisements Rˢ
--- -- --             ad∈ = {!!} -- (∈-++⁺ˡ $ ∈-++⁺ˡ {xs = advertisements (` ⟨G⟩C ∣ Γ₀)} $ here refl)
+--         -- (i) some participant B broadcasts message m
+--         λᶜ = B →∗∶ m
 
--- -- --             K₂ : 𝕂² ⟨G⟩C″
--- -- --             K₂ = κ′ ad∈
+--         -- (iii) txout = txout′, sechash = sechash′, κ = κ′
+--         open H₇ A a n Γ₀
+--         open H₇′ Rˢ Rˢ′ (cong cfg cfg≡) refl
 
--- -- --             -- retrieve transaction for specific subterm
--- -- --             d∗∈ : d∗ ∈ subtermsᶜ⁺ C″
--- -- --             d∗∈ = {!!}
--- -- --           in
--- -- --             proj₂ (bitml-compiler {g = G} {ds = C″} vad sechash″ txout″ K K₂) d∗∈
-
--- -- --         λᶜ = submit T
-
--- -- --         -- (v) extend txout′ with {y′↦(T,0)}, sechash = sechash′, κ = κ′
--- -- --         open H₆ c v y c′ y′ ds Γ′
--- -- --         open H₆′ Rˢ Rˢ′ (cong cfg cfg≡) refl
-
--- -- --         txout : Txout Rˢ′
--- -- --         txout = txout↝ txout′ (hashTx T at 0)
-
--- -- --         sechash : Sechash Rˢ′
--- -- --         sechash = sechash↝ sechash′
-
--- -- --         κ : 𝕂² Rˢ′
--- -- --         κ = κ↝ κ′
--- -- --       in
-
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
--- -- --   -- ** Contract actions: authorize reveal
--- -- --   [7] : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
--- -- --           {n : ℕ}
--- -- --           {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)}
--- -- --           {k⃗ : 𝕂² ⟨G⟩C}
-
--- -- --     → ∣ m ∣ᵐ ≤ η
--- -- --     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A ∶ a ♯ just n ⟩ ∣ Γ₀ at t))
-
--- -- --     → let
--- -- --         α  = auth-rev[ A , a ]
--- -- --         Γ  = A ∶ a ♯ n ∣ Γ₀
--- -- --         Γₜ = Γ at t
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
-
--- -- --         C : Message
--- -- --         C = encode {Rˢ = Rˢ} txout′ ⟨G⟩C
-
--- -- --         Δ : List (Secret × Maybe ℕ)
--- -- --         Δ = map (λ{ (s , mn , _) → s , mn }) Δ×h̅
-
--- -- --         h̅ : Message
--- -- --         h̅ = map (proj₂ ∘ proj₂) Δ×h̅
-
--- -- --         k̅ : Message
--- -- --         k̅ = concatMap codom (codom k⃗)
-
--- -- --         a∈ : a ∈ namesˡ Rˢ
--- -- --         a∈ = {!!}
-
--- -- --         -- T0D0: should we search for a signature of this message instead?
--- -- --         C,h̅,k̅ : Message
--- -- --         C,h̅,k̅ = C ◇ h̅ ◇ k̅
-
--- -- --         -- (i) some participant B broadcasts message m
--- -- --         λᶜ = B →∗∶ m
-
--- -- --         -- (iii) txout = txout′, sechash = sechash′, κ = κ′
--- -- --         open H₇ A a n Γ₀
--- -- --         open H₇′ Rˢ Rˢ′ (cong cfg cfg≡) refl
-
--- -- --         txout : Txout Rˢ′
--- -- --         txout = txout↝ txout′
-
--- -- --         sechash : Sechash Rˢ′
--- -- --         sechash = sechash↝ sechash′
-
--- -- --         κ : 𝕂² Rˢ′
--- -- --         κ = κ↝ κ′
--- -- --       in
-
--- -- --       -- (ii) in Rᶜ we find ⋯ (B → O ∶ m) (O → B : sechash′(a)) for some B ⋯
--- -- --       (∃ λ B → (B , m , [ sechash′ {a} a∈ ]) ∈ oracleInteractions Rᶜ)
-
--- -- --       -- (iv) in Rˢ, we find an A:{G}C,∆ action, with a in G
--- -- --     → (∃α : auth-commit[ A , ⟨G⟩C , Δ ] ∈ labels Rˢ)
--- -- --     → a ∈ namesˡ (G ⟨G⟩C)
-
--- -- --       -- ... with a corresponding broadcast of m′=(C,h̅,k̅) in Rᶜ
--- -- --     → (∃λ : Any (λ l → ∃ λ B → l ≡ B →∗∶ C,h̅,k̅) Rᶜ)
-
--- -- --       -- (v) λᶜ is the first broadcast of m after the first broadcast of m′
--- -- --     → All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-tail ∃λ)
-
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
--- -- --   -- ** Contract actions: split
--- -- --   [8] : ∀ {Rˢ ⟨G⟩C′} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
--- -- --           {i : Index c}
--- -- --           {vcis : List (Val × Contracts × Id)}
-
--- -- --     → let
--- -- --         (vs , cs , _) = unzip₃ vcis
--- -- --         v = sum vs
--- -- --         d = c ‼ i; d∗ = removeTopDecorations d
--- -- --       in
--- -- --       -- (i) in Rˢ, α consumes ⟨D+C,v⟩y to obtain ⟨C₀,v₀⟩ₓ₀ | ⋯ | ⟨Cₖ,vₖ⟩ₓₖ
--- -- --       --     where D = ⋯ : split vs → cs
--- -- --       --     let t be the maximum deadline in an after in front of D
--- -- --       --     T0D0: what should t′ be in case there are not after decorations?
--- -- --       d ≡⋯∶ split (zip vs cs)
--- -- --     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ c , v ⟩at y ∣ Γ₀ at t))
-
--- -- --       -- (iii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
--- -- --     → (anc : Ancestor Rˢ (c , v , y) ⟨G⟩C′)
-
--- -- --     → let
--- -- --         t = maximum t′ $ timeDecorations d
--- -- --         α  = split[ y ]
--- -- --         Γ  = || map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis ∣ Γ₀
--- -- --         Γₜ = Γ at t
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
-
--- -- --         ⟨ G ⟩ C = ⟨G⟩C′
--- -- --         partG = nub-participants G
-
--- -- --         vad : ValidAdvertisement ⟨G⟩C′
--- -- --         vad = {!!}
-
--- -- --         -- (iii) submit transaction T
--- -- --         --       where ∙ (T′,o) = txout′(y)
--- -- --         --             ∙ T is the first transaction in Bpar(cs,d,T′,o,partG,t)
--- -- --         --       i.e. the one corresponding to subterm `d∗ = split (zip vs cs)`
--- -- --         T : ∃Tx
--- -- --         T =
--- -- --           let -- invoke compiler
--- -- --             txout″ : Txout G
--- -- --             txout″ = weaken-↦ txout′ {!!}
-
--- -- --             sechash″ : Sechash G
--- -- --             sechash″ = weaken-↦ sechash′ {!!}
-
--- -- --             K : 𝕂 G
--- -- --             K {p} _ = K̂ p
-
--- -- --             ad∈ : ⟨G⟩C′ ∈ advertisements Rˢ
--- -- --             ad∈ = {!!} -- (∈-++⁺ˡ $ ∈-++⁺ˡ {xs = advertisements (` ⟨G⟩C ∣ Γ₀)} $ here refl)
-
--- -- --             K₂ : 𝕂² ⟨G⟩C′
--- -- --             K₂ = κ′ ad∈
-
--- -- --             -- retrieve transaction for specific subterm
--- -- --             d∈₀ : d ∈ subtermsᶜ′ C
--- -- --             d∈₀ = Ancestor⇒∈ {Rˢ} anc (∈-lookup i)
-
--- -- --             d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C′
--- -- --             d∗∈ = {!!}
--- -- --           in
--- -- --             proj₂ (bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K K₂) d∗∈
-
--- -- --         λᶜ = submit T
-
--- -- --         -- (iv) extend txout′ with {xᵢ ↦ (T,i)}, sechash = sechash′, κ = κ′
--- -- --         open H₈ c v y Γ₀ vcis
--- -- --         open H₈′ Rˢ Rˢ′ (cong cfg cfg≡) refl
-
--- -- --         txout : Txout Rˢ′
--- -- --         txout = txout↝ txout′ ((hashTx T at_) ∘ F.toℕ ∘ L.Any.index)
-
--- -- --         sechash : Sechash Rˢ′
--- -- --         sechash = sechash↝ sechash′
-
--- -- --         κ : 𝕂² Rˢ′
--- -- --         κ = κ↝ κ′
--- -- --       in
-
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
--- -- --   -- ** Contract actions: withdraw
--- -- --   [9] : ∀ {Rˢ ⟨G⟩C′} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
--- -- --           {i : Index c}
--- -- --     → let d = c ‼ i; d∗ = removeTopDecorations d in
--- -- --       -- (i) in Rˢ, α consumes ⟨D+C,v⟩y to obtain ⟨A,v⟩ₓ (where D = ⋯ : withdraw A)
--- -- --       d ≡⋯∶ withdraw A
--- -- --     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ c , v ⟩at y ∣ Γ₀ at t))
-
--- -- --       -- (ii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
--- -- --     → (anc : Ancestor Rˢ (c , v , y) ⟨G⟩C′)
--- -- --     → let
--- -- --         α  = withdraw[ A , v , y ]
--- -- --         Γ  = ⟨ A has v ⟩at x ∣ Γ₀
--- -- --         Γₜ = Γ at t
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
-
--- -- --         ⟨ G ⟩ C = ⟨G⟩C′
--- -- --         partG = nub-participants G
-
--- -- --         vad : ValidAdvertisement ⟨G⟩C′
--- -- --         vad = {!!}
--- -- --         -- T0D0 how to ensure the ad is valid??
-
--- -- --         --   ∙ T′ at o = txout′(x)
--- -- --         --   ∙ T is the first transaction of Bd(d,d,T′,o,v,partG,0)
--- -- --         -- i.e.
--- -- --         -- (iii) submit transaction T
--- -- --         --       where ∙ (T′,o) = txout′(y)
--- -- --         --             ∙ T is the first transaction in Bd(d,d,T′,o,v,partG,0)
--- -- --         --       i.e. the one corresponding to subterm `d∗ = withdraw A`
--- -- --         T : ∃Tx
--- -- --         T =
--- -- --           let -- invoke compiler
--- -- --             txout″ : Txout G
--- -- --             txout″ = weaken-↦ txout′ {!!}
-
--- -- --             sechash″ : Sechash G
--- -- --             sechash″ = weaken-↦ sechash′ {!!}
-
--- -- --             K : 𝕂 G
--- -- --             K {p} _ = K̂ p
-
--- -- --             ad∈ : ⟨G⟩C′ ∈ advertisements Rˢ
--- -- --             ad∈ = {!!} -- (∈-++⁺ˡ $ ∈-++⁺ˡ {xs = advertisements (` ⟨G⟩C ∣ Γ₀)} $ here refl)
-
--- -- --             K₂ : 𝕂² ⟨G⟩C′
--- -- --             K₂ = κ′ ad∈
-
--- -- --             -- retrieve transaction for specific subterm
--- -- --             d∈₀ : d ∈ subtermsᶜ′ C
--- -- --             d∈₀ = Ancestor⇒∈ {Rˢ} anc (∈-lookup i)
-
--- -- --             d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C′
--- -- --             d∗∈ = {!!}
--- -- --           in
--- -- --             proj₂ (bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K K₂) d∗∈
-
--- -- --         λᶜ = submit T
-
--- -- --         -- (iv) extend txout′ with {x ↦ (T,0)}, sechash = sechash′, κ = κ′
--- -- --         open H₉ c v y Γ₀ A x
--- -- --         open H₉′ Rˢ Rˢ′ (cong cfg cfg≡) refl
-
--- -- --         txout : Txout Rˢ′
--- -- --         txout = txout↝ txout′ (hashTx T at 0)
-
--- -- --         sechash : Sechash Rˢ′
--- -- --         sechash = sechash↝ sechash′
-
--- -- --         κ : 𝕂² Rˢ′
--- -- --         κ = κ↝ κ′
--- -- --       in
-
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
--- -- --   -- ** Deposits: authorize join
--- -- --   [10] : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
-
--- -- --     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀ at t))
-
--- -- --     → let
--- -- --         α  = auth-join[ A , x ↔ x′ ]
--- -- --         Γ  = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
--- -- --         Γₜ = Γ at t
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
-
--- -- --         x∈ : x ∈ namesʳ Rˢ
--- -- --         x∈ = {!!}
-
--- -- --         x′∈ : x′ ∈ namesʳ Rˢ
--- -- --         x′∈ = {!!}
--- -- --       in
-
--- -- --       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
--- -- --                 → (l ≡ B →∗∶ [ hashTx (2 , 1 , T) ])
--- -- --                 × (inputs  T ≡ txout′ {x} x∈ ∷ txout′ {x′} x′∈ ∷ [])
--- -- --                 × (outputs T ≡ V.[ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
--- -- --                 ) Rᶜ)
--- -- --     → let
--- -- --         T : ∃Tx
--- -- --         T = 2 , 1 , (proj₁ $ proj₂ $ proj₂ $ L.Any.satisfied ∃λ)
-
--- -- --         -- (iii) broadcast transaction T, signed by A
--- -- --         m′ = [ SIG (K̂ A) T ]
--- -- --         λᶜ = B →∗∶ m′
-
--- -- --         -- (v) txout = txout′, sechash = sechash′, κ = κ′
--- -- --         open H₁₀ A v x v′ x′ Γ₀
--- -- --         open H₁₀′ Rˢ Rˢ′ (cong cfg cfg≡) refl
-
--- -- --         txout : Txout Rˢ′
--- -- --         txout = txout↝ txout′
-
--- -- --         sechash : Sechash Rˢ′
--- -- --         sechash = sechash↝ sechash′
-
--- -- --         κ : 𝕂² Rˢ′
--- -- --         κ = κ↝ κ′
--- -- --       in
-
--- -- --       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
--- -- --       All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
-
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
--- -- --   -- ** Deposits: join
--- -- --   [11] : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
-
--- -- --     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ y ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀ at t))
-
--- -- --     → let
--- -- --         α  = join[ x ↔ x′ ]
--- -- --         Γ  = ⟨ A has (v + v′) ⟩at y ∣ Γ₀
--- -- --         Γₜ = Γ at t
-
--- -- --         x∈ : x ∈ namesʳ Rˢ
--- -- --         x∈ = {!!}
-
--- -- --         x′∈ : x′ ∈ namesʳ Rˢ
--- -- --         x′∈ = {!!}
-
--- -- --         -- (ii) submit transaction T
--- -- --         T  = 2 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
--- -- --            { inputs  = txout′ {x} x∈ ∷ txout′ {x′} x′∈ ∷ []
--- -- --            ; wit     = wit⊥
--- -- --            ; relLock = V.replicate 0
--- -- --            ; outputs = V.[ (v + v′) -redeemableWith- K̂ A ]
--- -- --            ; absLock = 0 }
--- -- --         λᶜ = submit T
-
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
-
--- -- --         -- (iii) extend txout′ with y↦T₀ (removing {x↦_;x′↦_}), sechash = sechash′, κ = κ′
--- -- --         open H₁₁ A v x v′ x′ y Γ₀
--- -- --         open H₁₁′ Rˢ Rˢ′ (cong cfg cfg≡) refl
-
--- -- --         txout : Txout Rˢ′
--- -- --         txout = txout↝ txout′ (hashTx T at 0)
-
--- -- --         sechash : Sechash Rˢ′
--- -- --         sechash = sechash↝ sechash′
-
--- -- --         κ : 𝕂² Rˢ′
--- -- --         κ = κ↝ κ′
--- -- --       in
-
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
--- -- --   -- ** Deposits: authorize divide (similar to [10])
--- -- --   [12] : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
-
--- -- --     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A has (v + v′) ⟩at x ∣ Γ₀ at t))
-
--- -- --     → let
--- -- --         α  = auth-divide[ A , x ▷ v , v′ ]
--- -- --         Γ  = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
--- -- --         Γₜ = Γ at t
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
-
--- -- --         x∈ : x ∈ namesʳ Rˢ
--- -- --         x∈ = {!!}
--- -- --       in
-
--- -- --       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
--- -- --                 → (l ≡ B →∗∶ [ hashTx (1 , 2 , T) ])
--- -- --                 × (inputs  T ≡ V.[ txout′ {x} x∈ ])
--- -- --                 × (outputs T ≡ (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ [])
--- -- --                 ) Rᶜ)
--- -- --     → let
--- -- --         T : ∃Tx
--- -- --         T = 1 , 2 , (proj₁ $ proj₂ $ proj₂ $ L.Any.satisfied ∃λ)
-
--- -- --         -- (iii) broadcast transaction T, signed by A
--- -- --         m′ = [ SIG (K̂ A) T ]
--- -- --         λᶜ = B →∗∶ m′
-
--- -- --         -- (v) txout = txout′, sechash = sechash′, κ = κ′
--- -- --         open H₁₂ A v v′ x Γ₀
--- -- --         open H₁₂′ Rˢ Rˢ′ (cong cfg cfg≡) refl
-
--- -- --         txout : Txout Rˢ′
--- -- --         txout = txout↝ txout′
-
--- -- --         sechash : Sechash Rˢ′
--- -- --         sechash = sechash↝ sechash′
-
--- -- --         κ : 𝕂² Rˢ′
--- -- --         κ = κ↝ κ′
--- -- --       in
-
--- -- --       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
--- -- --       All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
-
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′
 
--- -- --   -- ** Deposits: divide (dimilar to [11])
--- -- --   [13] : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
 
--- -- --     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀ at t))
-
--- -- --     → let
--- -- --         α  = divide[ x ▷ v , v′ ]
--- -- --         Γ  = ⟨ A has v ⟩at y ∣ ⟨ A has v′ ⟩at y′ ∣ Γ₀
--- -- --         Γₜ = Γ at t
-
--- -- --         x∈ : x ∈ namesʳ Rˢ
--- -- --         x∈ = {!!}
-
--- -- --         -- (iii) submit transaction T
--- -- --         T  = 1 , 2 , sig⋆ (V.replicate [ K̂ A ]) record
--- -- --            { inputs  = V.[ txout′ {x} x∈ ]
--- -- --            ; wit     = wit⊥
--- -- --            ; relLock = V.replicate 0
--- -- --            ; outputs = (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ []
--- -- --            ; absLock = 0 }
--- -- --         λᶜ = submit T
-
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
 
--- -- --         -- (v) extend txout′ with {y↦T₀, y′↦T₁} (removing x↦T₀), sechash = sechash′, κ = κ′
--- -- --         open H₁₃ A v v′ x Γ₀ y y′
--- -- --         open H₁₃′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+--       -- (ii) in Rᶜ we find ⋯ (B → O ∶ m) (O → B : sechash′(a)) for some B ⋯
+--       (∃ λ B → (B , m , [ sechash′ {a} a∈ ]) ∈ oracleInteractions Rᶜ)
 
--- -- --         txout : Txout Rˢ′
--- -- --         txout = txout↝ txout′ ((hashTx T at 0) , (hashTx T at 1))
+--       -- (iv) in Rˢ, we find an A:{G}C,∆ action, with a in G
+--     → (∃α : auth-commit[ A , ⟨G⟩C , Δ ] ∈ labels Rˢ)
+--     → a ∈ namesˡ (G ⟨G⟩C)
 
--- -- --         sechash : Sechash Rˢ′
--- -- --         sechash = sechash↝ sechash′
+--       -- ... with a corresponding broadcast of m′=(C,h̅,k̅) in Rᶜ
+--     → (∃λ : Any (λ l → ∃ λ B → l ≡ B →∗∶ C,h̅,k̅) Rᶜ)
+
+--       -- (v) λᶜ is the first broadcast of m after the first broadcast of m′
+--     → All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-tail ∃λ)
+
+--       --——————————————————————————————————————————————————————————————————————
+--     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+--   -- ** Contract actions: split
+--   [8] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+--       ∀ {⟨G⟩C′} {i : Index c} {vcis : List (Val × Contracts × Id)}
+
+--     → let
+--         (vs , cs , _) = unzip₃ vcis
+--         v = sum vs
+--         d = c ‼ i; d∗ = removeTopDecorations d
+--       in
+--       -- (i) in Rˢ, α consumes ⟨D+C,v⟩y to obtain ⟨C₀,v₀⟩ₓ₀ | ⋯ | ⟨Cₖ,vₖ⟩ₓₖ
+--       --     where D = ⋯ : split vs → cs
+--       --     let t be the maximum deadline in an after in front of D
+--       --     T0D0: what should t′ be in case there are not after decorations?
+--       d ≡⋯∶ split (zip vs cs)
+--     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ c , v ⟩at y ∣ Γ₀ at t))
+
+--       -- (iii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
+--     → (anc : Ancestor Rˢ (c , v , y) ⟨G⟩C′)
+
+--     → let
+--         t = maximum t′ $ timeDecorations d
+--         α  = split[ y ]
+--         Γ  = || map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis ∣ Γ₀
+--         Γₜ = Γ at t
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         ⟨ G ⟩ C = ⟨G⟩C′
+--         partG = nub-participants G
+
+--         vad : ValidAdvertisement ⟨G⟩C′
+--         vad = {!!}
+
+--         -- (iii) submit transaction T
+--         --       where ∙ (T′,o) = txout′(y)
+--         --             ∙ T is the first transaction in Bpar(cs,d,T′,o,partG,t)
+--         --       i.e. the one corresponding to subterm `d∗ = split (zip vs cs)`
+--         T : ∃Tx
+--         T =
+--           let -- invoke compiler
+--             txout″ : Txout G
+--             txout″ = weaken-↦ txout′ {!!}
+
+--             sechash″ : Sechash G
+--             sechash″ = weaken-↦ sechash′ {!!}
+
+--             K : 𝕂 G
+--             K {p} _ = K̂ p
+
+--             ad∈ : ⟨G⟩C′ ∈ advertisements Rˢ
+--             ad∈ = {!!} -- (∈-++⁺ˡ $ ∈-++⁺ˡ {xs = advertisements (` ⟨G⟩C ∣ Γ₀)} $ here refl)
+
+--             K₂ : 𝕂² ⟨G⟩C′
+--             K₂ = κ′ ad∈
+
+--             -- retrieve transaction for specific subterm
+--             d∈₀ : d ∈ subtermsᶜ′ C
+--             d∈₀ = Ancestor⇒∈ {Rˢ} anc (∈-lookup i)
+
+--             d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C′
+--             d∗∈ = {!!}
+--           in
+--             proj₂ (bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K K₂) d∗∈
+
+--         λᶜ = submit T
+
+--         -- (iv) extend txout′ with {xᵢ ↦ (T,i)}, sechash = sechash′, κ = κ′
+--         open H₈ c v y Γ₀ vcis
+--         open H₈′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′ ((hashTx T at_) ∘ F.toℕ ∘ L.Any.index)
+
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
+
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
+
+--       --——————————————————————————————————————————————————————————————————————
+--       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+--   -- ** Contract actions: withdraw
+--   [9] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+--       ∀ {i : Index c}
+--     → let d = c ‼ i; d∗ = removeTopDecorations d in
+--       -- (i) in Rˢ, α consumes ⟨D+C,v⟩y to obtain ⟨A,v⟩ₓ (where D = ⋯ : withdraw A)
+--       d ≡⋯∶ withdraw A
+--     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ c , v ⟩at y ∣ Γ₀ at t))
+
+--       -- (ii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
+--     → (anc : Ancestor Rˢ (c , v , y) ⟨G⟩C′)
+--     → let
+--         α  = withdraw[ A , v , y ]
+--         Γ  = ⟨ A has v ⟩at x ∣ Γ₀
+--         Γₜ = Γ at t
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         ⟨ G ⟩ C = ⟨G⟩C′
+--         partG = nub-participants G
+
+--         vad : ValidAdvertisement ⟨G⟩C′
+--         vad = {!!}
+--         -- T0D0 how to ensure the ad is valid??
+
+--         --   ∙ T′ at o = txout′(x)
+--         --   ∙ T is the first transaction of Bd(d,d,T′,o,v,partG,0)
+--         -- i.e.
+--         -- (iii) submit transaction T
+--         --       where ∙ (T′,o) = txout′(y)
+--         --             ∙ T is the first transaction in Bd(d,d,T′,o,v,partG,0)
+--         --       i.e. the one corresponding to subterm `d∗ = withdraw A`
+--         T : ∃Tx
+--         T =
+--           let -- invoke compiler
+--             txout″ : Txout G
+--             txout″ = weaken-↦ txout′ {!!}
+
+--             sechash″ : Sechash G
+--             sechash″ = weaken-↦ sechash′ {!!}
+
+--             K : 𝕂 G
+--             K {p} _ = K̂ p
 
--- -- --         κ : 𝕂² Rˢ′
--- -- --         κ = κ↝ κ′
--- -- --       in
-
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
--- -- --   -- ** Deposits: authorize donate (similar to [10])
--- -- --   [14] : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
-
--- -- --     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A has v ⟩at x ∣ Γ₀ at t))
-
--- -- --     → let
--- -- --         α  = auth-donate[ A , x ▷ᵈ B′ ]
--- -- --         Γ  = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
--- -- --         Γₜ = Γ at t
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+--             ad∈ : ⟨G⟩C′ ∈ advertisements Rˢ
+--             ad∈ = {!!} -- (∈-++⁺ˡ $ ∈-++⁺ˡ {xs = advertisements (` ⟨G⟩C ∣ Γ₀)} $ here refl)
 
--- -- --         x∈ : x ∈ namesʳ Rˢ
--- -- --         x∈ = {!!}
--- -- --       in
-
--- -- --       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
--- -- --                 → (l ≡ B →∗∶ [ hashTx (1 , 1 , T) ])
--- -- --                 × (inputs  T ≡ V.[ txout′ {x} x∈ ])
--- -- --                 × (outputs T ≡ V.[ v -redeemableWith- K̂ B′ ])
--- -- --                 ) Rᶜ)
--- -- --     → let
--- -- --         T : ∃Tx
--- -- --         T = 1 , 1 , (proj₁ $ proj₂ $ proj₂ $ L.Any.satisfied ∃λ)
-
--- -- --         -- (iii) broadcast transaction T, signed by A
--- -- --         m′ = [ SIG (K̂ A) T ]
--- -- --         λᶜ = B →∗∶ m′
-
--- -- --         -- (v) txout = txout′, sechash = sechash′, κ = κ′
--- -- --         open H₁₄ A v x Γ₀ B′
--- -- --         open H₁₄′ Rˢ Rˢ′ (cong cfg cfg≡) refl
-
--- -- --         txout : Txout Rˢ′
--- -- --         txout = txout↝ txout′
-
--- -- --         sechash : Sechash Rˢ′
--- -- --         sechash = sechash↝ sechash′
-
--- -- --         κ : 𝕂² Rˢ′
--- -- --         κ = κ↝ κ′
--- -- --       in
-
--- -- --       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
--- -- --       All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
-
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
--- -- --   -- ** Deposits: donate (similar to [11])
--- -- --   [15] : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
-
--- -- --     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀ at t))
-
--- -- --     → let
--- -- --         α  = donate[ x ▷ᵈ B′ ]
--- -- --         Γ  = ⟨ B′ has v ⟩at y ∣ Γ₀
--- -- --         Γₜ = Γ at t
-
--- -- --         x∈ : x ∈ namesʳ Rˢ
--- -- --         x∈ = {!!}
-
--- -- --         -- (iii) submit transaction T
--- -- --         T  = 1 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
--- -- --            { inputs  = V.[ txout′ {x} x∈ ]
--- -- --            ; wit     = wit⊥
--- -- --            ; relLock = V.replicate 0
--- -- --            ; outputs = V.[ v -redeemableWith- K̂ B′ ]
--- -- --            ; absLock = 0 }
--- -- --         λᶜ = submit T
-
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
-
--- -- --         -- (v) extend txout′ with y↦T₀ (removing x↦T₀), sechash = sechash′, κ = κ′
--- -- --         open H₁₅ A v x B′ Γ₀ y
--- -- --         open H₁₅′ Rˢ Rˢ′ (cong cfg cfg≡) refl
-
--- -- --         txout : Txout Rˢ′
--- -- --         txout = txout↝ txout′ (hashTx T at 0)
-
--- -- --         sechash : Sechash Rˢ′
--- -- --         sechash = sechash↝ sechash′
-
--- -- --         κ : 𝕂² Rˢ′
--- -- --         κ = κ↝ κ′
--- -- --       in
-
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
--- -- --   -- ** After
--- -- --   [18] : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
-
--- -- --     → let
--- -- --         α  = delay[ δ ]
--- -- --         Γ at t = lastCfgᵗ Rˢ
--- -- --         Γₜ = Γ at (t + δ)
--- -- --         λᶜ = delay δ
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
--- -- --       in
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ (cong-↦ txout′ refl) sechash′ (cong-↦ sechash′ refl) κ′ (cong-↦ κ′ refl)
-
-
--- -- -- data coher₁₂ where
-
--- -- --   -- ** Deposits: authorize destroy
--- -- --   [16] : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
--- -- --            {ds : List (Participant × Value × Id)} {j : Index ds}
-
--- -- --     → let
--- -- --         k  = length ds
--- -- --         xs = map (proj₂ ∘ proj₂) ds
--- -- --         A  = proj₁ (ds ‼ j)
--- -- --         j′ = ‼-map {xs = ds} j
--- -- --         Δ  = || map (λ{ (Bᵢ , vᵢ , xᵢ) → ⟨ Bᵢ has vᵢ ⟩at xᵢ }) ds
--- -- --       in
-
--- -- --       -- (ii) in Rˢ we find ⟨Bᵢ,vᵢ⟩yᵢ for i ∈ 1..k
--- -- --       (cfg≡ : lastCfgᵗ Rˢ ≡ (Δ ∣ Γ₀ at t))
-
--- -- --     → let
--- -- --         α  = auth-destroy[ A , xs , j′ ]
--- -- --         Γ  = Δ ∣ A auth[ xs , j′ ▷ᵈˢ y ] ∣ Γ₀
--- -- --         Γₜ = Γ at t
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
-
--- -- --         xs⊆ : xs ⊆ namesʳ Rˢ
--- -- --         xs⊆ = {!!}
--- -- --       in
+--             K₂ : 𝕂² ⟨G⟩C′
+--             K₂ = κ′ ad∈
+
+--             -- retrieve transaction for specific subterm
+--             d∈₀ : d ∈ subtermsᶜ′ C
+--             d∈₀ = Ancestor⇒∈ {Rˢ} anc (∈-lookup i)
+
+--             d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C′
+--             d∗∈ = {!!}
+--           in
+--             proj₂ (bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K K₂) d∗∈
+
+--         λᶜ = submit T
+
+--         -- (iv) extend txout′ with {x ↦ (T,0)}, sechash = sechash′, κ = κ′
+--         open H₉ c v y Γ₀ A x
+--         open H₉′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′ (hashTx T at 0)
 
--- -- --       -- (iii) in Rᶜ we find B → ∗ ∶ T, for some T having txout′(yᵢ) as inputs (+ possibly others)
--- -- --       (T : Tx i 0)
--- -- --     → mapWith∈ xs (txout′ ∘ xs⊆) ⊆ V.toList (inputs T)
--- -- --     → (T∈ : Any (λ l → ∃ λ B → l ≡ B →∗∶ [ hashTx (_ , _ , T) ]) Rᶜ)
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
 
--- -- --     → let
--- -- --         -- (iv) broadcast transaction T, signed by A
--- -- --         m = [ SIG (K̂ A) T ]
--- -- --         λᶜ = B →∗∶ m
-
--- -- --         -- (vii) txout = txout′, sechash = sechash′, κ = κ′
--- -- --         open H₁₆ ds j Γ₀ A y
--- -- --         open H₁₆′ Rˢ Rˢ′ (cong cfg cfg≡) refl
-
--- -- --         txout : Txout Rˢ′
--- -- --         txout = txout↝ txout′
-
--- -- --         sechash : Sechash Rˢ′
--- -- --         sechash = sechash↝ sechash′
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
 
--- -- --         κ : 𝕂² Rˢ′
--- -- --         κ = κ↝ κ′
--- -- --       in
-
--- -- --       -- (v) λᶜ is the first broadcast of m in Rᶜ after the first broadcast of T
--- -- --       All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m) (Any-tail T∈)
-
--- -- --       -- (vi) λᶜ does not correspond to any *other* symbolic move
--- -- --     → (∀ α′ Γₜ (txout′ : Txout Rˢ) (sechash′ : Sechash Rˢ) (κ′ : 𝕂² Rˢ)
--- -- --          → let Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ in
--- -- --                (txout : Txout Rˢ′) (sechash : Sechash Rˢ′) (κ : 𝕂² Rˢ′)
--- -- --          → α′ ≢ α
--- -- --          → ¬ coher₁₁ Rˢ α′ Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ)
-
--- -- --       --——————————————————————————————————————————————————————————————————————
-
--- -- --     → coher₁₂ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
--- -- --   -- ** Deposits: destroy
--- -- --   [17] : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
--- -- --            {ds : List (Participant × Value × Id)} {j : Index ds}
-
--- -- --     → let
--- -- --         xs  = map (proj₂ ∘ proj₂) ds
--- -- --         Δ   = || map (λ{ (i , Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xs , ‼-map {xs = ds} i ▷ᵈˢ y ] }) (enumerate ds)
-
--- -- --         xs⊆ : xs ⊆ namesʳ Rˢ
--- -- --         xs⊆ = {!!}
--- -- --       in
-
--- -- --       -- (ii) in Rˢ, α assumes ⟨Aᵢ,vᵢ⟩xᵢ to obtain 0
--- -- --       (cfg≡ : lastCfgᵗ Rˢ ≡ (Δ ∣ Γ₀ at t))
-
--- -- --     → (T : Tx i 0)
--- -- --     → mapWith∈ xs (txout′ ∘ xs⊆) ⊆ V.toList (inputs T)
-
--- -- --     → let
--- -- --         α  = destroy[ xs ]
--- -- --         Γ  = Γ₀
--- -- --         Γₜ = Γ at t
--- -- --         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
-
--- -- --         -- (iii) submit transaction T
--- -- --         λᶜ = submit (_ , _ , T)
-
--- -- --         -- (v) txout = txout′, sechash = sechash′, κ = κ′
--- -- --         -- remove {⋯ xᵢ ↦ (Tᵢ,j) ⋯} from txout′
--- -- --         open H₁₇ ds Γ₀ y
--- -- --         open H₁₇′ Rˢ Rˢ′ (cong cfg cfg≡) refl
-
--- -- --         txout : Txout Rˢ′
--- -- --         txout = txout↝ txout′
-
--- -- --         sechash : Sechash Rˢ′
--- -- --         sechash = sechash↝ sechash′
-
--- -- --         κ : 𝕂² Rˢ′
--- -- --         κ = κ↝ κ′
--- -- --       in
-
--- -- --       -- (iv) λᶜ does not correspond to any *other* symbolic move
--- -- --       (∀ α′ Γₜ (txout′ : Txout Rˢ) (sechash′ : Sechash Rˢ) (κ′ : 𝕂² Rˢ)
--- -- --          → let Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ in
--- -- --                (txout : Txout Rˢ′) (sechash : Sechash Rˢ′) (κ : 𝕂² Rˢ′)
--- -- --          → α′ ≢ α
--- -- --          → ¬ coher₁₁ Rˢ α′ Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ)
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --     → coher₁₂ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
-
--- -- -- data coher₂ Rˢ txout where
-
--- -- --   [1] :
-
--- -- --       Disjoint (V.toList $ inputs $ proj₂ $ proj₂ T) (codom txout)
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --     → coher₂ Rˢ txout (submit T)
-
--- -- --   [2] :
-
--- -- --       (λᶜ ≡ A →O∶ m)
--- -- --     ⊎ (λᶜ ≡ O→ A ∶ m)
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --     → coher₂ Rˢ txout λᶜ
-
--- -- --   [3] : let λᶜ = A →∗∶ m in
-
--- -- --       -- λᶜ does not correspond to any symbolic move
--- -- --       (∀ α Γₜ Rᶜ (txout′ : Txout Rˢ) (sechash′ : Sechash Rˢ) (κ′ : 𝕂² Rˢ)
--- -- --          → let Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ in
--- -- --                  (txout : Txout Rˢ′) (sechash : Sechash Rˢ′) (κ : 𝕂² Rˢ′)
--- -- --          → ¬ coher₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ)
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --     → coher₂ Rˢ txout λᶜ
-
--- -- -- data coher where
--- -- -- -- namesʳ Rˢ ↦ ∃(T , o). T ∈ trans Rᶜ
-
--- -- --   base : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
-
--- -- --       -- (i) initial Rˢ
--- -- --     → Rˢ ≡ (Γ₀ at 0) ∙
--- -- --     → S.Initial Γ₀
--- -- --       -- (ii) initial Rᶜ
--- -- --     → C.Initial Rᶜ
--- -- --       -- (iii) generation of public keys, we do not consider that here
--- -- --       -- (iv) txout { ⟨ A , v ⟩ₓ ∈ Γ₀ ↦ T₀{value = $ v, spendable with K̂(A)(rₐ)} ∈ T₀ }
--- -- --     -- → ?
--- -- --       -- (v) dom sechash = ∅
--- -- --     → dom sechash′ ≡ []
--- -- --       -- (vi) dom κ = ∅
--- -- --     → dom κ′ ≡ []
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --     → coher Rˢ Rᶜ txout′ sechash′ κ′
-
--- -- --   step₁ : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
--- -- --           → let Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ in
--- -- --                  {txout : Txout Rˢ′} {sechash : Sechash Rˢ′} {κ : 𝕂² Rˢ′}
-
--- -- --     → coher Rˢ Rᶜ txout′ sechash′ κ′
--- -- --     → coher₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
--- -- --       --——————————————————————————————————————————————————————————————————————
--- -- --     → coher (Γₜ ∷⟦ α ⟧ Rˢ) (Rᶜ L.∷ʳ λᶜ) txout sechash κ
-
--- -- --   step₂ : ∀ {Rˢ} {txout′ : Txout Rˢ} {sechash′ : Sechash Rˢ} {κ′ : 𝕂² Rˢ}
-
--- -- --     → coher Rˢ Rᶜ txout′ sechash′ κ′
--- -- --     → coher₂ Rˢ txout′ λᶜ
--- -- --       ----------------------------------------
--- -- --     → coher Rˢ (Rᶜ L.∷ʳ λᶜ) txout′ sechash′ κ′
-
--- -- -- _~_ _≁_ : S.Run → C.Run → Set
--- -- -- Rˢ ~ Rᶜ = Σ[ txout ∈ Txout Rˢ ] Σ[ sechash ∈ Sechash Rˢ ] ∃ (coher Rˢ Rᶜ txout sechash)
--- -- --   -- = ∃ (∃ (∃ (coher Rˢ Rᶜ)))
--- -- -- Rˢ ≁ Rᶜ = ¬ (Rˢ ~ Rᶜ)
+--       --——————————————————————————————————————————————————————————————————————
+--       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+--   -- ** Deposits: authorize join
+--   [10] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+
+--       (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀ at t))
+
+--     → let
+--         α  = auth-join[ A , x ↔ x′ ]
+--         Γ  = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
+--         Γₜ = Γ at t
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         x∈ : x ∈ namesʳ Rˢ
+--         x∈ = {!!}
+
+--         x′∈ : x′ ∈ namesʳ Rˢ
+--         x′∈ = {!!}
+--       in
+
+--       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
+--                 → (l ≡ B →∗∶ [ hashTx (2 , 1 , T) ])
+--                 × (inputs  T ≡ txout′ {x} x∈ ∷ txout′ {x′} x′∈ ∷ [])
+--                 × (outputs T ≡ V.[ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
+--                 ) Rᶜ)
+--     → let
+--         T : ∃Tx
+--         T = 2 , 1 , (proj₁ $ proj₂ $ proj₂ $ L.Any.satisfied ∃λ)
+
+--         -- (iii) broadcast transaction T, signed by A
+--         m′ = [ SIG (K̂ A) T ]
+--         λᶜ = B →∗∶ m′
+
+--         -- (v) txout = txout′, sechash = sechash′, κ = κ′
+--         open H₁₀ A v x v′ x′ Γ₀
+--         open H₁₀′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′
+
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
+
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
+
+--       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
+--       All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
+
+--       --——————————————————————————————————————————————————————————————————————
+--     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+--   -- ** Deposits: join
+--   [11] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+
+--       (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ y ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀ at t))
+
+--     → let
+--         α  = join[ x ↔ x′ ]
+--         Γ  = ⟨ A has (v + v′) ⟩at y ∣ Γ₀
+--         Γₜ = Γ at t
+
+--         x∈ : x ∈ namesʳ Rˢ
+--         x∈ = {!!}
+
+--         x′∈ : x′ ∈ namesʳ Rˢ
+--         x′∈ = {!!}
+
+--         -- (ii) submit transaction T
+--         T  = 2 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
+--            { inputs  = txout′ {x} x∈ ∷ txout′ {x′} x′∈ ∷ []
+--            ; wit     = wit⊥
+--            ; relLock = V.replicate 0
+--            ; outputs = V.[ (v + v′) -redeemableWith- K̂ A ]
+--            ; absLock = 0 }
+--         λᶜ = submit T
+
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         -- (iii) extend txout′ with y↦T₀ (removing {x↦_;x′↦_}), sechash = sechash′, κ = κ′
+--         open H₁₁ A v x v′ x′ y Γ₀
+--         open H₁₁′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′ (hashTx T at 0)
+
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
+
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
+
+--       --——————————————————————————————————————————————————————————————————————
+--       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+--   -- ** Deposits: authorize divide (similar to [10])
+--   [12] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+
+--       (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A has (v + v′) ⟩at x ∣ Γ₀ at t))
+
+--     → let
+--         α  = auth-divide[ A , x ▷ v , v′ ]
+--         Γ  = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
+--         Γₜ = Γ at t
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         x∈ : x ∈ namesʳ Rˢ
+--         x∈ = {!!}
+--       in
+
+--       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
+--                 → (l ≡ B →∗∶ [ hashTx (1 , 2 , T) ])
+--                 × (inputs  T ≡ V.[ txout′ {x} x∈ ])
+--                 × (outputs T ≡ (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ [])
+--                 ) Rᶜ)
+--     → let
+--         T : ∃Tx
+--         T = 1 , 2 , (proj₁ $ proj₂ $ proj₂ $ L.Any.satisfied ∃λ)
+
+--         -- (iii) broadcast transaction T, signed by A
+--         m′ = [ SIG (K̂ A) T ]
+--         λᶜ = B →∗∶ m′
+
+--         -- (v) txout = txout′, sechash = sechash′, κ = κ′
+--         open H₁₂ A v v′ x Γ₀
+--         open H₁₂′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′
+
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
+
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
+
+--       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
+--       All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
+
+--       --——————————————————————————————————————————————————————————————————————
+--     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+--   -- ** Deposits: divide (dimilar to [11])
+--   [13] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+
+--       (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀ at t))
+
+--     → let
+--         α  = divide[ x ▷ v , v′ ]
+--         Γ  = ⟨ A has v ⟩at y ∣ ⟨ A has v′ ⟩at y′ ∣ Γ₀
+--         Γₜ = Γ at t
+
+--         x∈ : x ∈ namesʳ Rˢ
+--         x∈ = {!!}
+
+--         -- (iii) submit transaction T
+--         T  = 1 , 2 , sig⋆ (V.replicate [ K̂ A ]) record
+--            { inputs  = V.[ txout′ {x} x∈ ]
+--            ; wit     = wit⊥
+--            ; relLock = V.replicate 0
+--            ; outputs = (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ []
+--            ; absLock = 0 }
+--         λᶜ = submit T
+
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         -- (v) extend txout′ with {y↦T₀, y′↦T₁} (removing x↦T₀), sechash = sechash′, κ = κ′
+--         open H₁₃ A v v′ x Γ₀ y y′
+--         open H₁₃′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′ ((hashTx T at 0) , (hashTx T at 1))
+
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
+
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
+
+--       --——————————————————————————————————————————————————————————————————————
+--       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+--   -- ** Deposits: authorize donate (similar to [10])
+--   [14] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+
+--       (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A has v ⟩at x ∣ Γ₀ at t))
+
+--     → let
+--         α  = auth-donate[ A , x ▷ᵈ B′ ]
+--         Γ  = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
+--         Γₜ = Γ at t
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         x∈ : x ∈ namesʳ Rˢ
+--         x∈ = {!!}
+--       in
+
+--       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
+--                 → (l ≡ B →∗∶ [ hashTx (1 , 1 , T) ])
+--                 × (inputs  T ≡ V.[ txout′ {x} x∈ ])
+--                 × (outputs T ≡ V.[ v -redeemableWith- K̂ B′ ])
+--                 ) Rᶜ)
+--     → let
+--         T : ∃Tx
+--         T = 1 , 1 , (proj₁ $ proj₂ $ proj₂ $ L.Any.satisfied ∃λ)
+
+--         -- (iii) broadcast transaction T, signed by A
+--         m′ = [ SIG (K̂ A) T ]
+--         λᶜ = B →∗∶ m′
+
+--         -- (v) txout = txout′, sechash = sechash′, κ = κ′
+--         open H₁₄ A v x Γ₀ B′
+--         open H₁₄′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′
+
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
+
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
+
+--       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
+--       All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
+
+--       --——————————————————————————————————————————————————————————————————————
+--     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+--   -- ** Deposits: donate (similar to [11])
+--   [15] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+
+--       (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀ at t))
+
+--     → let
+--         α  = donate[ x ▷ᵈ B′ ]
+--         Γ  = ⟨ B′ has v ⟩at y ∣ Γ₀
+--         Γₜ = Γ at t
+
+--         x∈ : x ∈ namesʳ Rˢ
+--         x∈ = {!!}
+
+--         -- (iii) submit transaction T
+--         T  = 1 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
+--            { inputs  = V.[ txout′ {x} x∈ ]
+--            ; wit     = wit⊥
+--            ; relLock = V.replicate 0
+--            ; outputs = V.[ v -redeemableWith- K̂ B′ ]
+--            ; absLock = 0 }
+--         λᶜ = submit T
+
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         -- (v) extend txout′ with y↦T₀ (removing x↦T₀), sechash = sechash′, κ = κ′
+--         open H₁₅ A v x B′ Γ₀ y
+--         open H₁₅′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′ (hashTx T at 0)
+
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
+
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
+
+--       --——————————————————————————————————————————————————————————————————————
+--       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+--   -- ** After
+--   [18] : ∀ {r : ℝ} → let [R: Rˢ ∣txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = r in
+
+--       let
+--         α  = delay[ δ ]
+--         Γ at t = lastCfgᵗ Rˢ
+--         Γₜ = Γ at (t + δ)
+--         λᶜ = delay δ
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+--       in
+--       --——————————————————————————————————————————————————————————————————————
+--       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ (cong-↦ txout′ refl) sechash′ (cong-↦ sechash′ refl) κ′ (cong-↦ κ′ refl)
+
+
+-- data coher₁₂ where
+
+--   -- ** Deposits: authorize destroy
+--   [16] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+--        ∀ {ds : List (Participant × Value × Id)} {j : Index ds}
+
+--     → let
+--         k  = length ds
+--         xs = map (proj₂ ∘ proj₂) ds
+--         A  = proj₁ (ds ‼ j)
+--         j′ = ‼-map {xs = ds} j
+--         Δ  = || map (λ{ (Bᵢ , vᵢ , xᵢ) → ⟨ Bᵢ has vᵢ ⟩at xᵢ }) ds
+--       in
+
+--       -- (ii) in Rˢ we find ⟨Bᵢ,vᵢ⟩yᵢ for i ∈ 1..k
+--       (cfg≡ : lastCfgᵗ Rˢ ≡ (Δ ∣ Γ₀ at t))
+
+--     → let
+--         α  = auth-destroy[ A , xs , j′ ]
+--         Γ  = Δ ∣ A auth[ xs , j′ ▷ᵈˢ y ] ∣ Γ₀
+--         Γₜ = Γ at t
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         xs⊆ : xs ⊆ namesʳ Rˢ
+--         xs⊆ = {!!}
+--       in
+
+--       -- (iii) in Rᶜ we find B → ∗ ∶ T, for some T having txout′(yᵢ) as inputs (+ possibly others)
+--       (T : Tx i 0)
+--     → mapWith∈ xs (txout′ ∘ xs⊆) ⊆ V.toList (inputs T)
+--     → (T∈ : Any (λ l → ∃ λ B → l ≡ B →∗∶ [ hashTx (_ , _ , T) ]) Rᶜ)
+
+--     → let
+--         -- (iv) broadcast transaction T, signed by A
+--         m = [ SIG (K̂ A) T ]
+--         λᶜ = B →∗∶ m
+
+--         -- (vii) txout = txout′, sechash = sechash′, κ = κ′
+--         open H₁₆ ds j Γ₀ A y
+--         open H₁₆′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′
+
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
+
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
+
+--       -- (v) λᶜ is the first broadcast of m in Rᶜ after the first broadcast of T
+--       All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m) (Any-tail T∈)
+
+--       -- (vi) λᶜ does not correspond to any *other* symbolic move
+--     → (∀ α′ Γₜ (txout′ : Txout Rˢ) (sechash′ : Sechash Rˢ) (κ′ : 𝕂² Rˢ)
+--          → let Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ in
+--                (txout : Txout Rˢ′) (sechash : Sechash Rˢ′) (κ : 𝕂² Rˢ′)
+--          → α′ ≢ α
+--          → ¬ coher₁₁ Rˢ α′ Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ)
+
+--       --——————————————————————————————————————————————————————————————————————
+
+--     → coher₁₂ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+--   -- ** Deposits: destroy
+--   [17] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+--        ∀ {ds : List (Participant × Value × Id)} {j : Index ds}
+
+--     → let
+--         xs  = map (proj₂ ∘ proj₂) ds
+--         Δ   = || map (λ{ (i , Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xs , ‼-map {xs = ds} i ▷ᵈˢ y ] }) (enumerate ds)
+
+--         xs⊆ : xs ⊆ namesʳ Rˢ
+--         xs⊆ = {!!}
+--       in
+
+--       -- (ii) in Rˢ, α assumes ⟨Aᵢ,vᵢ⟩xᵢ to obtain 0
+--       (cfg≡ : lastCfgᵗ Rˢ ≡ (Δ ∣ Γ₀ at t))
+
+--     → (T : Tx i 0)
+--     → mapWith∈ xs (txout′ ∘ xs⊆) ⊆ V.toList (inputs T)
+
+--     → let
+--         α  = destroy[ xs ]
+--         Γ  = Γ₀
+--         Γₜ = Γ at t
+--         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+
+--         -- (iii) submit transaction T
+--         λᶜ = submit (_ , _ , T)
+
+--         -- (v) txout = txout′, sechash = sechash′, κ = κ′
+--         -- remove {⋯ xᵢ ↦ (Tᵢ,j) ⋯} from txout′
+--         open H₁₇ ds Γ₀ y
+--         open H₁₇′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+
+--         txout : Txout Rˢ′
+--         txout = txout↝ txout′
+
+--         sechash : Sechash Rˢ′
+--         sechash = sechash↝ sechash′
+
+--         κ : 𝕂² Rˢ′
+--         κ = κ↝ κ′
+--       in
+
+--       -- (iv) λᶜ does not correspond to any *other* symbolic move
+--       (∀ α′ Γₜ (txout′ : Txout Rˢ) (sechash′ : Sechash Rˢ) (κ′ : 𝕂² Rˢ)
+--          → let Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ in
+--                (txout : Txout Rˢ′) (sechash : Sechash Rˢ′) (κ : 𝕂² Rˢ′)
+--          → α′ ≢ α
+--          → ¬ coher₁₁ Rˢ α′ Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ)
+--       --——————————————————————————————————————————————————————————————————————
+--     → coher₁₂ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+
+-- data coher₂ Rˢ txout where
+
+--   [1] :
+
+--       Disjoint (V.toList $ inputs $ proj₂ $ proj₂ T) (codom txout)
+--       --——————————————————————————————————————————————————————————————————————
+--     → coher₂ Rˢ txout (submit T)
+
+--   [2] :
+
+--       (λᶜ ≡ A →O∶ m)
+--     ⊎ (λᶜ ≡ O→ A ∶ m)
+--       --——————————————————————————————————————————————————————————————————————
+--     → coher₂ Rˢ txout λᶜ
+
+--   [3] : let λᶜ = A →∗∶ m in
+
+--       -- λᶜ does not correspond to any symbolic move
+--       (∀ α Γₜ Rᶜ (txout′ : Txout Rˢ) (sechash′ : Sechash Rˢ) (κ′ : 𝕂² Rˢ)
+--          → let Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ in
+--                  (txout : Txout Rˢ′) (sechash : Sechash Rˢ′) (κ : 𝕂² Rˢ′)
+--          → ¬ coher₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ)
+--       --——————————————————————————————————————————————————————————————————————
+--     → coher₂ Rˢ txout λᶜ
+
+-- data coher where
+-- -- namesʳ Rˢ ↦ ∃(T , o). T ∈ trans Rᶜ
+
+--   base : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+
+--       -- (i) initial Rˢ
+--       Rˢ ≡ (Γ₀ at 0) ∙
+--     → S.Initial Γ₀
+--       -- (ii) initial Rᶜ
+--     → C.Initial Rᶜ
+--       -- (iii) generation of public keys, we do not consider that here
+--       -- (iv) txout { ⟨ A , v ⟩ₓ ∈ Γ₀ ↦ T₀{value = $ v, spendable with K̂(A)(rₐ)} ∈ T₀ }
+--     -- → ?
+--       -- (v) dom sechash = ∅
+--     → dom sechash′ ≡ []
+--       -- (vi) dom κ = ∅
+--     → dom κ′ ≡ []
+--       --——————————————————————————————————————————————————————————————————————
+--     → coher Rˢ Rᶜ txout′ sechash′ κ′
+
+--   step₁ : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+--           let Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ in
+--                  {txout : Txout Rˢ′} {sechash : Sechash Rˢ′} {κ : 𝕂² Rˢ′}
+
+--     → coher Rˢ Rᶜ txout′ sechash′ κ′
+--     → coher₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+--       --——————————————————————————————————————————————————————————————————————
+--     → coher (Γₜ ∷⟦ α ⟧ Rˢ) (Rᶜ L.∷ʳ λᶜ) txout sechash κ
+
+--   step₂ : ∀ {r : ℝ} → let [R: Rˢ ∣txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = r in
+
+--       coher Rˢ Rᶜ txout′ sechash′ κ′
+--     → coher₂ Rˢ txout′ λᶜ
+--       ----------------------------------------
+--     → coher Rˢ (Rᶜ L.∷ʳ λᶜ) txout′ sechash′ κ′
+
+-- _~_ _≁_ : S.Run → C.Run → Set
+-- Rˢ ~ Rᶜ = Σ[ txout ∈ Txout Rˢ ] Σ[ sechash ∈ Sechash Rˢ ] ∃ (coher Rˢ Rᶜ txout sechash)
+--   -- = ∃ (∃ (∃ (coher Rˢ Rᶜ)))
+-- Rˢ ≁ Rᶜ = ¬ (Rˢ ~ Rᶜ)

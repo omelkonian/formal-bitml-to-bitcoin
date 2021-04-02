@@ -35,7 +35,7 @@ infix  6 _∙
 infixr 5 _∷⟦_⟧_
 
 variable
-  R R′ R″ Rˢ : Run
+  R R′ R″ Rˢ Rˢ′ Rˢ″ : Run
 
 mapRun : (TimedConfiguration → TimedConfiguration)
        → (Label → Label)
@@ -100,7 +100,7 @@ instance
   HAʳ : Run has Advertisement
   -- HAʳ .collect = mkCollectʳ
   -- HAʳ .collect = authorizedHonAds ∘ cfg ∘ lastCfgᵗ
-  HAʳ .collect = concatMap authorizedHonAds ∘ allCfgs
+  HAʳ .collect = concatMap advertisements ∘ allCfgs
 
   HNʳ : Run has Name
   -- HNʳ .collect = mkCollectʳ
@@ -115,9 +115,6 @@ instance
 
 labels : ∀ {X : Set} → ⦃ _ :  X has Label ⦄ → X → Labels
 labels = collect
-
--- authorizedAds : Run → List Advertisement
--- authorizedAds = concatMap authorizedHonAds ∘ allCfgs
 
 -- ** ancestor advertisement of an active contract
 

@@ -54,21 +54,17 @@ module SecureCompilation.Compiler
 
 -- BitML
 open import BitML.BasicTypes
-open import BitML.Predicate using (Predicate; Arith)
+open import BitML.Predicate
+  using (Predicate; Arith)
 open import BitML.Contracts Participant Honest
   hiding (C)
 open Induction
 open import BitML.Semantics Participant Honest
   using (advertisements)
 
-
--- Useful type aliases for maps over specific sets.
-
 open import SymbolicModel.Helpers Participant Honest
 
--- The actual compiler.
-
-bitml-compiler : let ad = ⟨ g ⟩ ds in
+bitml-compiler : let ⟨ g ⟩ ds = ad in
     -- the input contract & precondition (only compile valid advertisements)
     ValidAdvertisement ad
     -- sechash: maps secrets in G to the corresponding committed hashes
@@ -80,7 +76,7 @@ bitml-compiler : let ad = ⟨ g ⟩ ds in
   → (K² : 𝕂²′ ad)
     -- a set of transactions to be submitted
   → ∃Tx × (subtermsᶜ⁺ ds ↦ ∃Tx)
-bitml-compiler {g = G₀} {ds = C₀} (_ , names⊆ , putComponents⊆ , part⊆) sechash₀ txout₀ K K²
+bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part⊆) sechash₀ txout₀ K K²
   = Tᵢₙᵢₜ , (≺-rec _ go) CS₀ record
       { T,o     = Tᵢₙᵢₜ♯ at 0
       ; curV    = V₀
