@@ -1,6 +1,5 @@
-open import Data.List.Membership.Propositional.Properties
-
 open import Prelude.Init hiding (T)
+open L.Mem
 open import Prelude.Lists
 open import Prelude.DecEq
 open import Prelude.Collections
@@ -261,168 +260,132 @@ data coher₁₁ where
     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
 
 
---   -- ** Stipulation: activating the contract
---   [4] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
---       ∀ {Γ₀ G C}
---     → let
---         ad      = ⟨ G ⟩ C
---         toSpend = persistentDeposits G
---         partG   = nub-participants G
---         v       = sum $ map (proj₁ ∘ proj₂) toSpend
---       in
---       {vad : ValidAdvertisement ad}
---       -- (i) consume {G}C and its persistent deposits from Rˢ
---       (cfg≡ : lastCfgᵗ Rˢ ≡
---         ( ` ad ∣ Γ₀
---         ∣ || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ ad ] }) toSpend
---         ∣ || map (_auth[ ♯▷ ad ]) partG
---         at t) )
+  -- ** Stipulation: activating the contract
+  [4] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+      ∀ {Γ₀ G C}
+    → let
+        ad      = ⟨ G ⟩ C
+        toSpend = persistentDeposits G
+        partG   = nub-participants G
+        v       = sum $ map (proj₁ ∘ proj₂) toSpend
+      in
+      {vad : ValidAdvertisement ad}
+      -- (i) consume {G}C and its persistent deposits from Rˢ
+      (cfg≡ : lastCfgᵗ Rˢ ≡
+        ( ` ad ∣ Γ₀
+        ∣ || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ ad ] }) toSpend
+        ∣ || map (_auth[ ♯▷ ad ]) partG
+        at t) )
 
---       -- [T0D0] additional hypotheses, should hold since we know the following:
---       --   ∙ from the hypotheses of [C-Advertise]
---       --       ∘ which introduces ` ⟨G⟩C
---       --       ⇒ deposits ⟨G⟩C ⊆ deposits Γ₀
---       --       ⇒ namesʳ ⟨G⟩C ⊆ namesʳ Γ₀ ⊆ namesʳ (_ ∣ Γ₀ ∣ _)
---       --   ∙ from the hypotheses of [C-AuthCommit]
---       --       ∘ which introduces ⟨ Aᵢ ∶ aᵢ ♯ Nᵢ ⟩
---       --       ⇒ secrets ⟨G⟩C ⊆ secrets Γ₀
---       --       ⇒ namesˡ ⟨G⟩C ⊆ namesˡ Γ₀
---     → (names⊆ : names G ⊆ names Γ₀)
+      -- [T0D0] additional hypotheses, should hold since we know the following:
+      --   ∙ from the hypotheses of [C-Advertise]
+      --       ∘ which introduces ` ⟨G⟩C
+      --       ⇒ deposits ⟨G⟩C ⊆ deposits Γ₀
+      --       ⇒ namesʳ ⟨G⟩C ⊆ namesʳ Γ₀ ⊆ namesʳ (_ ∣ Γ₀ ∣ _)
+      --   ∙ from the hypotheses of [C-AuthCommit]
+      --       ∘ which introduces ⟨ Aᵢ ∶ aᵢ ♯ Nᵢ ⟩
+      --       ⇒ secrets ⟨G⟩C ⊆ secrets Γ₀
+      --       ⇒ namesˡ ⟨G⟩C ⊆ namesˡ Γ₀
+    → (names⊆ : G ⊆⟨on:names⟩ Γ₀)
 
---       -- [T0D0] additional hypothesis, should hold from the hypotheses of [C-Advertise]
---     → (honG : Any (_∈ Hon) partG)
+      -- [T0D0] additional hypothesis, should hold from the hypotheses of [C-Advertise]
+    → (honG : Any (_∈ Hon) partG)
 
---     → let
---         α  = init[ G , C ]
---         Γ  = ⟨ C , v ⟩at z ∣ Γ₀
---         Γₜ = Γ at t
---         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+    → let
+        α  = init[ G , C ]
+        Γ  = ⟨ C , v ⟩at z ∣ Γ₀
+        Γₜ = Γ at t
+        Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
 
---         open H₄ G C v z Γ₀ toSpend partG
---         open H₄′ Rˢ Rˢ′ (cong cfg cfg≡) refl
+        open H₄ {R = Rˢ} 𝕣 t α ad Γ₀ toSpend partG cfg≡ v z
 
---         Tᵢₙᵢₜ : ∃Tx
---         Tᵢₙᵢₜ =
---           let -- invoke compiler
---             txout″ : Txout G
---             txout″ = weaken-↦ (txout↝′ txout′) (mapMaybe-⊆ isInj₂ names⊆)
+        Tᵢₙᵢₜ : ∃Tx
+        Tᵢₙᵢₜ =
+          let -- invoke compiler
+            K̂ : 𝕂 G
+            K̂ {p} _ = K̂ p
 
---             sechash″ : Sechash G
---             sechash″ = weaken-↦ (sechash↝′ sechash′) (mapMaybe-⊆ isInj₁ names⊆)
+            open H₄′ honG names⊆
+          in
+            proj₁ $ bitml-compiler {ad = ad} vad sechash₀ txout₀ K̂ κ₀
 
---             K̂ : 𝕂 G
---             K̂ {p} _ = K̂ p
+        -- (ii) append Tᵢₙᵢₜ to the blockchain
+        λᶜ = submit Tᵢₙᵢₜ
 
---             K₂ : 𝕂²′ ad
---             K₂ = κ↝′ honG κ′
---           in
---             proj₁ $ bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K̂ K₂
-
---         -- (ii) append Tᵢₙᵢₜ to the blockchain
---         λᶜ = submit Tᵢₙᵢₜ
-
---         -- (iii) sechash = sechash′, κ = κ′, txout extends txout′ with (z ↦ Tᵢₙᵢₜ)
---         txout : Txout Rˢ′
---         txout = txout↝ txout′ (hashTx Tᵢₙᵢₜ at 0)
-
---         sechash : Sechash Rˢ′
---         sechash = sechash↝ sechash′
-
---         κ : 𝕂² Rˢ′
---         κ = κ↝ κ′
---       in
---       --——————————————————————————————————————————————————————————————————————
---       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+        -- (iii) sechash = sechash′, κ = κ′, txout extends txout′ with (z ↦ Tᵢₙᵢₜ)
+        open H₄″ (hashTx Tᵢₙᵢₜ at 0)
+      in
+      --——————————————————————————————————————————————————————————————————————
+      coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
 
 
---   -- ** Contract actions: authorize control
---   [5] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
---       ∀ {⟨G⟩C c′} {i : Index c′}
+  -- ** Contract actions: authorize control
+  [5] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
+      ∀ {Γ₀ G C} → let ⟨G⟩C = ⟨ G ⟩ C; partG = nub-participants G in
+      ∀ {vad : ValidAdvertisement ⟨G⟩C}
+        {c′} {i : Index c′} → let d = c′ ‼ i; d∗ = removeTopDecorations d in
 
---     → let d = c′ ‼ i; d∗ = removeTopDecorations d in
+      -- D ≡ A ∶ D′
+      A ∈ authDecorations d
 
---       -- D ≡ A ∶ D′
---       A ∈ authDecorations d
+      -- (i) Rˢ contains ⟨C′ , v⟩ₓ with C′ = D + ∑ᵢ Dᵢ
+    → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ c′ , v ⟩at x ∣ Γ₀ at t))
 
---       -- (i) Rˢ contains ⟨C′ , v⟩ₓ with C′ = D + ∑ᵢ Dᵢ
---     → (cfg≡ : lastCfgᵗ Rˢ ≡ (⟨ c′ , v ⟩at x ∣ Γ₀ at t))
+      -- (ii) {G}C is the ancestor of ⟨C′, v⟩ₓ in Rˢ
+    → (anc : Ancestor Rˢ (c′ , v , x) ⟨G⟩C)
+    → let
+        ad∈ : ⟨G⟩C ∈ advertisements Rˢ
+        ad∈ = Ancestor→𝕂 {Rˢ} anc
 
---       -- (ii) {G}C is the ancestor of ⟨C′, v⟩ₓ in Rˢ
---     → (anc : Ancestor Rˢ (c′ , v , x) ⟨G⟩C)
+        d∈₀ : d ∈ subtermsᶜ′ C
+        d∈₀ = Ancestor⇒∈ {Rˢ} anc (∈-lookup i)
+      in
 
---     → let
---         α  = auth-control[ A , x ▷ d ]
---         Γ  = ⟨ c′ , v ⟩at x ∣ A auth[ x ▷ d ] ∣ Γ₀
---         Γₜ = Γ at t
---         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
+      -- [T0D0] additional hypotheses, should hold since we know the following:
+      --   ∙  ...
+      (names⊆ : G ⊆⟨on:names⟩ Γ₀)
 
---         ⟨ G ⟩ C = ⟨G⟩C
+      -- [T0D0] additional hypotheses, should hold since we know the following:
+      --   ∙  ...
+    → (A∈ : A ∈ partG)
 
---         vad : ValidAdvertisement ⟨G⟩C
---         vad = {!!}
+    → let
+        α  = auth-control[ A , x ▷ d ]
+        Γ  = ⟨ c′ , v ⟩at x ∣ A auth[ x ▷ d ] ∣ Γ₀
+        Γₜ = Γ at t
+        Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
 
---         ad∈ : ⟨G⟩C ∈ advertisements Rˢ
---         ad∈ = {!!}
+        -- (iv) txout = txout′, sechash = sechash′, κ = κ′
+        open H₅ {R = Rˢ} 𝕣 t α c′ v x Γ₀ cfg≡ A i
 
---         open H₅ c′ v x Γ₀ A i
---         open H₅′ Rˢ Rˢ′ (cong cfg cfg≡) refl
---         open H₅″ ⟨G⟩C
+        -- (iii) broadcast transaction T, as obtained from the compiler, signed by A
+        --       where ∙ (T′,o) = txout′(x)
+        --             ∙ T is the first transaction in Bd(d,d,T′,o,v,partG,0)
+        --       i.e. the one corresponding to subterm `d∗ = removeTopDecorations d`
+        T : ∃Tx
+        T =
+          let
+            -- invoke compiler
+            K̂ : 𝕂 G
+            K̂ {p} _ = K̂ p
 
+            open H₅′ ⟨G⟩C ad∈ names⊆
 
---         -- (iii) broadcast transaction T, as obtained from the compiler, signed by A
---         --       where ∙ (T′,o) = txout′(x)
---         --             ∙ T is the first transaction in Bd(d,d,T′,o,v,partG,0)
---         --       i.e. the one corresponding to subterm `d∗ = removeTopDecorations d`
---         T : ∃Tx
---         T =
---           let
---             -- invoke compiler
---             txout″ : Txout G
---             txout″ = weaken-↦ txout′ {!!}
+            -- retrieve transaction for specific subterm
+            d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C
+            d∗∈ = {!!}
+          in
+            proj₂ (bitml-compiler {ad = ⟨G⟩C} vad sechash₀ txout₀ K̂ κ₀) d∗∈
 
---             sechash″ : Sechash G
---             sechash″ = weaken-↦ sechash′ {!!}
+        λᶜ = B →∗∶ [ SIGᵖ (pub $ κ′ ad∈ d∈₀ {A} A∈) T ]
+      in
 
---             K̂ : 𝕂 G
---             K̂ = {!!}
+      -- (v) transaction T has been previously broadcasted in Rᶜ, and λᶜ is the first signature on T after that
+      (∃λ : Any (λ l → ∃ λ B → l ≡ B →∗∶ [ hashTx T ]) Rᶜ)
+    → All (λ l → ¬ ∃ λ B → ¬ ∃ λ k → l ≡ B →∗∶ [ SIGᵖ k T ]) (Any-tail ∃λ)
 
---             K₂ : 𝕂² ad
---             K₂ = κ′ ad∈
-
---             -- retrieve transaction for specific subterm
---             d∈₀ : d ∈ subtermsᶜ′ C
---             d∈₀ = Ancestor⇒∈ {Rˢ} anc (∈-lookup i)
-
---             d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C
---             d∗∈ = {!!}
---           in
---             proj₂ (bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K̂ K₂) d∗∈
-
---         d∈′ : d ∈ subtermsᶜ′ C
---         d∈′ = {!!}
-
---         A∈ : A ∈ nub-participants G
---         A∈ = {!!}
-
---         λᶜ = B →∗∶ [ SIGᵖ (pub $ κ′ ad∈ d∈′ {A} A∈) T ]
-
---         -- (iv) txout = txout′, sechash = sechash′, κ = κ′
---         txout : Txout Rˢ′
---         txout = txout↝ txout′
-
---         sechash : Sechash Rˢ′
---         sechash = sechash↝ sechash′
-
---         κ : 𝕂² Rˢ′
---         κ = κ↝ κ′
---       in
-
---       -- (v) transaction T has been previously broadcasted in Rᶜ, and λᶜ is the first signature on T after that
---       (∃λ : Any (λ l → ∃ λ B → l ≡ B →∗∶ [ hashTx T ]) Rᶜ)
---     → All (λ l → ¬ ∃ λ B → ¬ ∃ λ k → l ≡ B →∗∶ [ SIGᵖ k T ]) (Any-tail ∃λ)
-
---       --——————————————————————————————————————————————————————————————————————
---     → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
+      --——————————————————————————————————————————————————————————————————————
+    → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
 
 --   -- ** Contract actions: put
 --   [6] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
@@ -464,26 +427,17 @@ data coher₁₁ where
 --         T =
 --           let
 --             -- invoke compiler
---             txout″ : Txout G
---             txout″ = weaken-↦ txout′ {!!}
-
---             sechash″ : Sechash G
---             sechash″ = weaken-↦ sechash′ {!!}
-
 --             K : 𝕂 G
 --             K {p} _ = K̂ p
 
 --             ad∈ : ⟨G⟩C″ ∈ advertisements Rˢ
 --             ad∈ = {!!} -- (∈-++⁺ˡ $ ∈-++⁺ˡ {xs = advertisements (` ⟨G⟩C ∣ Γ₀)} $ here refl)
 
---             K₂ : 𝕂² ⟨G⟩C″
---             K₂ = κ′ ad∈
-
 --             -- retrieve transaction for specific subterm
 --             d∗∈ : d∗ ∈ subtermsᶜ⁺ C″
 --             d∗∈ = {!!}
 --           in
---             proj₂ (bitml-compiler {g = G} {ds = C″} vad sechash″ txout″ K K₂) d∗∈
+--             proj₂ (bitml-compiler {g = G} {ds = C″} vad sechash₀ txout₀ K κ₀) d∗∈
 
 --         λᶜ = submit T
 
@@ -608,20 +562,11 @@ data coher₁₁ where
 --         T : ∃Tx
 --         T =
 --           let -- invoke compiler
---             txout″ : Txout G
---             txout″ = weaken-↦ txout′ {!!}
-
---             sechash″ : Sechash G
---             sechash″ = weaken-↦ sechash′ {!!}
-
 --             K : 𝕂 G
 --             K {p} _ = K̂ p
 
 --             ad∈ : ⟨G⟩C′ ∈ advertisements Rˢ
 --             ad∈ = {!!} -- (∈-++⁺ˡ $ ∈-++⁺ˡ {xs = advertisements (` ⟨G⟩C ∣ Γ₀)} $ here refl)
-
---             K₂ : 𝕂² ⟨G⟩C′
---             K₂ = κ′ ad∈
 
 --             -- retrieve transaction for specific subterm
 --             d∈₀ : d ∈ subtermsᶜ′ C
@@ -630,7 +575,7 @@ data coher₁₁ where
 --             d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C′
 --             d∗∈ = {!!}
 --           in
---             proj₂ (bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K K₂) d∗∈
+--             proj₂ (bitml-compiler {g = G} {ds = C} vad sechash₀ txout₀ K K₂) d∗∈
 
 --         λᶜ = submit T
 
@@ -684,20 +629,11 @@ data coher₁₁ where
 --         T : ∃Tx
 --         T =
 --           let -- invoke compiler
---             txout″ : Txout G
---             txout″ = weaken-↦ txout′ {!!}
-
---             sechash″ : Sechash G
---             sechash″ = weaken-↦ sechash′ {!!}
-
 --             K : 𝕂 G
 --             K {p} _ = K̂ p
 
 --             ad∈ : ⟨G⟩C′ ∈ advertisements Rˢ
 --             ad∈ = {!!} -- (∈-++⁺ˡ $ ∈-++⁺ˡ {xs = advertisements (` ⟨G⟩C ∣ Γ₀)} $ here refl)
-
---             K₂ : 𝕂² ⟨G⟩C′
---             K₂ = κ′ ad∈
 
 --             -- retrieve transaction for specific subterm
 --             d∈₀ : d ∈ subtermsᶜ′ C
@@ -706,7 +642,7 @@ data coher₁₁ where
 --             d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C′
 --             d∗∈ = {!!}
 --           in
---             proj₂ (bitml-compiler {g = G} {ds = C} vad sechash″ txout″ K K₂) d∗∈
+--             proj₂ (bitml-compiler {g = G} {ds = C} vad sechash₀ txout₀ K κ₀) d∗∈
 
 --         λᶜ = submit T
 
