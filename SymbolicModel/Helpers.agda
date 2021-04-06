@@ -138,6 +138,25 @@ module Lift₀ (r : ℝ R) (t : Time)
   κ₀ : 𝕂²′ ad
   κ₀ = κ↝ (subst 𝕂² Γ≡ $ weaken-↦ κ′ ∈-++⁺ˡ)
 
+module Lift₀′ (r : ℝ R) (t : Time)
+  Γ (cfg≡ : R ≡⋯ Γ at t) ad
+  (txout↝   : Γ ↝⟨ Txout   ⟩ G ad)
+  (sechash↝ : Γ ↝⟨ Sechash ⟩ G ad)
+  (ad∈ : ad ∈ advertisements R)
+  where
+  open ℝ r
+
+  private Γ≡ = cong cfg cfg≡
+
+  txout₀ : Txout (G ad)
+  txout₀ = txout↝ $ subst Txout Γ≡ txout′
+
+  sechash₀ : Sechash (G ad)
+  sechash₀ = sechash↝ $ subst Sechash Γ≡ sechash′
+
+  κ₀ : 𝕂²′ ad
+  κ₀ = κ′ ad∈
+
 ---
 
 module _ (𝕣 : ℝ R) (t : Time) (α : Label) where
@@ -438,7 +457,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) where
 
       open Lift 𝕣 t α Γ cfg≡ Γ′ id id id public
 
-      module H₅′ ad (ad∈ : ad ∈ advertisements R) (names⊆ : G ad ⊆⟨on:names⟩ Γ₀) where
+      module H₅′ ad (ad∈ : ad ∈ authorizedHonAdsʳ R) (names⊆ : G ad ⊆⟨on:names⟩ Γ₀) where
 
         n⊆ : names Γ₀ ⊆ names Γ
         n⊆ = ∈-++⁺ʳ _
@@ -449,15 +468,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) where
         sechash↝ : Γ ↝⟨ Sechash ⟩ G ad
         sechash↝ sechash′ = weaken-↦ sechash′ $ mapMaybe-⊆ isInj₁ (n⊆ ∘ names⊆)
 
-        ad∈′ : ad ∈ advertisements Γ
-        ad∈′ with ∈-++⁻ (advertisements $ ⟨ c , v ⟩at x) ad∈
-        ... | inj₁ ()
-        ... | inj₂ p rewrite cfg≡ = {!!}
-
-        κ↝ : 𝕂² Γ → 𝕂²′ ad
-        κ↝ κ′ = κ′ ad∈′
-
-        open Lift₀ 𝕣 t Γ cfg≡ ad txout↝ sechash↝ κ↝ public
+        open Lift₀′ 𝕣 t Γ cfg≡ ad txout↝ sechash↝ ad∈ public
 
 -- module H₆ c v y c′ y′ (ds : List (Participant × Value × Id)) Γ₀ where
 --   private

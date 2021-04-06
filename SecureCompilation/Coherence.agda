@@ -334,11 +334,11 @@ data coher₁₁ where
       -- (ii) {G}C is the ancestor of ⟨C′, v⟩ₓ in Rˢ
     → (anc : Ancestor Rˢ (c′ , v , x) ⟨G⟩C)
     → let
-        ad∈ : ⟨G⟩C ∈ advertisements Rˢ
+        ad∈ : ⟨G⟩C ∈ authorizedHonAdsʳ Rˢ
         ad∈ = Ancestor→𝕂 {Rˢ} anc
 
-        d∈₀ : d ∈ subtermsᶜ′ C
-        d∈₀ = Ancestor⇒∈ {Rˢ} anc (∈-lookup i)
+        d∈ : d ∈ subtermsᶜ′ C
+        d∈ = Ancestor⇒∈ {Rˢ} anc (∈-lookup i)
       in
 
       -- [T0D0] additional hypotheses, should hold since we know the following:
@@ -373,11 +373,11 @@ data coher₁₁ where
 
             -- retrieve transaction for specific subterm
             d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C
-            d∗∈ = {!!}
+            d∗∈ = h-subᶜ {ds = C} d∈
           in
             proj₂ (bitml-compiler {ad = ⟨G⟩C} vad sechash₀ txout₀ K̂ κ₀) d∗∈
 
-        λᶜ = B →∗∶ [ SIGᵖ (pub $ κ′ ad∈ d∈₀ {A} A∈) T ]
+        λᶜ = B →∗∶ [ SIGᵖ (pub $ κ′ ad∈ d∈ {A} A∈) T ]
       in
 
       -- (v) transaction T has been previously broadcasted in Rᶜ, and λᶜ is the first signature on T after that

@@ -100,7 +100,7 @@ instance
   HAʳ : Run has Advertisement
   -- HAʳ .collect = mkCollectʳ
   -- HAʳ .collect = authorizedHonAds ∘ cfg ∘ lastCfgᵗ
-  HAʳ .collect = concatMap advertisements ∘ allCfgs
+  HAʳ .collect = concatMap authorizedHonAds ∘ allCfgs
 
   HNʳ : Run has Name
   -- HNʳ .collect = mkCollectʳ
@@ -115,6 +115,10 @@ instance
 
 labels : ∀ {X : Set} → ⦃ _ :  X has Label ⦄ → X → Labels
 labels = collect
+
+-- [BUG] instantiated `advertisements ⦃ HAʳ ⦄`, to aid Agda's type inference
+authorizedHonAdsʳ : Run → List Advertisement
+authorizedHonAdsʳ = concatMap authorizedHonAds ∘ allCfgs
 
 -- ** ancestor advertisement of an active contract
 
