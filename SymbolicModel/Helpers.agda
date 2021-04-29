@@ -17,7 +17,8 @@ open import Prelude.Bifunctor
 open import Prelude.Nary
 
 open import Bitcoin.Crypto using (KeyPair)
-open import Bitcoin.Tx.Base using (TxInput)
+open import Bitcoin.Tx.Base
+open import Bitcoin.Tx.Crypto
 
 module SymbolicModel.Helpers
   (Participant : Set)
@@ -33,7 +34,7 @@ open import SymbolicModel.Strategy Participant Honest
 private variable X : Set
 
 Txout : ⦃ _ : X has Name ⦄ → Pred₀ X
-Txout x = namesʳ x ↦ TxInput
+Txout x = namesʳ x ↦ TxInput′
 
 Sechash : ⦃ _ : X has Name ⦄ → Pred₀ X
 Sechash x = namesˡ x ↦ ℤ
@@ -81,6 +82,26 @@ liftᵃ eq κ′ rewrite eq = κ′
 infix 0 _≡⋯_
 _≡⋯_ : Run → TimedConfiguration → Set
 R ≡⋯ Γ at t = lastCfgᵗ R ≡ Γ at t
+
+--
+
+deposit∈Γ⇒namesʳ : ∀ {Γ}
+  → ⟨ A has v ⟩at x ∈ᶜ Γ
+  → x ∈ namesʳ Γ
+deposit∈Γ⇒namesʳ {A} {v} {x} {` _} (here ())
+deposit∈Γ⇒namesʳ {A} {v} {x} {⟨ _ , _ ⟩at _} (here ())
+deposit∈Γ⇒namesʳ {A} {v} {x} {⟨ _ has _ ⟩at .x} (here refl) = here refl
+deposit∈Γ⇒namesʳ {A} {v} {x} {_ auth[ _ ]} (here ())
+deposit∈Γ⇒namesʳ {A} {v} {x} {⟨ _ ∶ _ ♯ _ ⟩} (here ())
+deposit∈Γ⇒namesʳ {A} {v} {x} {_ ∶ _ ♯ _} (here ())
+deposit∈Γ⇒namesʳ {A} {v} {x} {l ∣ r} d∈
+  rewrite mapMaybe-++ isInj₂ (names l) (names r)
+  with ∈-++⁻ (cfgToList l) d∈
+... | inj₁ d∈ˡ = ∈-++⁺ˡ   $ deposit∈Γ⇒namesʳ {Γ = l} d∈ˡ
+... | inj₂ d∈ʳ = ∈-++⁺ʳ _ $ deposit∈Γ⇒namesʳ {Γ = r} d∈ʳ
+
+deposit∈R⇒namesʳ : ⟨ A has v ⟩at x ∈ᶜ lastCfg R → x ∈ namesʳ R
+deposit∈R⇒namesʳ {R = R} = deposit∈Γ⇒namesʳ {Γ = lastCfg R}
 
 --
 
@@ -341,7 +362,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
 
       open Lift 𝕣 t α t′ Γ cfg≡ Γ′ txout↝ sechash↝ κ↝ public
 
-      module H₃′ (A∈ : A ∈ Hon) (A∈′ : A ∈ committedParticipants Γ₀ ad) (names⊆ : g ⊆⟨on:names⟩ Γ₀) where
+      module H₃′ (ad∈ : ad ∈ authorizedHonAds Γ₀) {-(A∈′ : A ∈ committedParticipants Γ₀ ad)-} (names⊆ : g ⊆⟨on:names⟩ Γ₀) where
 
         txout↝′ : Γ ↝⟨ Txout ⟩ g
         txout↝′ txout′ = weaken-↦ txout′ (mapMaybe-⊆ isInj₂ names⊆)
@@ -349,8 +370,8 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
         sechash↝′ : Γ ↝⟨ Sechash ⟩ g
         sechash↝′ sechash′ = weaken-↦ sechash′ (mapMaybe-⊆ isInj₁ names⊆)
 
-        ad∈ : ad ∈ advertisements Γ
-        ad∈ = committed⇒authAd A∈ {Γ = Γ₀} A∈′
+        -- ad∈ : ad ∈ advertisements Γ
+        -- ad∈ = committed⇒authAd A∈ {Γ = Γ₀} A∈′
 
         ad∈′ : ad ∈ advertisements R
         ad∈′ rewrite cfg≡ = ∈-++⁺ˡ ad∈
@@ -496,7 +517,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
 
         open Lift₀ 𝕣 t Γ cfg≡ ad txout↝ sechash↝ ad∈′ public
 
-      module H₄″ (tx : TxInput) where
+      module H₄″ (tx : TxInput′) where
 
         sechash↝′ :  Γ ↝⟨ Sechash ⟩ Γ′
         sechash↝′ = liftˡ {Γ}{Γ′} namesˡ≡
@@ -590,7 +611,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
           advertisements Γ
         ∎ where open ≡-Reasoning
 
-      module H₆′ (tx : TxInput) where
+      module H₆′ (tx : TxInput′) where
 
         sechash↝ :  Γ ↝⟨ Sechash ⟩ Γ′
         sechash↝ = liftˡ {Γ}{Γ′} namesˡ≡
@@ -687,7 +708,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
           advertisements Γ
         ∎ where open ≡-Reasoning
 
-      module H₈′ (txout⁺ : xs ↦ TxInput) where
+      module H₈′ (txout⁺ : xs ↦ TxInput′) where
 
         txout↝ : Γ ↝⟨ Txout ⟩ Γ′
         txout↝ txout′ rewrite namesʳ≡₀ = extend-↦ (↭-reflexive namesʳ≡) txout⁺ (weaken-↦ txout′ there)
@@ -720,7 +741,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
       private
         Γ′ = ⟨ A has v ⟩at x ∣ Γ₀
 
-      module H₉′ (tx : TxInput) where
+      module H₉′ (tx : TxInput′) where
         txout↝ : Γ ↝⟨ Txout ⟩ Γ′
         txout↝  txout′ = cons-↦ x tx $ weaken-↦ txout′ there
 
@@ -752,7 +773,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
   module _ A v x v′ x′ y Γ₀ where
     private
       Γ  = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ y ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
-    module H₁₁ (cfg≡ : R ≡⋯ Γ at t) (tx : TxInput) where
+    module H₁₁ (cfg≡ : R ≡⋯ Γ at t) (tx : TxInput′) where
       private
         Γ′ = ⟨ A has (v + v′) ⟩at y ∣ Γ₀
 
@@ -773,7 +794,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
   module _ A v v′ x Γ₀ where
     private
       Γ  = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
-    module H₁₃ (cfg≡ : R ≡⋯ Γ at t) y y′ (tx tx′ : TxInput) where
+    module H₁₃ (cfg≡ : R ≡⋯ Γ at t) y y′ (tx tx′ : TxInput′) where
       private
         Γ′ = ⟨ A has v ⟩at y ∣ ⟨ A has v′ ⟩at y′ ∣ Γ₀
 
@@ -794,7 +815,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
   module _ A v x B′ Γ₀ where
     private
       Γ  = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
-    module H₁₅ (cfg≡ : R ≡⋯ Γ at t) y (tx : TxInput) where
+    module H₁₅ (cfg≡ : R ≡⋯ Γ at t) y (tx : TxInput′) where
       private
         Γ′ = ⟨ B′ has v ⟩at y ∣ Γ₀
 
@@ -819,7 +840,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
       xs⊆ = subst (λ ◆ → xs ⊆ namesʳ ◆) (sym cfg≡)
           $ ⊆-trans (namesʳ-∥map-helper ds) (mapMaybe-⊆ isInj₂ $ ∈-++⁺ˡ {xs = names Δ} {ys = names Γ₀})
 
-      xs↦ : xs ↦ TxInput
+      xs↦ : xs ↦ TxInput′
       xs↦ = txout′ ∘ xs⊆
       --
 
@@ -860,7 +881,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
       xs⊆ = subst (λ ◆ → xs ⊆ namesʳ ◆) (sym cfg≡)
           $ ⊆-trans (namesʳ-∥map-helper′ ds) (mapMaybe-⊆ isInj₂ $ ∈-++⁺ˡ {xs = names Δ} {ys = names Γ₀})
 
-      xs↦ : xs ↦ TxInput
+      xs↦ : xs ↦ TxInput′
       xs↦ = txout′ ∘ xs⊆
       --
 
@@ -880,173 +901,3 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
       κ↝ κ′ = weaken-↦ κ′ (∈-++⁺ʳ _)
 
       open Lift 𝕣 t α t′ Γ cfg≡ Γ′ txout↝ sechash↝ κ↝ public
-
-{-
-variable
-  Δ : Configuration′ Iᶜᶠ[ [] & rads , [] & [] , [] & [] ]
-  Δs : List (Configuration Iᶜᶠ[ [] , [] , [] ])
-
-  R R′ R″ : Run
-  T T′ T″ : ∃TimedConfiguration
-
-  c : Contracts ci
-
-  ps : List Participant
-  ss : List ValidSecret
-
-
-strip-cases-helper : ((ci , c) ∷ cs′ ∣∣ᶜˢ Γ) ∗ᶜ
-                   ≡ (  ⟨ c ⟩ᶜ
-                     ∣∣ (cs′ ∣∣ᶜˢ Γ) ∗ᶜ
-                     ∶- refl & refl & refl & (\\-left {[ ci , c ]}) & refl & refl )
-strip-cases-helper = refl
-
-strip-cases : (cs′ ∣∣ᶜˢ Γ) ∗ᶜ ≡ (cs′ ∣∣ᶜˢ (Γ ∗ᶜ))
-strip-cases {cs′ = []} = refl
-strip-cases {cs′ = (ci , c) ∷ cs′} {ads} {cs} {ds} {Γ}
-  rewrite strip-cases-helper {ci} {c} {cs′} {ads} {cs} {ds} {Γ}
-        | strip-cases {cs′} {ads} {cs} {ds} {Γ}
-        = refl
-
-strip-ds : (ds′ ∣∣ᵈˢ Γ) ∗ᶜ ≡ (ds′ ∣∣ᵈˢ Γ ∗ᶜ)
-strip-ds {ds′ = []} = refl
-strip-ds {ds′ = d ∷ ds′} {Γ = Γ}
-  rewrite strip-ds {ds′} {Γ = Γ} = refl
-
-strip-ss : (ss ∣∣ˢˢ Γ) ∗ᶜ ≡ (ss ∣∣ˢˢ Γ ∗ᶜ)
-strip-ss {ss = []} = refl
-strip-ss {ss = s ∷ ss} {Γ = Γ}
-  rewrite strip-ss {ss = ss} {Γ = Γ} = refl
-
-strip-b : ∀ {i j} →
-  (Γ ∣∣ᵇ (i , j , ps)) ∗ᶜ ≡ (Γ ∗ᶜ ∣∣ᵇ (i , j , ps))
-strip-b {ps = []} = refl
-strip-b {ps = p ∷ ps} = strip-b {ps = ps}
-
-strip-committedParticipants : committedParticipants (Γp ∗ᶜ) ad
-                            ≡ committedParticipants Γp ad
-strip-committedParticipants {Γp = ∅ᶜ}              = refl
-strip-committedParticipants {Γp = ` _}             = refl
-strip-committedParticipants {Γp = ⟨ _ ⟩ᶜ}          = refl
-strip-committedParticipants {Γp = ⟨ _ , _ ⟩ᵈ}      = refl
-strip-committedParticipants {Γp = _ auth[ _ ]∶- _} = refl
-strip-committedParticipants {Γp = ⟨ _ ∶ _ ♯ _ ⟩}   = refl
-strip-committedParticipants {Γp = _ ∶ _ ♯ _}       = refl
-strip-committedParticipants {Γp = l ∣∣ r ∶- _} {ad = ad}
-  rewrite strip-committedParticipants {Γp = l} {ad = ad}
-        | strip-committedParticipants {Γp = r} {ad = ad}
-        = refl
-
-strip-committedParticipants₂ :
-    All (λ p → p ∈ committedParticipants Γp ad)                ps
-  → All (λ p → p ∈ committedParticipants (Γp ∗ᶜ) ad) ps
-strip-committedParticipants₂ {Γp = Γp} {ad = ad} p
-  rewrite strip-committedParticipants {Γp = Γp} {ad = ad} = p
-
-strip-spentForStipulation : spentForStipulation (Γp ∗ᶜ) ad
-                          ≡ spentForStipulation Γp ad
-strip-spentForStipulation {Γp = ∅ᶜ}              = refl
-strip-spentForStipulation {Γp = ` _}             = refl
-strip-spentForStipulation {Γp = ⟨ _ ⟩ᶜ}          = refl
-strip-spentForStipulation {Γp = ⟨ _ , _ ⟩ᵈ}      = refl
-strip-spentForStipulation {Γp = _ auth[ _ ]∶- _} = refl
-strip-spentForStipulation {Γp = ⟨ _ ∶ _ ♯ _ ⟩}   = refl
-strip-spentForStipulation {Γp = _ ∶ _ ♯ _}       = refl
-strip-spentForStipulation {Γp = l ∣∣ r ∶- _} {ad = ad}
-  rewrite strip-spentForStipulation {Γp = l} {ad = ad}
-        | strip-spentForStipulation {Γp = r} {ad = ad}
-        = refl
-
-strip-spentForStipulation₂ : toStipulate (G ad) ≡ spentForStipulation Δ ad
-                           → toStipulate (G ad) ≡ spentForStipulation (Δ ∗ᶜ) ad
-strip-spentForStipulation₂ {ad = ad} {Δ = Δ} p
-  rewrite strip-spentForStipulation {Γp = Δ} {ad = ad} = p
-
-
-open import Data.List.Properties using (map-++-commute)
-strip-cfgToList :
-  cfgToList (Γp ∗ᶜ) ≡ map (map₂ _∗ᶜ) (cfgToList Γp)
-strip-cfgToList {Γp = ∅ᶜ}              = refl
-strip-cfgToList {Γp = ` _}             = refl
-strip-cfgToList {Γp = ⟨ _ ⟩ᶜ}          = refl
-strip-cfgToList {Γp = ⟨ _ , _ ⟩ᵈ}      = refl
-strip-cfgToList {Γp = _ auth[ _ ]∶- _} = refl
-strip-cfgToList {Γp = ⟨ _ ∶ _ ♯ _ ⟩}   = refl
-strip-cfgToList {Γp = _ ∶ _ ♯ _}       = refl
-strip-cfgToList {Γp = l ∣∣ r ∶- _}
-  rewrite strip-cfgToList {Γp = l}
-        | strip-cfgToList {Γp = r}
-        = sym (map-++-commute (map₂ _∗ᶜ) (cfgToList l) (cfgToList r))
-
-open import Data.List.Relation.Binary.Permutation.Inductive.Properties using (map⁺)
-strip-≈ : Γp    ≈ Γp′
-        → Γp ∗ᶜ ≈ Γp′ ∗ᶜ
-strip-≈ {Γp = Γp} {Γp′ = Γp′} Γp≈
-  rewrite strip-cfgToList {Γp = Γp}
-        | strip-cfgToList {Γp = Γp′}
-        = map⁺ (map₂ _∗ᶜ) Γp≈
-
-strip-lastCfgᵗ : lastCfgᵗ (R ∗) ≡ (lastCfgᵗ R) ∗ᵗ
-strip-lastCfgᵗ {_ ∙ˢ}        = refl
-strip-lastCfgᵗ {_ ∷ˢ⟦ _ ⟧ _} = refl
-
-strip-idempotent : ∀ (γ : Configuration′ cf′i) →
-  (γ ∗ᶜ) ∗ᶜ ≡ γ ∗ᶜ
-strip-idempotent ∅ᶜ                = refl
-strip-idempotent (` _)             = refl
-strip-idempotent ⟨ _ ⟩ᶜ            = refl
-strip-idempotent ⟨ _ , _ ⟩ᵈ        = refl
-strip-idempotent (_ auth[ _ ]∶- _) = refl
-strip-idempotent ⟨ _ ∶ _ ♯ _ ⟩     = refl
-strip-idempotent (_ ∶ _ ♯ _)       = refl
-strip-idempotent (l ∣∣ r ∶- _)     rewrite strip-idempotent l
-                                        | strip-idempotent r
-                                        = refl
-
-strip-strip-rewrite : ∀ {l : Configuration Iᶜᶠ[ ads , cs , ds ]} {γ : Configuration Iᶜᶠ[ ads′ , cs′ , ds′ ]} {pr}
-  → (_∣∣_∶-_ {ads = ads ++ ads′} {rads = []}
-             {cs = cs  ++ cs′} {rcs = []}
-             {ds = ds ++ ds′} {rds = []}
-             l ((γ ∗ᶜ) ∗ᶜ) pr)
-  ≡ (l ∣∣ γ ∗ᶜ ∶- pr)
-strip-strip-rewrite {γ = γ}
-  rewrite strip-idempotent γ
-        = refl
-
-help : R ∗ ——→[ α ] T′
-     → proj₂ ((lastCfgᵗ R) ∗ᵗ) —→ₜ[ α ] proj₂ T′
-help {R = _ ∙ˢ}        R→ = R→
-help {R = _ ∷ˢ⟦ _ ⟧ _} R→ = R→
-
-destruct-γ∗ : ∀ {Γ Γ₀ : Configuration′ Iᶜᶠ[ ads & rads , cs & rcs , ds & rds ]}
-                {l    : Configuration Iᶜᶠ[ ads′ , cs′ , ds′ ]}
-                {γ∗   : Configuration′ Iᶜᶠ[ adsʳ & radsʳ , csʳ & rcsʳ , dsʳ & rdsʳ ]}
-                {pr   : ads  ≡ ads′ ++ adsʳ
-                      × rads ≡ [] ++ (radsʳ \\ ads′)
-                      × cs   ≡ cs′  ++ csʳ
-                      × rcs  ≡ [] ++ (rcsʳ \\ cs′)
-                      × ds   ≡ (ds′ \\ rdsʳ) ++ dsʳ
-                      × rds  ≡ [] ++ (rdsʳ \\ ds′) }
-  → Γ₀ ≡ Γ ∗ᶜ
-  → Γ₀ ≡ (l ∗ᶜ ∣∣ γ∗ ∶- pr)
-  → ∃[ γ ] ( (γ∗ ≡ γ ∗ᶜ)
-           × (Γ ≡ (l ∣∣ γ ∶- pr)) )
-destruct-γ∗ {Γ = ∅ᶜ}              refl ()
-destruct-γ∗ {Γ = ` _}             refl ()
-destruct-γ∗ {Γ = ⟨ _ ⟩ᶜ}          refl ()
-destruct-γ∗ {Γ = ⟨ _ , _ ⟩ᵈ}      refl ()
-destruct-γ∗ {Γ = _ auth[ _ ]∶- _} refl ()
-destruct-γ∗ {Γ = ⟨ _ ∶ _ ♯ _ ⟩}   refl ()
-destruct-γ∗ {Γ = _ ∶ _ ♯ _}       refl ()
-destruct-γ∗ {Γ = l′ ∣∣ γ ∶- pr₂} {Γ₀ = Γ₀} {l = l} {γ∗ = γ∗} {pr = pr₁} p0 p
-  with pr₁
-... | (refl , refl , refl , refl , refl , refl)
-    = {! γ , refl , refl !}
-
-data Singleton {a} {A : Set a} (x : A) : Set a where
-  _with≡_ : (y : A) → x ≡ y → Singleton x
-
-inspect : ∀ {a} {A : Set a} (x : A) → Singleton x
-inspect x = x with≡ refl
-
--}

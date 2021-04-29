@@ -89,13 +89,13 @@ Coinbase (_ , _ , tx) =
 -- Initially, all participants broadcast both their public keys.
 initialBroadcasts : Labels
 initialBroadcasts = map go allParticipants
-  where
+  module ∣initialBroadcasts∣ where
     go : Participant → Label
     go A = A →∗∶ (Kᵖ A ∷ K̂ᵖ A ∷ [])
 
 -- An initial run begins with a coinbase transaction and all appropriate initial broadcasts.
 Initial : Run → Set
-Initial R = ∃[ T₀ ] (Coinbase T₀ × (R ↭ (submit T₀ ∷ initialBroadcasts)))
+Initial R = ∃[ T₀ ] (Coinbase T₀ × (R ≡ (submit T₀ ∷ initialBroadcasts)))
 
 -- A run is valid, when it has an initial run as a prefix.
 Valid : Run → Set

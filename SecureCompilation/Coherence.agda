@@ -4,8 +4,10 @@ open import Prelude.Lists
 open import Prelude.DecEq
 open import Prelude.Collections
 open import Prelude.Monoid
+open import Prelude.Functor
 open import Prelude.Bifunctor
 open import Prelude.Ord using (maximum)
+open import Prelude.ToN
 
 open import Bitcoin.Crypto using (KeyPair)
 
@@ -16,7 +18,6 @@ module SecureCompilation.Coherence
 
   (finPart : Finite Participant)
   (keypairs : ∀ (A : Participant) → KeyPair × KeyPair)
-
 
   (η : ℕ) -- security parameter
   where
@@ -31,11 +32,14 @@ open import ComputationalModel.Strategy Participant Honest finPart keypairs as C
   hiding (Hon)
 
 open import Bitcoin.Crypto as C
-open import Bitcoin.BasicTypes as C hiding (t; t′)
-open import Bitcoin.Script.Base as C hiding (`; ∣_∣)
+open import Bitcoin.BasicTypes as C
+  hiding (t; t′)
+open import Bitcoin.Script.Base as C
+  hiding (`; ∣_∣)
 open import Bitcoin.Tx.Base as C
 open import Bitcoin.Tx.Crypto as C
 open import Bitcoin.Consistency as C
+  hiding (∙)
 
 open import SecureCompilation.Compiler Participant Honest η
 
@@ -49,7 +53,7 @@ private
     𝕣′ : ℝ Rˢ′
 
 postulate
-  encode : (namesʳ Rˢ ↦ TxInput) → Advertisement → Message
+  encode : Txout Rˢ → Advertisement → Message
   -- ^ encode {G}C as a bitstring, representing each x in it as txout(x)
 
   SIGᵖ : ∀ {A : Set} → ℤ {- public key -} → A → ℤ
@@ -221,9 +225,14 @@ data coher₁₁ where
       --       ⇒ secrets ⟨G⟩C ⊆ secrets Γ₀
       --       ⇒ namesˡ ⟨G⟩C ⊆ namesˡ Γ₀
     → (names⊆ : G ⊆⟨on:names⟩ Γ₀)
-
-      -- [T0D0] we are invoking the compiler using the `κ` map that is only defined for honest participants
-    → (A∈ : A ∈ S.Hon)
+      --   ∙ from the hypotheses of [C-Advertise]
+      --       ∘ which introduces ` ⟨G⟩C
+      --       ⇒ ∃(p ∈ partG). p ∈ Hon
+      --   ∙ from the hypotheses of [C-AuthCommit]
+      --       ∘ which introduces ⟨ Aᵢ ∶ aᵢ ♯ Nᵢ ⟩ and Aᵢ auth[ ♯▷ ad ]
+      --       ⇒ we know at least one participant Aᵢ is honest
+      --       → therefore, ad ∈ authorizedHonAds Γ₀
+    → (ad∈₀ : ⟨G⟩C ∈ authorizedHonAds Γ₀)
 
     → let
         α  = auth-init[ A , ⟨G⟩C , x ]
@@ -243,7 +252,7 @@ data coher₁₁ where
             K : 𝕂 G
             K {p} _ = K̂ p
 
-            open H₃′ A∈ A∈′ names⊆
+            open H₃′ ad∈₀ {-A∈ A∈′-} names⊆
           in
             proj₁ $ bitml-compiler {ad = ⟨G⟩C} vad sechash₀ txout₀ K κ₀
 
@@ -314,7 +323,7 @@ data coher₁₁ where
         λᶜ = submit Tᵢₙᵢₜ
 
         -- (iii) sechash = sechash′, κ = κ′, txout extends txout′ with (z ↦ Tᵢₙᵢₜ)
-        open H₄″ (hashTx Tᵢₙᵢₜ at 0)
+        open H₄″ (Tᵢₙᵢₜ at 0)
       in
       --——————————————————————————————————————————————————————————————————————
       coher₁₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
@@ -388,7 +397,7 @@ data coher₁₁ where
   -- ** Contract actions: put
   [6] : let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
       ∀ {⟨G⟩C″} {vad : ValidAdvertisement ⟨G⟩C″} → let ⟨ G ⟩ C″ = ⟨G⟩C″; partG = nub-participants G in
-      -- [T0D0] should we derive that ⟨G⟩C is valid??
+      -- [T0D0] should we *derive* that ⟨G⟩C is valid??
       ∀ {ds : List (Participant × Value × Id)}
         {i : Index c}  → let d = c ‼ i; d∗ = removeTopDecorations d in
 
@@ -448,7 +457,7 @@ data coher₁₁ where
         λᶜ = submit T
 
         -- (v) extend txout′ with {y′↦(T,0)}, sechash = sechash′, κ = κ′
-        open H₆′ (hashTx T at 0)
+        open H₆′ (T at 0)
       in
 
       --——————————————————————————————————————————————————————————————————————
@@ -566,8 +575,8 @@ data coher₁₁ where
         -- (iv) extend txout′ with {xᵢ ↦ (T,i)}, sechash = sechash′, κ = κ′
         xs = map (proj₂ ∘ proj₂) vcis
 
-        txout⁺ : xs ↦ TxInput
-        txout⁺ x∈ = let i = L.Any.index x∈ in hashTx T at (F.toℕ i)
+        txout⁺ : xs ↦ TxInput′
+        txout⁺ x∈ = let i = L.Any.index x∈ in T at (toℕ i)
 
         open H₈′ txout⁺
       in
@@ -628,7 +637,7 @@ data coher₁₁ where
         λᶜ = submit T
 
         -- (iv) extend txout′ with {x ↦ (T,0)}, sechash = sechash′, κ = κ′
-        open H₉′ (hashTx T at 0)
+        open H₉′ (T at 0)
       in
 
       --——————————————————————————————————————————————————————————————————————
@@ -655,7 +664,7 @@ data coher₁₁ where
 
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
                 → (l ≡ B →∗∶ [ hashTx (2 , 1 , T) ])
-                × (inputs  T ≡ txout′ {x} x∈ ∷ txout′ {x′} x′∈ ∷ [])
+                × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x′∈) ∷ [])
                 × (outputs T ≡ V.[ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
                 ) Rᶜ)
     → let
@@ -695,7 +704,7 @@ data coher₁₁ where
 
         -- (ii) submit transaction T
         T  = 2 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
-           { inputs  = txout′ {x} x∈ ∷ txout′ {x′} x′∈ ∷ []
+           { inputs  = hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x′∈) ∷ []
            ; wit     = wit⊥
            ; relLock = V.replicate 0
            ; outputs = V.[ (v + v′) -redeemableWith- K̂ A ]
@@ -705,7 +714,7 @@ data coher₁₁ where
         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
 
         -- (iii) extend txout′ with y↦T₀ (removing {x↦_;x′↦_}), sechash = sechash′, κ = κ′
-        open H₁₁ {R = Rˢ} 𝕣 t α t A v x v′ x′ y Γ₀ cfg≡ (hashTx T at 0)
+        open H₁₁ {R = Rˢ} 𝕣 t α t A v x v′ x′ y Γ₀ cfg≡ (T at 0)
       in
 
       --——————————————————————————————————————————————————————————————————————
@@ -729,7 +738,7 @@ data coher₁₁ where
 
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
                 → (l ≡ B →∗∶ [ hashTx (1 , 2 , T) ])
-                × (inputs  T ≡ V.[ txout′ {x} x∈ ])
+                × (inputs  T ≡ V.[ hashTxⁱ (txout′ {x} x∈) ])
                 × (outputs T ≡ (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ [])
                 ) Rᶜ)
     → let
@@ -766,7 +775,7 @@ data coher₁₁ where
 
         -- (iii) submit transaction T
         T  = 1 , 2 , sig⋆ (V.replicate [ K̂ A ]) record
-           { inputs  = V.[ txout′ {x} x∈ ]
+           { inputs  = V.[ hashTxⁱ (txout′ {x} x∈) ]
            ; wit     = wit⊥
            ; relLock = V.replicate 0
            ; outputs = (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ []
@@ -776,7 +785,7 @@ data coher₁₁ where
         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
 
         -- (v) extend txout′ with {y↦T₀, y′↦T₁} (removing x↦T₀), sechash = sechash′, κ = κ′
-        open H₁₃ {R = Rˢ} 𝕣 t α t A v v′ x Γ₀ cfg≡ y y′ (hashTx T at 0) (hashTx T at 1)
+        open H₁₃ {R = Rˢ} 𝕣 t α t A v v′ x Γ₀ cfg≡ y y′ (T at 0) (T at 1)
       in
 
       --——————————————————————————————————————————————————————————————————————
@@ -800,7 +809,7 @@ data coher₁₁ where
 
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
                 → (l ≡ B →∗∶ [ hashTx (1 , 1 , T) ])
-                × (inputs  T ≡ V.[ txout′ {x} x∈ ])
+                × (inputs  T ≡ V.[ hashTxⁱ (txout′ {x} x∈) ])
                 × (outputs T ≡ V.[ v -redeemableWith- K̂ B′ ])
                 ) Rᶜ)
     → let
@@ -837,7 +846,7 @@ data coher₁₁ where
 
         -- (iii) submit transaction T
         T  = 1 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
-           { inputs  = V.[ txout′ {x} x∈ ]
+           { inputs  = V.[ hashTxⁱ (txout′ {x} x∈) ]
            ; wit     = wit⊥
            ; relLock = V.replicate 0
            ; outputs = V.[ v -redeemableWith- K̂ B′ ]
@@ -847,7 +856,7 @@ data coher₁₁ where
         Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ
 
         -- (v) extend txout′ with y↦T₀ (removing x↦T₀), sechash = sechash′, κ = κ′
-        open H₁₅ {R = Rˢ} 𝕣 t α t A v x B′ Γ₀ cfg≡ y (hashTx T at 0)
+        open H₁₅ {R = Rˢ} 𝕣 t α t A v x B′ Γ₀ cfg≡ y (T at 0)
       in
 
       --——————————————————————————————————————————————————————————————————————
@@ -907,7 +916,7 @@ data coher₁₂ where
 
       -- (iii) in Rᶜ we find B → ∗ ∶ T, for some T having txout′(yᵢ) as inputs (+ possibly others)
       (T : Tx i 0)
-    → codom xs↦ ⊆ V.toList (inputs T)
+    → (hashTxⁱ <$> codom xs↦) ⊆ V.toList (inputs T)
     → (T∈ : Any (λ l → ∃ λ B → l ≡ B →∗∶ [ hashTx (_ , _ , T) ]) Rᶜ)
 
     → let
@@ -954,7 +963,7 @@ data coher₁₂ where
       in
 
       (T : Tx i 0)
-    → codom xs↦ ⊆ V.toList (inputs T)
+    → (hashTxⁱ <$> codom xs↦) ⊆ V.toList (inputs T)
 
     → let
         -- (iii) submit transaction T
@@ -974,7 +983,7 @@ data coher₂ Rˢ txout where
 
   [1] :
 
-      Disjoint (V.toList $ inputs $ proj₂ $ proj₂ T) (codom txout)
+      Disjoint (V.toList $ inputs $ proj₂ $ proj₂ T) (hashTxⁱ <$> codom txout)
       --——————————————————————————————————————————————————————————————————————
     → coher₂ Rˢ txout (submit T)
 
@@ -999,14 +1008,25 @@ data coher where
 
   base : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
 
-      -- (i) initial Rˢ
-      Rˢ ≡ (Γ₀ at 0) ∙
+      -- (i) Rˢ = Γ₀ ∣ 0, with Γ₀ initial
+      (cfg≡ : Rˢ ≡ (Γ₀ at 0) ∙)
     → S.Initial Γ₀
-      -- (ii) initial Rᶜ
-    → C.Initial Rᶜ
+      -- (ii) Rᶜ = T₀ ⋯ initial
+    → (cinit : C.Initial Rᶜ)
+    → let ∃T₀ , _ = cinit; _ , o , T₀ = ∃T₀ in
+
       -- (iii) generation of public keys, we do not consider that here
+      -- [T0D0] is our idealistic assumption reasonable?? -- ask BitML authors
+
       -- (iv) txout { ⟨ A , v ⟩ₓ ∈ Γ₀ ↦ T₀{value = $ v, spendable with K̂(A)(rₐ)} ∈ T₀ }
-    -- → ?
+      (∀ {A v x} (d∈ : ⟨ A has v ⟩at x ∈ᶜ Γ₀)
+         → ∃ λ oᵢ
+         → let
+             x∈ : x ∈ namesʳ Rˢ
+             x∈ = subst (λ ◆ → x ∈ namesʳ ◆) (sym cfg≡) $ deposit∈Γ⇒namesʳ {Γ = Γ₀} d∈
+           in
+             (txout′ x∈ ≡ ∃T₀ at toℕ oᵢ) × (T₀ ‼ᵒ oᵢ ≡ v -redeemableWith- K̂ A)
+      )
       -- (v) dom sechash = ∅
     → dom sechash′ ≡ []
       -- (vi) dom κ = ∅
@@ -1020,14 +1040,14 @@ data coher where
       coher Rˢ Rᶜ txout′ sechash′ κ′
     → coher₁ Rˢ α Γₜ Rᶜ λᶜ txout′ txout sechash′ sechash κ′ κ
       --——————————————————————————————————————————————————————————————————————
-    → coher (Γₜ ∷⟦ α ⟧ Rˢ) (Rᶜ L.∷ʳ λᶜ) txout sechash κ
+    → coher (Γₜ ∷⟦ α ⟧ Rˢ) (λᶜ ∷ Rᶜ) txout sechash κ
 
   step₂ : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let [txout: txout′ ∣sechash: sechash′ ∣κ: κ′ ] = 𝕣 in
 
       coher Rˢ Rᶜ txout′ sechash′ κ′
     → coher₂ Rˢ txout′ λᶜ
       ----------------------------------------
-    → coher Rˢ (Rᶜ L.∷ʳ λᶜ) txout′ sechash′ κ′
+    → coher Rˢ (λᶜ ∷ Rᶜ) txout′ sechash′ κ′
 
 _~_ _≁_ : S.Run → C.Run → Set
 Rˢ ~ Rᶜ = Σ[ txout ∈ Txout Rˢ ] Σ[ sechash ∈ Sechash Rˢ ] ∃ (coher Rˢ Rᶜ txout sechash)

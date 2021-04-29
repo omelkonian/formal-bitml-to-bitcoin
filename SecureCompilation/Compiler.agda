@@ -21,25 +21,19 @@ open import Prelude.Lists
 open import Prelude.DecEq
 open import Prelude.Sets
 open import Prelude.Collections
+open import Prelude.Functor
 
 -- Bitcoin
-open import Bitcoin.BasicTypes
-  using (HashId)
 open import Bitcoin.Crypto
-  using (KeyPair)
-open import Bitcoin.Script.Base
-  using ( ty; ScriptType; `Bool; `ℤ
-        ; ctx; Ctx; ScriptContext
-        ; var; `; _`+_; _`-_; _`=_; _`<_; `if_then_else_; hash; versig; absAfter_⇒_; relAfter_⇒_; Script
-        ; _`∧_; `true; _`∨_; `false; `not
-        ; ƛ_; BitcoinScript; ∃BitcoinScript
-        ; {-∣_∣;-} ⋁; ⋀ )
-open import Bitcoin.Tx.Base
-  using ( _at_; TxInput
-        ; Tx; ∃Tx
-        ; Witness; ∃Witness )
-open import Bitcoin.Tx.Crypto
-  using (hashTx; sig⋆; wit⊥)
+open import Bitcoin.Script
+-- open import Bitcoin.Script.Base
+--   using ( ty; ScriptType; `Bool; `ℤ
+--         ; ctx; Ctx; ScriptContext
+--         ; var; `; _`+_; _`-_; _`=_; _`<_; `if_then_else_; hash; versig; absAfter_⇒_; relAfter_⇒_; Script
+--         ; _`∧_; `true; _`∨_; `false; `not
+--         ; ƛ_; BitcoinScript; ∃BitcoinScript
+--         ; {-∣_∣;-} ⋁; ⋀ )
+open import Bitcoin.Tx
 
 module SecureCompilation.Compiler
 
@@ -75,7 +69,7 @@ bitml-compiler : let ⟨ g ⟩ ds = ad in
   → (K : 𝕂 g)
   → (K² : 𝕂²′ ad)
     -- a set of transactions to be submitted
-  → ∃Tx × (subtermsᶜ⁺ ds ↦ ∃Tx)
+  → ∃Tx⁺ × (subtermsᶜ⁺ ds ↦ ∃Tx⁺)
 bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part⊆) sechash₀ txout₀ K K²
   = Tᵢₙᵢₜ , (≺-rec _ go) CS₀ record
       { T,o     = Tᵢₙᵢₜ♯ at 0
@@ -153,7 +147,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
 
             Bᵃʳ : (e : Arith) → secrets e ⊆ as → Script (Ctx (ς + m)) `ℤ
             Bᵃʳ (Arith.` x)    _   = ` x
-            Bᵃʳ (Arith.∣ s ∣)  ⊆as = Script.∣ var (raise ς (index (⊆as (here refl)))) ∣ `- ` (+ η)
+            Bᵃʳ (Arith.∣ s ∣)  ⊆as = Script.∣ var (raise ς (L.Any.index (⊆as (here refl)))) ∣ `- ` (+ η)
             Bᵃʳ (x Arith.`+ y) ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `+ Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
             Bᵃʳ (x Arith.`- y) ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `- Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
 
@@ -167,9 +161,9 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
         = Ctx ς , versig (mapWith∈ partG (K² D∈)) (allFin ς)
 
 
-    Tᵢₙᵢₜ : ∃Tx
+    Tᵢₙᵢₜ : ∃Tx⁺
     Tᵢₙᵢₜ = -, -, record
-      { inputs  = V.fromList (codom txout₀)
+      { inputs  = V.fromList $ (hashTxⁱ <$> codom txout₀)
       ; wit     = wit⊥
       ; relLock = V.replicate 0
       ; outputs = V.[ -, record { value = V₀ ; validator = ƛ proj₂ (⋁ (mapWith∈ C₀ (Bout ∘ cs⊆))) } ]
@@ -178,7 +172,8 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
         cs⊆ : C₀ ⊆ subterms′ CS₀
         cs⊆ = subterms⊆ᶜˢ {ds = C₀}
 
-    Tᵢₙᵢₜ♯ = hashTx Tᵢₙᵢₜ
+    Tᵢₙᵢₜ♯ : ℤ
+    Tᵢₙᵢₜ♯ = Tᵢₙᵢₜ ♯
 
     infix 0 _&_&_&_&_&_&_&_&_&_&_
     record State (c : ℂ) : Set where
@@ -203,7 +198,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
     open State
 
     Return : ℂ → Set
-    Return c = subterms⁺ c ↦ ∃Tx
+    Return c = subterms⁺ c ↦ ∃Tx⁺
 
     ↓ : State (CS ds) → ds ↦′ (State ∘ C)
     ↓ {ds = d ∷ ds} (T,o & v & P⊆ & t & p⊆ & s⊆ & tt & sechash & txout & part & val) (here refl)
@@ -282,8 +277,8 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
         k = length zs
 
         ins : Vec TxInput k
-        ins rewrite sym (length-mapWith∈ (setoid _) zs {f = txout ∘ zs⊆})
-                  = V.fromList (mapWith∈ zs (txout ∘ zs⊆))
+        ins rewrite sym (length-mapWith∈ (setoid _) zs {f = hashTxⁱ ∘ txout ∘ zs⊆})
+                  = V.fromList (mapWith∈ zs (hashTxⁱ ∘ txout ∘ zs⊆))
 
         K⋆ : zs ↦ List KeyPair
         K⋆ = [_] ∘ K ∘ proj₂ ∘ part ∘ zs⊆
@@ -292,14 +287,14 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
         wits rewrite sym (length-mapWith∈ (setoid _) zs {K⋆})
                    = V.fromList (mapWith∈ zs K⋆)
 
-        Tc : ∃Tx
+        Tc : ∃Tx⁺
         Tc = suc k , -, sig⋆ (mapWith∈ P (K² Dₚ∈ ∘ P⊆) V.∷ wits) record
           { inputs  = T,o V.∷ ins
           ; wit     = wit⊥
           ; relLock = V.replicate 0
           ; outputs = V.[ _ , record { value = v; validator = ƛ proj₂ (⋁ (mapWith∈ cs (Bout ∘ cs⊆))) } ]
           ; absLock = t }
-        Tc♯ = hashTx Tc
+        Tc♯ = Tc ♯
     -- Bpar
     ... | c′@(split vcs) = λ
       { (here refl) → Tc
@@ -313,7 +308,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
         eᵢⱼ : List (Value × List (∃[ ctx ] Script ctx `Bool))
         eᵢⱼ = mapWith∈ vcs λ{ {v , Cᵢ} x∈ → v , mapWith∈ Cᵢ (Bout ∘ s⊆ ∘ subterms⊆ᵛᶜˢ x∈) }
 
-        Tc : ∃Tx
+        Tc : ∃Tx⁺
         Tc = -, -, sig⋆ V.[ mapWith∈ P (K² Dₚ∈ ∘ P⊆) ] record
           { inputs  = V.[ T,o ]
           ; wit     = wit⊥
@@ -321,7 +316,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
           ; outputs = V.map (λ{ (vᵢ , eᵢ) → -, record { value = vᵢ ; validator = ƛ proj₂ (⋁ eᵢ) }})
                             (V.fromList eᵢⱼ)
           ; absLock = t }
-        Tc♯ = hashTx Tc
+        Tc♯ = Tc ♯
 
     go (CS x) f  st = ↦-∈  λ {d}  d∈  → f (C d)   (≺-∈ d∈)   (↓ st d∈)
     go (VCS x) f st = ↦-∈ᵛ λ {cs} cs∈ → f (CS cs) (≺-∈ᵛ cs∈) (↓ᵛ st cs∈)
