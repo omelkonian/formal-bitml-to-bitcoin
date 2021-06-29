@@ -1,11 +1,7 @@
-------------------------------------------------------------------------
--- Helpers for stripping.
-------------------------------------------------------------------------
-
-open import Data.List using (length; map; concatMap; _++_; zip)
 open import Data.List.Relation.Binary.Subset.Propositional.Properties using (⊆-trans)
 
 open import Prelude.Init
+open import Prelude.General
 open import Prelude.Lists
 open L.Mem using (∈-++⁻; ∈-++⁺ˡ; ∈-++⁺ʳ)
 open import Prelude.Membership
@@ -15,20 +11,25 @@ open import Prelude.Collections
 open import Prelude.Bifunctor
 open import Prelude.Nary
 open import Prelude.Validity
+open import Prelude.Traces
+open import Prelude.Decidable
+open import Prelude.DecEq
+open import Prelude.DecLists
+open import Prelude.Setoid
 
-open import Bitcoin.Crypto using (KeyPair)
-open import Bitcoin.Tx.Base
-open import Bitcoin.Tx.Crypto
+open import Bitcoin.Crypto
+open import Bitcoin.Tx
 
-module SymbolicModel.Helpers
+module SymbolicModel.Helpers2
   (Participant : Set)
   ⦃ _ : DecEq Participant ⦄
   (Honest : List⁺ Participant)
   where
 
-open import SymbolicModel Participant Honest
+open import SymbolicModel.Run2 Participant Honest
   hiding ( _∎; begin_
          ; {-variables-} g; c; as; vs; xs; ad; Γ; Γ′; R′; Δ )
+open import SymbolicModel.Collections2 Participant Honest
 
 -- Useful type aliases for maps over specific sets.
 private variable X : Set
@@ -96,8 +97,8 @@ deposit∈Γ⇒namesʳ {A} {v} {x} {l ∣ r} d∈
 ... | inj₁ d∈ˡ = ∈-++⁺ˡ   $ deposit∈Γ⇒namesʳ {Γ = l} d∈ˡ
 ... | inj₂ d∈ʳ = ∈-++⁺ʳ _ $ deposit∈Γ⇒namesʳ {Γ = r} d∈ʳ
 
-deposit∈R⇒namesʳ : ⟨ A has v ⟩at x ∈ᶜ lastCfg R → x ∈ namesʳ R
-deposit∈R⇒namesʳ {R = R} = deposit∈Γ⇒namesʳ {Γ = lastCfg R}
+deposit∈R⇒namesʳ : ⟨ A has v ⟩at x ∈ᶜ cfg (R .end) → x ∈ namesʳ R
+deposit∈R⇒namesʳ {R = R} = deposit∈Γ⇒namesʳ {Γ = cfg (R .end)}
 
 --
 
@@ -105,15 +106,18 @@ deposit∈R⇒namesʳ {R = R} = deposit∈Γ⇒namesʳ {Γ = lastCfg R}
 -- (issue appear at the usage site)
 -- ℝ = ∃[ R ] (Txout R × Sechash R × 𝕂² R)
 record ℝ (R : Run) : Set where
-  constructor [valid:_∣txout:_∣sechash:_∣κ:_]
+  constructor [txout:_∣sechash:_∣κ:_]
   field
-    valid′   : Valid R
     txout′   : Txout R
     sechash′ : Sechash R
     κ′       : 𝕂² R
 
 -- lifting mappings from last configuration to enclosing runs
 -- e.g. Γ ↝⟨ Txout ⟩ Γ′ ———→ R ↝⟨ Txout ⟩ R′
+
+≈ᵗ-refl : Γₜ ≈ Γₜ
+≈ᵗ-refl = refl , ↭-refl
+
 module Lift (r : ℝ R) t α t′
   Γ (cfg≡ : R ≡⋯ Γ at t) Γ′
   (valid↝   : Γ at t —[ α ]→ₜ Γ′ at t′)
@@ -124,8 +128,12 @@ module Lift (r : ℝ R) t α t′
   open ℝ r
 
   private
-    R′ = (Γ′ at t′) ∷⟦ α ⟧ R
     Γ≡ = cong cfg cfg≡
+
+    R≈ : (Γ′ at t′ ≈ Γ′ at t′) × (R .end ≈ Γ at t)
+    R≈ rewrite cfg≡ = ≈ᵗ-refl {Γ′ at t′} , ≈ᵗ-refl {Γ at t}
+
+    R′ = (Γ′ at t′) ⟨ valid↝ ⟩←—— R ⊣ R≈
 
   txout : Txout R′
   txout = txout↝ $ subst Txout Γ≡ txout′
@@ -134,15 +142,12 @@ module Lift (r : ℝ R) t α t′
   sechash = sechash↝ $ subst Sechash Γ≡ sechash′
 
   κ : 𝕂² R′
-  κ ad∈ with ∈-++⁻ (advertisements Γ′) ad∈
-  ... | inj₂ ad∈ʳ = κ′ ad∈ʳ
-  ... | inj₁ ad∈ˡ = κ↝ (subst 𝕂² Γ≡ $ weaken-↦ κ′ ∈-++⁺ˡ) ad∈ˡ
-
-  valid : Valid R′
-  valid rewrite cfg≡ = valid↝ , valid′
+  κ {ad} ad∈ with ads∈-⊎ {α}{Γ′ at t′}{Γ′ at t′}{R}{ad}{Γ at t} valid↝ R≈ ad∈
+  ... | inj₁ ad∈R  = κ′ ad∈R
+  ... | inj₂ ad∈Γ′ = κ↝ (subst 𝕂² Γ≡ (weaken-↦ κ′ (ads⦅end⦆⊆ {R}))) ad∈Γ′
 
   𝕣′ : ℝ R′
-  𝕣′ = [valid: valid ∣txout: txout ∣sechash: sechash ∣κ: κ ]
+  𝕣′ = [txout: txout ∣sechash: sechash ∣κ: κ ]
 
 -- invoking the compiler with the correct mappings, lifting them from the current configuration/run
 -- e.g. (Txout R ∣ Γ ↝⟨ Txout ⟩ G) ———→ Txout G
@@ -247,8 +252,6 @@ namesʳ-∥map-helper′ {y = y} ds {x} x∈ = qed
     -- qed = subst (x L.Mem.∈_) (sym h) (subst (λ ◆ → x L.Mem.∈ namesʳ (|| ◆)) (sym $ h′ ds) (namesʳ-∥map-helper ds x∈))
 
 --
-
-open import Prelude.General
 
 module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
   open ℝ 𝕣
@@ -380,7 +383,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
         sechash↝′ sechash′ = weaken-↦ sechash′ (mapMaybe-⊆ isInj₁ names⊆)
 
         ad∈′ : ad ∈ advertisements R
-        ad∈′ rewrite cfg≡ = ∈-++⁺ˡ ad∈
+        ad∈′ = ads⦅end⦆⊆ {R} $ ⟪ (λ ◆ → ad ∈ advertisements ◆) ⟫ cfg≡ ~: ad∈
 
         open Lift₀ 𝕣 t Γ cfg≡ ad txout↝′ sechash↝′ ad∈′ public
 
@@ -518,7 +521,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
         ad∈ = ∈-++⁺ʳ (advertisements $ Γ₁ ∣ Γ₂) ad∈₀
 
         ad∈′ : ad ∈ advertisements R
-        ad∈′ rewrite cfg≡ = ∈-++⁺ˡ ad∈
+        ad∈′ = ads⦅end⦆⊆ {R} $ ⟪ (λ ◆ → ad ∈ advertisements ◆) ⟫ cfg≡ ~: ad∈
 
         open Lift₀ 𝕣 t Γ cfg≡ ad txout↝ sechash↝ ad∈′ public
 

@@ -31,8 +31,8 @@ module _ (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
 
   MaximalRun : Strategies → Run → Set
   MaximalRun SS R = (R -conforms-to- SS)
-                  × (¬ ∃[ R′ ] ( (R′ -conforms-to- SS)
-                               × (length R′ > length R) ))
+                  × (¬ ∃ λ R′ → (R′ -conforms-to- SS)
+                              × (length R′ > length R))
 
   unique-maximal-run :
       MaximalRun SS R

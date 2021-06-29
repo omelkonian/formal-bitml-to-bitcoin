@@ -4,15 +4,12 @@
 
 open import Prelude.Init hiding (Σ)
 open import Prelude.Lists
+open import Prelude.Membership
 open import Prelude.DecEq
 open import Prelude.Bifunctor
+open import Prelude.Ord
 
-open import Bitcoin.Crypto using (KeyPair; pub; sec)
-open import Bitcoin.BasicTypes  using (Time)
-open import Bitcoin.Script.Base using (ƛ_; versig; Ctx)
-open import Bitcoin.Tx.Base     using (∃Tx; outputs; inputs; wit; _at_; validator; txId)
-open import Bitcoin.Tx.Crypto   using (hashTx)
-open import Bitcoin.Consistency using (Blockchain; _▷_,_; ConsistentBlockchain)
+open import Bitcoin
 
 module ComputationalModel.Strategy
   (Participant : Set)
@@ -142,8 +139,8 @@ _▷ʳ_ : Run → ∃Tx → Set
 R ▷ʳ ∃tx =
   let tx = proj₂ (proj₂ ∃tx) in
     (𝔹 R ▷ tx , δʳ R)
-  × ∃[ B ] (B →∗∶ [ hashTx ∃tx ] ∈ R)
-  × V.All.All (λ i → ∃[ tx′ ] ((submit tx′ ∈ R) × (hashTx tx′ ≡ txId i))) (inputs tx)
+  × ∃[ B ] (B →∗∶ [ ∃tx ♯ ] ∈ R)
+  × V.All.All (λ i → ∃[ tx′ ] ((submit tx′ ∈ R) × (tx′ ♯ ≡ txId i))) (inputs tx)
   × V.All.All (λ w → ∃[ B ] (B →∗∶ V.toList (proj₂ w) ∈ R)) (wit tx)
 
 record ParticipantStrategy (A : Participant) : Set where

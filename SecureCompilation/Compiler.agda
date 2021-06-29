@@ -6,9 +6,9 @@ open import Data.Fin as Fin using (raise; inject+; toℕ)
 
 
 open import Data.Nat.Properties using (≤-refl; <-trans; n<1+n)
-open import Data.List.Membership.Propositional.Properties
 open import Data.List.Membership.Setoid.Properties         using (length-mapWith∈)
 open import Data.List.Relation.Unary.Any                   using (index)
+
 open import Data.List.Relation.Unary.All                   using (lookup)
 
 open import Data.List.Relation.Binary.Subset.Propositional.Properties using (⊆-refl)
@@ -18,21 +18,18 @@ open import Relation.Binary.PropositionalEquality using (setoid)
 open import Prelude.Init
 open import Prelude.General
 open import Prelude.Lists
+open import Prelude.DecLists
+open L.Mem
+-- open import Prelude.Membership
 open import Prelude.DecEq
 open import Prelude.Sets
 open import Prelude.Collections
 open import Prelude.Functor
+open import Prelude.Validity
 
 -- Bitcoin
 open import Bitcoin.Crypto
 open import Bitcoin.Script
--- open import Bitcoin.Script.Base
---   using ( ty; ScriptType; `Bool; `ℤ
---         ; ctx; Ctx; ScriptContext
---         ; var; `; _`+_; _`-_; _`=_; _`<_; `if_then_else_; hash; versig; absAfter_⇒_; relAfter_⇒_; Script
---         ; _`∧_; `true; _`∨_; `false; `not
---         ; ƛ_; BitcoinScript; ∃BitcoinScript
---         ; {-∣_∣;-} ⋁; ⋀ )
 open import Bitcoin.Tx
 
 module SecureCompilation.Compiler
@@ -58,9 +55,28 @@ open import BitML.Semantics Participant Honest
 
 open import SymbolicModel.Helpers Participant Honest
 
+-- single-output transactions
+Tx¹ : ℕ → Set
+Tx¹ i = Tx i 1
+∃Tx¹ = ∃ Tx¹
+
+-- contract-dependent outputs
+outputLen : Contract → ℕ
+outputLen (split vcs) = length vcs
+outputLen _           = 1
+
+Txᶜ : ℕ → Contract → Set
+Txᶜ i c = Tx i (outputLen c)
+
+∃Txᶜ : Contract → Set
+∃Txᶜ c = ∃ λ i → Txᶜ i c
+
+∃∃Txᶜ = ∃ ∃Txᶜ
+
+
 bitml-compiler : let ⟨ g ⟩ ds = ad in
     -- the input contract & precondition (only compile valid advertisements)
-    ValidAdvertisement ad
+    Valid ad
     -- sechash: maps secrets in G to the corresponding committed hashes
   → (sechash : Sechash g)
     -- txout: maps deposits in G to *pre-existing* transactions with the corresponding value
@@ -69,8 +85,9 @@ bitml-compiler : let ⟨ g ⟩ ds = ad in
   → (K : 𝕂 g)
   → (K² : 𝕂²′ ad)
     -- a set of transactions to be submitted
-  → ∃Tx⁺ × (subtermsᶜ⁺ ds ↦ ∃Tx⁺)
-bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part⊆) sechash₀ txout₀ K K²
+  → ∃Tx¹ × (subtermsᶜ⁺ ds ↦′ ∃Txᶜ)
+bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (record {names-⊆ = names⊆; names-put = putComponents⊆; participants-⊆ = part⊆})
+  sechash₀ txout₀ K K²
   = Tᵢₙᵢₜ , (≺-rec _ go) CS₀ record
       { T,o     = Tᵢₙᵢₜ♯ at 0
       ; curV    = V₀
@@ -96,8 +113,6 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
     part₀ : namesʳ G₀ ↦ ∃ (_∈ partG)
     part₀ = -,_ ∘ ∈-nub⁺ ∘ proj₂ ∘ getDeposit {g = G₀}
 
-    -- Part₀ : Pred₀ Precondition
-    -- Part₀ g = volatileNamesʳ g ↦ ∃ (_∈ nub-participants g)
     private variable X : Set
 
     Part : ⦃ _ : X has Name ⦄ → Pred₀ X
@@ -106,9 +121,6 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
     -- val: maps deposit names in G to the value contained in the deposit
     val₀ : namesʳ G₀ ↦ Value
     val₀ = proj₁ ∘ proj₂ ∘ proj₁ ∘ getDeposit {g = G₀}
-
-    -- Val₀ : Pred₀ Precondition
-    -- Val₀ g = volatileNamesʳ g ↦ Value
 
     Val : ⦃ _ : X has Name ⦄ → Pred₀ X
     Val x = namesʳ x ↦ Value
@@ -161,8 +173,8 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
         = Ctx ς , versig (mapWith∈ partG (K² D∈)) (allFin ς)
 
 
-    Tᵢₙᵢₜ : ∃Tx⁺
-    Tᵢₙᵢₜ = -, -, record
+    Tᵢₙᵢₜ : ∃Tx¹
+    Tᵢₙᵢₜ = -, record
       { inputs  = V.fromList $ (hashTxⁱ <$> codom txout₀)
       ; wit     = wit⊥
       ; relLock = V.replicate 0
@@ -186,8 +198,6 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
 
         p⊆ : participants c ⊆ partG
 
-        -- Bout : subterms′ c ↦ (∃[ ctx ] Script ctx `Bool)
-        -- K²   : subterms′ c ↦ (partG ↦ KeyPair)
         s⊆ : subterms′ c ⊆ subterms′ CS₀
         ∃s : case c of λ{ (C _) → ∃ (_∈ subterms′ CS₀) ; _ → ⊤}
 
@@ -198,73 +208,34 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
     open State
 
     Return : ℂ → Set
-    Return c = subterms⁺ c ↦ ∃Tx⁺
-
-    ↓ : State (CS ds) → ds ↦′ (State ∘ C)
-    ↓ {ds = d ∷ ds} (T,o & v & P⊆ & t & p⊆ & s⊆ & tt & sechash & txout & part & val) (here refl)
-      = T,o & v & P⊆ & t & p⊆ ∘ ∈-++⁺ˡ & s⊆′ & (d , s⊆ (here refl))
-      & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
-      & part ∘ mapMaybe-⊆ isInj₂ n⊆ & val ∘ mapMaybe-⊆ isInj₂ n⊆
-      where
-        n⊆ : names d ⊆ names (d ∷ ds)
-        n⊆ = ∈-++⁺ˡ
-
-        s⊆′ : subterms′ (C d) ⊆ subterms′ CS₀
-        s⊆′ = s⊆ ∘ there ∘ ∈-++⁺ˡ
-    ↓ {ds = d ∷ ds} (T,o & v & P⊆ & t & p⊆ & s⊆ & tt & sechash & txout & part & val) (there x∈)
-      = ↓ {ds = ds} (T,o & v & P⊆ & t
-      & p⊆ ∘ (∈-++⁺ʳ _) & s⊆ ∘ ∈-++⁺ʳ _ & tt
-      & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
-      & part ∘ mapMaybe-⊆ isInj₂ n⊆ & val ∘ mapMaybe-⊆ isInj₂ n⊆) x∈
-      where
-        n⊆ : names ds ⊆ names (d ∷ ds)
-        n⊆ = ∈-++⁺ʳ _
-
-    ↓ᵛ : State (VCS vcs) → map proj₂ vcs ↦′ (State ∘ CS)
-    ↓ᵛ {vcs = (v , cs) ∷ vcs} (T,o & _ & P⊆ & t & p⊆ & s⊆ & tt & sechash & txout & part & val) (here refl)
-      = T,o & v & P⊆ & t & p⊆ ∘ ∈-++⁺ˡ & s⊆ ∘ ∈-++⁺ˡ & tt
-      & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
-      & part ∘ mapMaybe-⊆ isInj₂ n⊆ & val ∘ mapMaybe-⊆ isInj₂ n⊆
-      where
-        n⊆ : names cs ⊆ names ((v , cs) ∷ vcs)
-        n⊆ = ∈-++⁺ˡ
-    ↓ᵛ {vcs = (v , cs) ∷ vcs} ((T at o) & _ & P⊆ & t & p⊆ & s⊆ & tt & sechash & txout & part & val) (there x∈)
-      = ↓ᵛ {vcs = vcs} ((T at suc o) & v & P⊆ & t
-      & p⊆ ∘ ∈-++⁺ʳ _ & s⊆ ∘ ∈-++⁺ʳ _ & tt
-      & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
-      & part ∘ mapMaybe-⊆ isInj₂ n⊆ & val ∘ mapMaybe-⊆ isInj₂ n⊆) x∈
-      where
-        n⊆ : names vcs ⊆ names ((v , cs) ∷ vcs)
-        n⊆ = ∈-++⁺ʳ _
+    Return c = subterms⁺ c ↦′ ∃Txᶜ
 
     go : ∀ c → (∀ c′ → c′ ≺ c → State c′ → Return c′) → State c → Return c
     go (C c) f (T,o & v & (P , P⊆) & t & p⊆ & s⊆ & ∃s@(Dₚ , Dₚ∈) & sechash & txout & part & val)
       with c
     -- Bd
-    ... | withdraw A = λ
-      {(here refl) →
-        -, -, sig⋆ V.[ mapWith∈ P (K² Dₚ∈ ∘ P⊆) ] record
-          { inputs  = V.[ T,o ]
-          ; wit     = wit⊥
-          ; relLock = V.[ 0 ]
-          ; outputs = V.[ Ctx 1 , record { value = v ; validator = ƛ versig [ K {A} (p⊆ (here refl)) ] [ 0F ] } ]
-          ; absLock = t }
-      }
+    ... | withdraw A = λ where
+      (here refl) →
+       -, sig⋆ V.[ mapWith∈ P (K² Dₚ∈ ∘ P⊆) ] record
+         { inputs  = V.[ T,o ]
+         ; wit     = wit⊥
+         ; relLock = V.[ 0 ]
+         ; outputs = V.[ Ctx 1 , record { value = v ; validator = ƛ versig [ K {A} (p⊆ (here refl)) ] [ 0F ] } ]
+         ; absLock = t }
     ... | A ⇒ d
         = f (C d) ≺-auth (T,o & v & (P \\ [ A ] , P⊆ ∘ \\-⊆) & t & p⊆ ∘ there & s⊆ & ∃s & sechash & txout & part & val)
     ... | after t′ ⇒ d
         = f (C d) ≺-after (T,o & v & (P , P⊆) & t ⊔ t′ & p⊆ & s⊆ & ∃s & sechash & txout & part & val)
     -- Bc
-    ... | c′@(put zs &reveal as if p ⇒ cs) = λ
-      { (here refl) → Tc
-      ; (there x∈)  → f (CS cs) ≺-put
-          ((Tc♯ at 0) & v & (partG , ⊆-refl) & 0
-          & p⊆ & s⊆ & tt
-          & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
-          & part ∘ mapMaybe-⊆ isInj₂ n⊆ & val ∘ mapMaybe-⊆ isInj₂ n⊆)
-          x∈
-      }
-      where
+    ... | c′@(put zs &reveal as if p ⇒ cs) = λ where
+      (here refl) → Tc
+      (there x∈)  → f (CS cs) ≺-put
+        ((Tc♯ at 0) & v & (partG , ⊆-refl) & 0
+        & p⊆ & s⊆ & tt
+        & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
+        & part ∘ mapMaybe-⊆ isInj₂ n⊆ & val ∘ mapMaybe-⊆ isInj₂ n⊆)
+        x∈
+       where
         n⊆ : names cs ⊆ names c′
         n⊆ = ∈-++⁺ʳ (map inj₂ zs) ∘ ∈-++⁺ʳ (map inj₁ as)
 
@@ -287,8 +258,8 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
         wits rewrite sym (length-mapWith∈ (setoid _) zs {K⋆})
                    = V.fromList (mapWith∈ zs K⋆)
 
-        Tc : ∃Tx⁺
-        Tc = suc k , -, sig⋆ (mapWith∈ P (K² Dₚ∈ ∘ P⊆) V.∷ wits) record
+        Tc : ∃Tx¹
+        Tc = suc k , sig⋆ (mapWith∈ P (K² Dₚ∈ ∘ P⊆) V.∷ wits) record
           { inputs  = T,o V.∷ ins
           ; wit     = wit⊥
           ; relLock = V.replicate 0
@@ -296,27 +267,62 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (_ , names⊆ , putComponents⊆ , part�
           ; absLock = t }
         Tc♯ = Tc ♯
     -- Bpar
-    ... | c′@(split vcs) = λ
-      { (here refl) → Tc
-      ; (there x∈)  → f (VCS vcs) ≺-split
-          ((Tc♯ at 0) & v & (partG , ⊆-refl) & 0
-          & p⊆ & s⊆ & tt
-          & sechash & txout & part & val)
-          x∈
-      }
-      where
-        eᵢⱼ : List (Value × List (∃[ ctx ] Script ctx `Bool))
-        eᵢⱼ = mapWith∈ vcs λ{ {v , Cᵢ} x∈ → v , mapWith∈ Cᵢ (Bout ∘ s⊆ ∘ subterms⊆ᵛᶜˢ x∈) }
-
-        Tc : ∃Tx⁺
-        Tc = -, -, sig⋆ V.[ mapWith∈ P (K² Dₚ∈ ∘ P⊆) ] record
+    ... | c′@(split vcs) = λ where
+      (here refl) → Tc
+      (there x∈)  → f (VCS vcs) ≺-split
+        ((Tc♯ at 0) & v & (partG , ⊆-refl) & 0
+        & p⊆ & s⊆ & tt
+        & sechash & txout & part & val)
+        x∈
+       where
+        Tc : ∃Txᶜ c′
+        Tc = -, sig⋆ V.[ mapWith∈ P (K² Dₚ∈ ∘ P⊆) ] record
           { inputs  = V.[ T,o ]
           ; wit     = wit⊥
           ; relLock = V.replicate 0
-          ; outputs = V.map (λ{ (vᵢ , eᵢ) → -, record { value = vᵢ ; validator = ƛ proj₂ (⋁ eᵢ) }})
-                            (V.fromList eᵢⱼ)
+          ; outputs = V.Mem.mapWith∈ (V.fromList vcs) λ{ {vᵢ , Cᵢ} x∈ →
+              let eᵢ = mapWith∈ Cᵢ (Bout ∘ s⊆ ∘ subterms⊆ᵛᶜˢ (V.Any.fromList⁻ x∈))
+              in -, record { value = vᵢ ; validator = ƛ proj₂ (⋁ eᵢ) }
+            }
           ; absLock = t }
         Tc♯ = Tc ♯
 
-    go (CS x) f  st = ↦-∈  λ {d}  d∈  → f (C d)   (≺-∈ d∈)   (↓ st d∈)
+    go (CS x)  f st = ↦-∈  λ {d}  d∈  → f (C d)   (≺-∈ d∈)   (↓ st d∈)
+      where
+        ↓ : State (CS ds) → ds ↦′ (State ∘ C)
+        ↓ {ds = d ∷ ds} (T,o & v & P⊆ & t & p⊆ & s⊆ & tt & sechash & txout & part & val) (here refl)
+          = T,o & v & P⊆ & t & p⊆ ∘ ∈-++⁺ˡ & s⊆′ & (d , s⊆ (here refl))
+          & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
+          & part ∘ mapMaybe-⊆ isInj₂ n⊆ & val ∘ mapMaybe-⊆ isInj₂ n⊆
+          where
+            n⊆ : names d ⊆ names (d ∷ ds)
+            n⊆ = ∈-++⁺ˡ
+
+            s⊆′ : subterms′ (C d) ⊆ subterms′ CS₀
+            s⊆′ = s⊆ ∘ there ∘ ∈-++⁺ˡ
+        ↓ {ds = d ∷ ds} (T,o & v & P⊆ & t & p⊆ & s⊆ & tt & sechash & txout & part & val) (there x∈)
+          = ↓ {ds = ds} (T,o & v & P⊆ & t
+          & p⊆ ∘ (∈-++⁺ʳ _) & s⊆ ∘ ∈-++⁺ʳ _ & tt
+          & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
+          & part ∘ mapMaybe-⊆ isInj₂ n⊆ & val ∘ mapMaybe-⊆ isInj₂ n⊆) x∈
+          where
+            n⊆ : names ds ⊆ names (d ∷ ds)
+            n⊆ = ∈-++⁺ʳ _
     go (VCS x) f st = ↦-∈ᵛ λ {cs} cs∈ → f (CS cs) (≺-∈ᵛ cs∈) (↓ᵛ st cs∈)
+      where
+        ↓ᵛ : State (VCS vcs) → map proj₂ vcs ↦′ (State ∘ CS)
+        ↓ᵛ {vcs = (v , cs) ∷ vcs} (T,o & _ & P⊆ & t & p⊆ & s⊆ & tt & sechash & txout & part & val) (here refl)
+          = T,o & v & P⊆ & t & p⊆ ∘ ∈-++⁺ˡ & s⊆ ∘ ∈-++⁺ˡ & tt
+          & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
+          & part ∘ mapMaybe-⊆ isInj₂ n⊆ & val ∘ mapMaybe-⊆ isInj₂ n⊆
+          where
+            n⊆ : names cs ⊆ names ((v , cs) ∷ vcs)
+            n⊆ = ∈-++⁺ˡ
+        ↓ᵛ {vcs = (v , cs) ∷ vcs} ((T at o) & _ & P⊆ & t & p⊆ & s⊆ & tt & sechash & txout & part & val) (there x∈)
+          = ↓ᵛ {vcs = vcs} ((T at suc o) & v & P⊆ & t
+          & p⊆ ∘ ∈-++⁺ʳ _ & s⊆ ∘ ∈-++⁺ʳ _ & tt
+          & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
+          & part ∘ mapMaybe-⊆ isInj₂ n⊆ & val ∘ mapMaybe-⊆ isInj₂ n⊆) x∈
+          where
+            n⊆ : names vcs ⊆ names ((v , cs) ∷ vcs)
+            n⊆ = ∈-++⁺ʳ _

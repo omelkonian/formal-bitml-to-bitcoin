@@ -8,20 +8,23 @@ open import Prelude.Applicative
 open import Prelude.Semigroup
 open import Prelude.Nary
 open import Prelude.Lists
+open import Prelude.Validity
+open import Prelude.Membership
+open import Prelude.Decidable
+open import Prelude.ToN
+open import Prelude.Functor
 
 -- Bitcoin
-open import Bitcoin.Crypto using (KeyPair; HASH)
+open import Bitcoin.Crypto
 open import Bitcoin.Script.Base
 open import Bitcoin.Tx.Base
-open import Bitcoin.Tx.Crypto using (sig⋆; hashTx; wit⊥)
+open import Bitcoin.Tx.Crypto
 
 -- BitML
 open import BitML.Example.Setup       using (Participant; Honest; A; B)
 open import BitML.BasicTypes          hiding (t; a; v)
-open import BitML.Contracts.Types     Participant Honest hiding (A; B)
-open import BitML.Contracts.Induction Participant Honest using (CS)
-open import BitML.Contracts.Helpers   Participant Honest
-open import BitML.Contracts.Validity  Participant Honest using (ValidAdvertisement; validAd?)
+open import BitML.Contracts Participant Honest hiding (A; B)
+open Induction using (CS)
 
 -- BitML compiler
 η = 1
@@ -35,15 +38,12 @@ module Section7 where -- (see BitML paper, Section 7).
   partG = nub-participants (ex-ad .G)
 
   postulate
-    Tˣ Tʸ : TxInput -- pre-existing deposits
-
-  valid : ValidAdvertisement ex-ad
-  valid = toWitness {Q = validAd? ex-ad} tt
+    Tˣ Tʸ : TxInput′ -- pre-existing deposits
 
   sechash : namesˡ (ex-ad .G) ↦ ℤ
   sechash ()
 
-  txout : namesʳ (ex-ad .G) ↦ TxInput
+  txout : namesʳ (ex-ad .G) ↦ TxInput′
   txout = case_of λ where
     {- "x" -} (here _)         → Tˣ
     {- "y" -} (there (here _)) → Tʸ
@@ -66,9 +66,13 @@ module Section7 where -- (see BitML paper, Section 7).
   Ks : List KeyPair
   Ks = mapWith∈ partG (K² $ here refl)
 
+  -- [TODO] move to `formal-bitcoin`
+  tx↝ : TxInput′ → TxInput
+  tx↝ record {tx′ = tx; index′ = i} = record {txId = tx ♯; index = toℕ i}
+
   Tᵢₙᵢₜ : Tx 2 1
   Tᵢₙᵢₜ = record
-    { inputs  = Tˣ ∷ Tʸ ∷ []
+    { inputs  = tx↝ <$> (Tˣ ∷ Tʸ ∷ [])
     ; wit     = wit⊥
     ; relLock = V.replicate 0
     ; outputs = V.[ Ctx 2 , record { value = 2; validator = ƛ versig Ks (allFin _) }]
@@ -76,20 +80,20 @@ module Section7 where -- (see BitML paper, Section 7).
 
   Tᵇ : Tx 1 1
   Tᵇ = sig⋆ V.[ Ks ] record
-    { inputs  = V.[ hashTx (-, -, Tᵢₙᵢₜ) at 0 ]
+    { inputs  = V.[ (Tᵢₙᵢₜ ♯) at 0 ]
     ; wit     = wit⊥
     ; relLock = V.replicate 0
     ; outputs = V.[ Ctx 1 , record { value = 2; validator = ƛ versig [ K (there (here refl)) ] [ 0F ] }]
     ; absLock = 0 }
 
-  out : ∃Tx × (subterms⁺ (CS $ ex-ad .C) ↦ ∃Tx)
-  out = bitml-compiler {g = ex-ad .G} {ds = ex-ad .C} valid sechash txout K K²
+  -- out : ∃Tx × (subterms⁺ (CS $ ex-ad .C) ↦ ∃Tx)
+  -- out = bitml-compiler {ad = ex-ad} auto sechash txout K K²
 
-  outTxs : List ∃Tx
-  outTxs = let t₀ , m = out in t₀ ∷ m (here refl) ∷ []
+--   outTxs : List ∃Tx
+--   outTxs = let t₀ , m = out in t₀ ∷ m (here refl) ∷ []
 
-  _ : outTxs ≡ (-, -, Tᵢₙᵢₜ) ∷ (-, -, Tᵇ) ∷ []
-  _ = refl
+--   _ : outTxs ≡ (-, -, Tᵢₙᵢₜ) ∷ (-, -, Tᵇ) ∷ []
+--   _ = refl
 
 module TimedCommitment where -- (see BitML, Appendix A.5)
 
@@ -106,8 +110,8 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
   postulate
     Tᵃ Tᵇ : TxInput -- pre-existing deposits
 
-  valid : ValidAdvertisement tc
-  valid = toWitness {Q = validAd? tc} tt
+  valid : Valid tc
+  valid = toWitness {Q = Valid? tc} tt
 
   sechash : namesˡ (tc .G) ↦ ℤ
   sechash = case_of λ where
@@ -163,7 +167,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     ; relLock = V.replicate 0
     ; outputs = V.[ _ , record { value = v ; validator = ƛ (e₁ `∨ e₂) }]
     ; absLock = 0 }
-  Tᵢₙᵢₜ♯ = hashTx (-, -, Tᵢₙᵢₜ)
+  Tᵢₙᵢₜ♯ = Tᵢₙᵢₜ ♯
 
   T′ : Tx 1 1
   T′ = sig⋆ V.[ K⋆ $ here refl ] record
@@ -175,7 +179,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
 
   T′ᵃ : Tx 1 1
   T′ᵃ = sig⋆ V.[ K⋆ $ there (here refl) ] record
-    { inputs  = V.[ hashTx (-, -, T′) at 0 ]
+    { inputs  = V.[ (T′ ♯) at 0 ]
     ; wit     = wit⊥
     ; relLock = V.replicate 0
     ; outputs = V.[ Ctx 1 , record { value = v ; validator = ƛ versig [ K $ here refl ] [ # 0 ] }]
@@ -189,11 +193,11 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     ; outputs = V.[ Ctx 1 , record { value = v ; validator = ƛ versig [ K $ there (here refl) ] [ # 0 ] }]
     ; absLock = t }
 
-  out : ∃Tx × (subterms⁺ (CS $ tc .C) ↦ ∃Tx)
-  out = bitml-compiler {g = tc .G} {ds = tc .C} valid sechash txout K K²
+  -- out : ∃Tx × (subterms⁺ (CS $ tc .C) ↦ ∃Tx)
+  -- out = bitml-compiler {g = tc .G} {ds = tc .C} valid sechash txout K K²
 
-  outTxs : List ∃Tx
-  outTxs = let t₀ , m = out in t₀ ∷ m (here refl) ∷ m (there (here refl)) ∷ m (there (there (here refl))) ∷ []
+  -- outTxs : List ∃Tx
+  -- outTxs = let t₀ , m = out in t₀ ∷ m (here refl) ∷ m (there (here refl)) ∷ m (there (there (here refl))) ∷ []
 
-  _ : outTxs ≡ (-, -, Tᵢₙᵢₜ) ∷ (-, -, T′) ∷ (-, -, T′ᵃ) ∷ (-, -, T′ᵇ) ∷ []
-  _ = refl
+  -- _ : outTxs ≡ (-, -, Tᵢₙᵢₜ) ∷ (-, -, T′) ∷ (-, -, T′ᵃ) ∷ (-, -, T′ᵇ) ∷ []
+  -- _ = refl

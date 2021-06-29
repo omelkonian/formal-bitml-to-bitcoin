@@ -24,17 +24,17 @@ open import SymbolicModel.Strategy Participant Honest as SM
 ----------------------------------------
 -- Lemma 3
 
-module _ (α≢₁ : ∀ A s      → α ≢ auth-rev[ A , s ])
-         (α≢₂ : ∀ A ⟨G⟩C Δ → α ≢ auth-commit[ A , ⟨G⟩C , Δ ]) where
+module _ (α≢₁ : ∀ A s      → α ≢ auth-rev⦅ A , s ⦆)
+         (α≢₂ : ∀ A ⟨G⟩C Δ → α ≢ auth-commit⦅ A , ⟨G⟩C , Δ ⦆) where
 
   strip-preserves-semantics :
-      ( ∀ T′ → R   ——→[ α ] T′
+      ( ∀ T′ → R   ——[ α ]→ T′
                --------------------
-             → R ∗ ——→[ α ] T′ ∗ )
+             → R ∗ ——[ α ]→ T′ ∗ )
 
-    × ( ∀ T′ → R ∗ ——→[ α ] T′
+    × ( ∀ T′ → R ∗ ——[ α ]→ T′
                --------------------------
-             → ∃[ T″ ] ( (R ——→[ α ] T″)
+             → ∃[ T″ ] ( (R ——[ α ]→ T″)
                        × T′ ∗ ≡ T″ ∗ ))
   strip-preserves-semantics = {!!}
 
@@ -182,7 +182,7 @@ module _ (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
     S  : HonestStrategies
 
   adversarial-move-is-semantic :
-    ∃[ T′ ] ( R ——→[ runAdversary (S† , S) R ] T′)
+    ∃[ T′ ] ( R ——[ runAdversary (S† , S) R ]→ T′)
   adversarial-move-is-semantic = {!!}
 
 {-
