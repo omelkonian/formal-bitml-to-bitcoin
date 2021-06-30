@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 -- Symbolic runs.
 ------------------------------------------------------------------------
-open import Prelude.Init hiding (Σ)
+open import Prelude.Init
 open import Prelude.Lists
 open import Prelude.DecEq
 open import Prelude.Bifunctor
@@ -33,11 +33,14 @@ infix -1 _——[_]→_
 _——[_]→_ : Run → Label → TimedConfiguration → Set
 R ——[ α ]→ tc′ = end R —[ α ]→ₜ tc′
 
+_∎⊣_ : (Γₜ : TimedConfiguration) → Initial Γₜ → Run
+Γₜ ∎⊣ init  = record {start = Γₜ; end = Γₜ; trace = -, (Γₜ ∎ₜ); init = init}
+
 infixr 2 _⟨_⟩←——_⊣_ _⟨_⟩←——_
-_⟨_⟩←——_⊣_ : ∀ y {x y′}
-  → x —[ α ]→ₜ y′
+_⟨_⟩←——_⊣_ : ∀ Γₜ {x Γₜ′}
+  → x —[ α ]→ₜ Γₜ′
   → (R : Run)
-  → y ≈ y′ × R .end ≈ x
+  → Γₜ ≈ Γₜ′ × R .end ≈ x
     --———————————————
   → Run
 Γₜ ⟨ Γ← ⟩←—— R@(record {trace = _ , Γ↞}) ⊣ eq =
@@ -52,9 +55,25 @@ _⟨_⟩←——_ : ∀ y {x y′}
   → Run
 (Γₜ ⟨ Γ← ⟩←—— R) {p₁} {p₂} = Γₜ ⟨ Γ← ⟩←—— R ⊣ toWitness p₁ , toWitness p₂
 
-infix 0 _≡⋯_
-_≡⋯_ : Run → TimedConfiguration → Set
+infix 0 _≡⋯_ _≈⋯_
+_≡⋯_ _≈⋯_ : Run → TimedConfiguration → Set
 R ≡⋯ Γ at t = R .end ≡ Γ at t
+R ≈⋯ Γ at t = R .end ≈ Γ at t
+
+Cfg = Configuration
+Cfgᵗ = TimedConfiguration
+
+𝔸 : Run → Cfgᵗ → Set
+𝔸 R Γₜ =
+  ∃ λ α → ∃ λ end′ → ∃ λ Γₜ′ →
+    Σ (end′ —[ α ]→ₜ Γₜ′) λ Γ← →
+      Γₜ ≈ Γₜ′ × R .end ≈ end′
+
+_∷_⊣_ : (Γₜ : Cfgᵗ) (R : Run) → 𝔸 R Γₜ → Run
+Γₜ ∷ R ⊣ (α , x , Γₜ′ , Γ← , eq) = _⟨_⟩←——_⊣_ {α} Γₜ {x}{Γₜ′} Γ← R eq
+
+≈ᵗ-refl : Γₜ ≈ Γₜ
+≈ᵗ-refl = refl , ↭-refl
 
 private
   allStates⁺ : (Γₜ —[ αs ]↠ₜ Γₜ′) → List⁺ TimedConfiguration
@@ -68,8 +87,6 @@ private
     → (Γ↠ : y —[ αs ]↠ₜ z)
     → allStates⁺ (Γₜ —→ₜ⟨ Γ→ ⟩ eq ⊢ Γ↠) ≡ (Γₜ ∷⁺ allStates⁺ Γ↠)
   allStates⁺-∷ Γ→ eq Γ↠ = refl
-  -- allStates⁺-∷ _ _ (_ ∎) = refl
-  -- allStates⁺-∷ Γ← eq (_ —→⟨ Γ←′ ⟩ eq′ ⊢ Γ↞) = {!cong (_∷⁺ allStates !}
 
   allStates : (Γₜ —[ αs ]↠ₜ Γₜ′) → List TimedConfiguration
   allStates = toList ∘ allStates⁺

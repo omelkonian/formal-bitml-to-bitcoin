@@ -6,14 +6,13 @@ open import Prelude.DecLists
 open import Prelude.DecEq
 open import Prelude.Collections
 open import Prelude.Monoid
-
 open import Prelude.Functor
 open import Prelude.Bifunctor
-open import Prelude.Ord using (maximum; ∀≤max)
+open import Prelude.Ord
 open import Prelude.ToN
-
 open import Prelude.Validity
 open import Prelude.Traces
+open import Prelude.Setoid
 
 open import Bitcoin.Crypto using (KeyPair)
 
@@ -32,7 +31,7 @@ open import SymbolicModel2 Participant Honest as S
   hiding (_∎; begin_)
 
 open import ComputationalModel.Strategy Participant Honest finPart keypairs as C
-  hiding (Hon; Initial; Valid)
+  hiding (Hon; Initial; Valid; Σ)
 open import Bitcoin as C
   hiding (t; t′; `; ∣_∣; ∙)
 
@@ -70,34 +69,33 @@ data coher : ∃ ℝ → C.Run → Set
 data coher₂ (Rˢ : S.Run) (txout : Txout Rˢ) : C.Label → Set
 
 data coher₁ :
-  (Rˢ : S.Run) (α : S.Label) (Γₜ : TimedConfiguration)
+  (Rˢ : S.Run) (Γₜ : Cfgᵗ) (𝕒 : 𝔸 Rˢ Γₜ)
   (Rᶜ : C.Run) (λᶜ : C.Label)
   → ℝ Rˢ
-  → ℝ (Γₜ ∷⟦ α ⟧ Rˢ)
+  → ℝ (Γₜ ∷ Rˢ ⊣ 𝕒)
   → Set
 
 data coher₁₁ :
-  (Rˢ : S.Run) (α : S.Label) (Γₜ : TimedConfiguration)
+  (Rˢ : S.Run) (Γₜ : Cfgᵗ) (𝕒 : 𝔸 Rˢ Γₜ)
   (Rᶜ : C.Run) (λᶜ : C.Label)
   → ℝ Rˢ
-  → ℝ (Γₜ ∷⟦ α ⟧ Rˢ)
+  → ℝ (Γₜ ∷ Rˢ ⊣ 𝕒)
   → Set
 
 data coher₁₂ :
-  (Rˢ : S.Run) (α : S.Label) (Γₜ : TimedConfiguration)
+  (Rˢ : S.Run) (Γₜ : Cfgᵗ) (𝕒 : 𝔸 Rˢ Γₜ)
   (Rᶜ : C.Run) (λᶜ : C.Label)
   → ℝ Rˢ
-  → ℝ (Γₜ ∷⟦ α ⟧ Rˢ)
+  → ℝ (Γₜ ∷ Rˢ ⊣ 𝕒)
   → Set
 
 data coher where
 
-  base : let Rˢ , 𝕣 = ∃𝕣 in
-         let open ℝ 𝕣 in
+  base : let Rˢ , 𝕣 = ∃𝕣; open ℝ 𝕣 in
 
       -- (i) Rˢ = Γ₀ ∣ 0, with Γ₀ initial
-      (cfg≡ : Rˢ ≡ (Γ₀ at 0) ∙)
-    → Initial Γ₀
+      (init : Initial Γ₀)
+    → (cfg≡ : Rˢ ≡ ((Γ₀ at 0) ∎⊣ (init , refl)))
       -- (ii) Rᶜ = T₀ ⋯ initial
     → (cinit : C.Initial Rᶜ)
     → let ∃T₀ , _ = cinit; _ , o , T₀ = ∃T₀ in
@@ -121,11 +119,13 @@ data coher where
       --——————————————————————————————————————————————————————————————————————
     → coher (Rˢ , 𝕣) Rᶜ
 
-  step₁ : let Rˢ , 𝕣 = ∃𝕣; Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ in
+  step₁ : let Rˢ , 𝕣 = ∃𝕣 in
+        ∀ {𝕒 : 𝔸 Rˢ Γₜ} →
+          let Rˢ′ = Γₜ ∷ Rˢ ⊣ 𝕒 in
         ∀ {𝕣′ : ℝ Rˢ′} →
 
       coher ∃𝕣 Rᶜ
-    → coher₁ Rˢ α Γₜ Rᶜ λᶜ 𝕣 𝕣′
+    → coher₁ Rˢ Γₜ 𝕒 Rᶜ λᶜ 𝕣 𝕣′
       --——————————————————————————————————————————————————————————————————————
     → coher ∃𝕣′ (λᶜ ∷ Rᶜ)
 
@@ -144,40 +144,27 @@ Rˢ ≁ Rᶜ = ¬ Rˢ ~ Rᶜ
 
 -- ** Definitions.
 data coher₁ where
-  [L] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ in
+  [L] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} {𝕒 : 𝔸 Rˢ Γₜ} → let Rˢ′ = Γₜ ∷ Rˢ ⊣ 𝕒 in
         ∀ {𝕣′ : ℝ Rˢ′}
-    → coher₁₁ Rˢ α Γₜ Rᶜ λᶜ 𝕣 𝕣′
-    → coher₁  Rˢ α Γₜ Rᶜ λᶜ 𝕣 𝕣′
+    → coher₁₁ Rˢ Γₜ 𝕒 Rᶜ λᶜ 𝕣 𝕣′
+    → coher₁  Rˢ Γₜ 𝕒 Rᶜ λᶜ 𝕣 𝕣′
 
-  [R] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let Rˢ′ = Γₜ ∷⟦ α ⟧ Rˢ in
+  [R] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} {𝕒 : 𝔸 Rˢ Γₜ} → let Rˢ′ = Γₜ ∷ Rˢ ⊣ 𝕒 in
         ∀ {𝕣′ : ℝ Rˢ′}
-    → coher₁₂ Rˢ α Γₜ Rᶜ λᶜ 𝕣 𝕣′
-    → coher₁  Rˢ α Γₜ Rᶜ λᶜ 𝕣 𝕣′
-
--- T0D0: enforce common naming scheme via a module that re-exports names in a systematic way
--- e.g. [1]: open —→⟨ (advertise[ ⟨G⟩C ]) ≈ (A →∗∶ C) ⟩ (` ⟨G⟩C ∣ Γ) AT t
-{-
-module —→⟨_≈_⟩_AT_
-  (`α : S.Label) (`λᶜ : C.Label)
-  (`Γ′ : Configuration) (`t′ : S.Time)
-  where
-    private
-      α   = `α
-      Γ′  = `Γ′
-      t′  = `t′
-      Γₜ′ = `Γ′ at `t′
-      λᶜ  = `λᶜ
--}
+    → coher₁₂ Rˢ Γₜ 𝕒 Rᶜ λᶜ 𝕣 𝕣′
+    → coher₁  Rˢ Γₜ 𝕒 Rᶜ λᶜ 𝕣 𝕣′
 
 data coher₁₁ where
 
   -- ** Advertising a contract
-  [1] :
+  [1] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} →
       let
         open ℝ 𝕣
         ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G
-        Γₜ@(Γ at t) = lastCfgᵗ Rˢ
-
+        Γₜ = Γ at t
+      in
+      (cfg≈ : Rˢ ≈⋯ Γₜ) (Γ′≈  →
+      let
         C : Message
         C = encode {Rˢ = Rˢ} txout′ ⟨G⟩C
 
@@ -196,90 +183,96 @@ data coher₁₁ where
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] ([C-Advertise] vad hon d⊆) refl
 
+        𝕒 : 𝔸 Rˢ Γₜ′
+        𝕒 = α , (Γₜ , (Γₜ′ , (Γ→Γ′ , (≈ᵗ-refl {Γₜ′} , cfg≈))))
+
         -- txout′ = txout, sechash′ = sechash, κ′ = κ
-        open H₁ {Rˢ} 𝕣 t α t′ Γ refl ⟨G⟩C Γ→Γ′
+        open H₁ {Rˢ} 𝕣 t α t′ Γ cfg≈ ⟨G⟩C Γ→Γ′
       in
       --——————————————————————————————————————————————————————————————————————
-      coher₁₁ Rˢ α Γₜ′ Rᶜ λᶜ 𝕣 𝕣′
+      coher₁₁ Rˢ Γₜ′ 𝕒 Rᶜ λᶜ 𝕣 𝕣′
 
+{-
+  -- ** Stipulation: committing secrets
+  [2] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let open ℝ 𝕣 in
+      ∀ {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)}
+        -- [BUG] doesnt work with t/Γ₀/⟨G⟩C as generalized variables
+        {t Γ₀ ⟨G⟩C} {k⃗ : 𝕂²′ ⟨G⟩C} → let ⟨ G ⟩ C = ⟨G⟩C; Γ = ` ⟨G⟩C ∣ Γ₀; Γₜ = Γ at t in
 
---   -- ** Stipulation: committing secrets
---   [2] : let open ℝ 𝕣 in
---       ∀ {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)}
---         -- [BUG] doesnt work with t/Γ₀/⟨G⟩C as generalized variables
---         {t Γ₀ ⟨G⟩C} {k⃗ : 𝕂²′ ⟨G⟩C} → let ⟨ G ⟩ C = ⟨G⟩C; Γ = ` ⟨G⟩C ∣ Γ₀; Γₜ = Γ at t in
+      -- T0D0: Γᵣₛ does not necessary keep ⟨G⟩C in its head, replace _≡_ with _≈_?
+      (cfg≡ : Rˢ ≡⋯ Γₜ)
+    → let
+        C : Message
+        C = encode {Rˢ = Rˢ} txout′ ⟨G⟩C
 
---       -- T0D0: Γᵣₛ does not necessary keep ⟨G⟩C in its head, replace _≡_ with _≈_?
---       (cfg≡ : Rˢ ≡⋯ Γₜ)
---     → let
---         C : Message
---         C = encode {Rˢ = Rˢ} txout′ ⟨G⟩C
+        Δ : List (Secret × Maybe ℕ)
+        Δ = map (λ{ (s , mn , _) → s , mn }) Δ×h̅
 
---         Δ : List (Secret × Maybe ℕ)
---         Δ = map (λ{ (s , mn , _) → s , mn }) Δ×h̅
+        (as , ms) = unzip Δ
 
---         (as , ms) = unzip Δ
+        Δᶜ : Cfg
+        Δᶜ = || map (uncurry ⟨ A ∶_♯_⟩) Δ
 
---         Δᶜ : Configuration
---         Δᶜ = || map (uncurry ⟨ A ∶_♯_⟩) Δ
+        h̅ : List ℤ -- ≈ Message
+        h̅ = map (proj₂ ∘ proj₂) Δ×h̅
 
---         h̅ : List ℤ -- ≈ Message
---         h̅ = map (proj₂ ∘ proj₂) Δ×h̅
+        k̅ : List ℤ -- ≈ Message
+        k̅ = concatMap (map pub ∘ codom) (codom k⃗)
 
---         k̅ : List ℤ -- ≈ Message
---         k̅ = concatMap (map pub ∘ codom) (codom k⃗)
+        C,h̅,k̅ : Message
+        C,h̅,k̅ = C ◇ h̅ ◇ k̅
 
---         C,h̅,k̅ : Message
---         C,h̅,k̅ = C ◇ h̅ ◇ k̅
+        C,h̅,k̅ₐ : Message
+        C,h̅,k̅ₐ = SIGᵐ (K A) C,h̅,k̅
 
---         C,h̅,k̅ₐ : Message
---         C,h̅,k̅ₐ = SIGᵐ (K A) C,h̅,k̅
+        α   = auth-commit⦅ A , ⟨G⟩C , Δ ⦆
+        Γ′  = Γ ∣ Δᶜ ∣ A auth[ ♯▷ ⟨G⟩C ]
+        t′  = t
+        Γₜ′ = Γ′ at t′
+        λᶜ  = B →∗∶ C,h̅,k̅ₐ
+      in
+      -- Hypotheses from [C-AuthCommit]
+      (as≡ : as ≡ secretsOfᵖ A G)
+      (All∉ : All (_∉ secretsOfᶜᶠ A Γ₀) as)
+      (Hon⇒ : A ∈ Hon → All Is-just ms) →
+      let
+        Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+        Γ→Γ′ = [Action] ([C-AuthCommit] as≡ All∉ Hon⇒) refl
 
---         α   = auth-commit⦅ A , ⟨G⟩C , Δ ⦆
---         Γ′  = Γ ∣ Δᶜ ∣ A auth[ ♯▷ ⟨G⟩C ]
---         t′  = t
---         Γₜ′ = Γ′ at t′
---         λᶜ  = B →∗∶ C,h̅,k̅ₐ
---       in
---       -- Hypotheses from [C-AuthCommit]
---       (as≡ : as ≡ secretsOfᵖ A G)
---       (All∉ : All (_∉ secretsOfᶜᶠ A Γ₀) as)
---       (Hon⇒ : A ∈ Hon → All Is-just ms) →
---       let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] ([C-AuthCommit] as≡ All∉ Hon⇒) refl
+        -- (v) txout = txout′ (vi) extend sechash′ (vii) extend κ′
+        sechash⁺ : as ↦ ℤ
+        sechash⁺ a∈ =
+          let _ , a×m∈ , _    = ∈-unzip⁻ˡ Δ a∈
+              (_ , _ , z) , _ = ∈-map⁻ (λ{ (s , mn , _) → s , mn }) a×m∈
+          in z
 
---         -- (v) txout = txout′ (vi) extend sechash′ (vii) extend κ′
---         sechash⁺ : as ↦ ℤ
---         sechash⁺ a∈ =
---           let _ , a×m∈ , _    = ∈-unzip⁻ˡ Δ a∈
---               (_ , _ , z) , _ = ∈-map⁻ (λ{ (s , mn , _) → s , mn }) a×m∈
---           in z
+        open H₂ {Rˢ} 𝕣 t α t′ Γ cfg≡ A A ⟨G⟩C Δ sechash⁺ k⃗ Γ→Γ′
 
---         open H₂ {Rˢ} 𝕣 t α t′ Γ cfg≡ A A ⟨G⟩C Δ sechash⁺ k⃗ Γ→Γ′
---       in
---       -- (i) ⟨G⟩C has been previously advertised in Rᶜ
---       -- T0D0: make sure it is the first occurrence of such a broadcast in Rᶜ
---       (∃ λ B → (B →∗∶ C) ∈ Rᶜ)
+        𝕒 : 𝔸 Rˢ Γₜ′
+        𝕒 = α , Γₜ , Γₜ′ , Γ→Γ′ , ({!refl!} , {!↭-refl!}) , {!case cfg≡ of λ{ refl → refl , ↭-refl }!}
+      in
+      -- (i) ⟨G⟩C has been previously advertised in Rᶜ
+      -- T0D0: make sure it is the first occurrence of such a broadcast in Rᶜ
+      (∃ λ B → (B →∗∶ C) ∈ Rᶜ)
 
---       -- (ii) broadcast message in Rᶜ
---       -- T0D0: make sure that λᶜ is the first occurrence of such a message after C in Rᶜ
---     -- → ∃ λ B → λᶜ ≡ B →∗∶ C,h̅,k̅ₐ
---     → All (λ hᵢ → ∣ hᵢ ∣ᶻ ≡ η) h̅
+      -- (ii) broadcast message in Rᶜ
+      -- T0D0: make sure that λᶜ is the first occurrence of such a message after C in Rᶜ
+    -- → ∃ λ B → λᶜ ≡ B →∗∶ C,h̅,k̅ₐ
+    → All (λ hᵢ → ∣ hᵢ ∣ᶻ ≡ η) h̅
 
---       -- (iii) each hᵢ is obtained by querying the oracle, otherwise we have a dishonestly chosen secret
---     → All (λ{ (_ , just Nᵢ , hᵢ)
---             → ∃ λ B → ∃ λ mᵢ → ((B , mᵢ , [ hᵢ ]) ∈ oracleInteractions Rᶜ) × (∣ mᵢ ∣ᵐ ≡ η + Nᵢ)
---             ; (_ , nothing , hᵢ)
---             → [ hᵢ ] ∉ map (proj₂ ∘ proj₂) (filter ((η ≤?_) ∘ ∣_∣ᵐ ∘ proj₁ ∘ proj₂) (oracleInteractions Rᶜ))
---             }) Δ×h̅
+      -- (iii) each hᵢ is obtained by querying the oracle, otherwise we have a dishonestly chosen secret
+    → All (λ{ (_ , just Nᵢ , hᵢ)
+            → ∃ λ B → ∃ λ mᵢ → ((B , mᵢ , [ hᵢ ]) ∈ oracleInteractions Rᶜ) × (∣ mᵢ ∣ᵐ ≡ η + Nᵢ)
+            ; (_ , nothing , hᵢ)
+            → [ hᵢ ] ∉ map (proj₂ ∘ proj₂) (filter ((η ≤?_) ∘ ∣_∣ᵐ ∘ proj₁ ∘ proj₂) (oracleInteractions Rᶜ))
+            }) Δ×h̅
 
---       -- (iv) no hash is reused
---     → Unique h̅
---     → Disjoint h̅ (codom sechash)
---       --——————————————————————————————————————————————————————————————————————
---     → coher₁₁ Rˢ α Γₜ′ Rᶜ λᶜ 𝕣 𝕣′
-
+      -- (iv) no hash is reused
+    → Unique h̅
+    → Disjoint h̅ (codom sechash)
+      --——————————————————————————————————————————————————————————————————————
+    → coher₁₁ Rˢ Γₜ′ 𝕒 Rᶜ λᶜ 𝕣 𝕣′
+-}
 
 --   -- ** Stipulation: authorizing deposits
 --   [3] : ∀ {⟨G⟩C : Advertisement} {vad : Valid ⟨G⟩C} → let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G in
@@ -1145,3 +1138,18 @@ data coher₁₁ where
 --          → ¬ coher₁ Rˢ α Γₜ Rᶜ λᶜ 𝕣 𝕣′)
 --       --——————————————————————————————————————————————————————————————————————
 --     → coher₂ Rˢ txout λᶜ
+
+-- T0D0: enforce common naming scheme via a module that re-exports names in a systematic way
+-- e.g. [1]: open —→⟨ (advertise[ ⟨G⟩C ]) ≈ (A →∗∶ C) ⟩ (` ⟨G⟩C ∣ Γ) AT t
+{-
+module —→⟨_≈_⟩_AT_
+  (`α : S.Label) (`λᶜ : C.Label)
+  (`Γ′ : Cfg) (`t′ : S.Time)
+  where
+    private
+      α   = `α
+      Γ′  = `Γ′
+      t′  = `t′
+      Γₜ′ = `Γ′ at `t′
+      λᶜ  = `λᶜ
+-}
