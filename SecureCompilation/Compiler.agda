@@ -28,9 +28,10 @@ open import Prelude.Functor
 open import Prelude.Validity
 
 -- Bitcoin
-open import Bitcoin.Crypto
-open import Bitcoin.Script
-open import Bitcoin.Tx
+open import Bitcoin hiding (Value; Time)
+-- open import Bitcoin.Crypto
+-- open import Bitcoin.Script
+-- open import Bitcoin.Tx
 
 module SecureCompilation.Compiler
 
@@ -44,16 +45,19 @@ module SecureCompilation.Compiler
   where
 
 -- BitML
+
+-- open import BitML
+--   hiding (Value; C; `_; _`+_; _`-_; ∣_∣; `true; `false)
+-- open Induction
+
 open import BitML.BasicTypes
 open import BitML.Predicate
   using (Predicate; Arith)
 open import BitML.Contracts Participant Honest
   hiding (C)
 open Induction
-open import BitML.Semantics Participant Honest
-  using (advertisements)
 
-open import SymbolicModel.Helpers Participant Honest
+open import SymbolicModel.Collections Participant Honest
 
 -- single-output transactions
 Tx¹ : ℕ → Set
