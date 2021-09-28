@@ -37,17 +37,13 @@ open import Bitcoin as C
 
 open import SecureCompilation.Compiler Participant Honest η
 
-authorizedHonAdsᶜ = authorizedHonAds {X = Cfg}
--- authorizedHonAdsʳ = authorizedHonAds {X = Run}
 
 private
   variable
     ⟨G⟩C ⟨G⟩C′ ⟨G⟩C″ : Advertisement
     T T′ : ∃Tx
 
-    -- Rˢ : S.Run
     𝕣  : ℝ Rˢ
-
     ∃𝕣 ∃𝕣′ : ∃ ℝ
 
 postulate
@@ -75,7 +71,12 @@ _⊆⦅ᵖnamesᶜ⦆_ = _⊆⦅ names ⦆_
 _∈⦅ads⦆_ : Advertisement → Cfg → Set
 ad ∈⦅ads⦆ Γ = ad ∈ authorizedHonAds Γ
 
+-- [BUG] See issue #5464
+_≈ᶜ_ = _≈_ ⦃ IS-Cfg ⦄
+
+
 -- ** Types and notation.
+
 data coher : ∃ ℝ → C.Run → Set
 
 data coher₁ :
@@ -98,14 +99,13 @@ data coher₁₂ :
 
 data coher₂ (Rˢ : S.Run) (txout : Txout Rˢ) : C.Label → Set
 
-
 data coher where
 
   base : let Rˢ , 𝕣 = ∃𝕣; open ℝ 𝕣 in
 
       -- (i) Rˢ = Γ₀ ∣ 0, with Γ₀ initial
       (init : Initial Γ₀)
-    → (cfg≈ : Rˢ ≡ ((Γ₀ at 0) ∎⊣ (init , refl)))
+    → (R≈ : Rˢ ≡ ((Γ₀ at 0) ∎⊣ (init , refl)))
       -- (ii) Rᶜ = T₀ ⋯ initial
     → (cinit : C.Initial Rᶜ)
     → let ∃T₀ , _ = cinit; _ , o , T₀ = ∃T₀ in
@@ -118,7 +118,9 @@ data coher where
          → ∃ λ oᵢ
          → let
              x∈ : x ∈ namesʳ Rˢ
-             x∈ = subst (λ ◆ → x ∈ namesʳ ◆) (sym cfg≈) $ deposit∈Γ⇒namesʳ {Γ = Γ₀} d∈
+             x∈ = ⟪ (λ ◆ → x ∈ namesʳ ◆) ⟫ R≈
+               ~: ⟪ (λ ◆ → x ∈ ◆) ⟫ (namesʳ-∎ {Γ₀}{init})
+               ~: deposit∈Γ⇒namesʳ {Γ = Γ₀} d∈
            in
              (txout′ x∈ ≡ ∃T₀ at oᵢ) × (T₀ ‼ᵒ oᵢ ≡ v -redeemableWith- K̂ A)
       )
@@ -149,11 +151,6 @@ data coher where
 _~_ _≁_ : S.Run → C.Run → Set
 Rˢ ~ Rᶜ = ∃[ 𝕣 ] coher (Rˢ , 𝕣) Rᶜ
 Rˢ ≁ Rᶜ = ¬ Rˢ ~ Rᶜ
--- = ∃ (∃ (∃ (coher Rˢ Rᶜ)))
--- [BUG] not inferring type of existentials, although dependency is evident
-
--- [BUG] See issue #5464
-_≈ᶜ_ = _≈_ ⦃ IS-Cfg ⦄
 
 -- ** Definitions.
 data coher₁ where
@@ -176,7 +173,7 @@ data coher₁₁ where
         ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G
         Γₜ = Γ at t
       in
-      (cfg≈ : Rˢ ≈⋯ Γₜ) →
+      (R≈ : Rˢ ≈⋯ Γₜ) →
       let
         α   = advertise⦅ ⟨G⟩C ⦆
         Γ′  = ` ⟨G⟩C ∣ Γ
@@ -194,7 +191,7 @@ data coher₁₁ where
         Γ→Γ′ = [Action] ([C-Advertise] vad hon d⊆) refl
 
         -- txout′ = txout, sechash′ = sechash, κ′ = κ
-        open H₁ {Rˢ} 𝕣 t α t′ Γ cfg≈ ⟨G⟩C Γ→Γ′ ∃Γ≈
+        open H₁ {Rˢ} 𝕣 t α t′ Γ R≈ ⟨G⟩C Γ→Γ′ ∃Γ≈
       in
       --——————————————————————————————————————————————————————————————————————
       coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
@@ -207,7 +204,7 @@ data coher₁₁ where
         -- [BUG] doesnt work with t/Γ₀/⟨G⟩C as generalized variables
         {t Γ₀ ⟨G⟩C} {k⃗ : 𝕂²′ ⟨G⟩C} → let ⟨ G ⟩ C = ⟨G⟩C; Γ = ` ⟨G⟩C ∣ Γ₀; Γₜ = Γ at t in
 
-      (cfg≈ : Rˢ ≈⋯ Γₜ)
+      (R≈ : Rˢ ≈⋯ Γₜ)
     → let
         C : Message
         C = encode {Rˢ = Rˢ} txout′ ⟨G⟩C
@@ -254,7 +251,7 @@ data coher₁₁ where
               (_ , _ , z) , _ = ∈-map⁻ (λ{ (s , mn , _) → s , mn }) a×m∈
           in z
 
-        open H₂ {Rˢ} 𝕣 t α t′ Γ cfg≈ A A ⟨G⟩C Δ sechash⁺ k⃗ Γ→Γ′ ∃Γ≈
+        open H₂ {Rˢ} 𝕣 t α t′ Γ R≈ A A ⟨G⟩C Δ sechash⁺ k⃗ Γ→Γ′ ∃Γ≈
       in
       -- (i) ⟨G⟩C has been previously advertised in Rᶜ
       -- T0D0: make sure it is the first occurrence of such a broadcast in Rᶜ
@@ -279,10 +276,9 @@ data coher₁₁ where
     → coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
 
   -- ** Stipulation: authorizing deposits
-  [3] : ∀ {⟨G⟩C : Advertisement} {vad : Valid ⟨G⟩C} → let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G in
+  [3] : ∀ {⟨G⟩C : Advertisement} → let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants ⦃ HPᵖ ⦄ G in
         ∀ {t A Γ₀} → let Γ = ` ⟨G⟩C ∣ Γ₀; Γₜ = Γ at t in
-
-      (cfg≈ : Rˢ ≈⋯ Γₜ)
+        (R≈ : Rˢ ≈⋯ Γₜ)
 
     → let
         α   = auth-init⦅ A , ⟨G⟩C , x ⦆
@@ -293,36 +289,16 @@ data coher₁₁ where
       (∃Γ≈ : ∃ (_≈ᶜ Γ′))
       -- Hypotheses from [C-AuthInit]
       (committedA : partG ⊆ committedParticipants ⟨G⟩C Γ₀)
-      (A∈per : (A , v , x) ∈ persistentDeposits G)
-
-      -- [T0D0] additional hypotheses, should hold since we know the following:
-      --   ∙ from the hypotheses of [C-Advertise]
-      --       ∘ which introduces ` ⟨G⟩C
-      --       ⇒ deposits ⟨G⟩C ⊆ deposits Γ₀
-      --       ⇒ namesʳ ⟨G⟩C ⊆ namesʳ Γ₀
-      --   ∙ from the hypotheses of [C-AuthCommit]
-      --       ∘ which introduces ⟨ Aᵢ ∶ aᵢ ♯ Nᵢ ⟩
-      --       ⇒ secrets ⟨G⟩C ⊆ secrets Γ₀
-      --       ⇒ namesˡ ⟨G⟩C ⊆ namesˡ Γ₀
-      (names⊆ : G ⊆⦅ᵖnamesᶜ⦆ Γ₀)
-      --   ∙ from the hypotheses of [C-Advertise]
-      --       ∘ which introduces ` ⟨G⟩C
-      --       ⇒ ∃(p ∈ partG). p ∈ Hon
-      --   ∙ from the hypotheses of [C-AuthCommit]
-      --       ∘ which introduces ⟨ Aᵢ ∶ aᵢ ♯ Nᵢ ⟩ and Aᵢ auth⦅ ♯▷ ad ⦆
-      --       ⇒ we know at least one participant Aᵢ is honest
-      --       → therefore, ad ∈ authorizedHonAds Γ₀
-      (ad∈₀ : ⟨G⟩C ∈⦅ads⦆ Γ₀) →
-
+      (A∈per : (A , v , x) ∈ persistentDeposits G) →
       let
-        A∈′ : A ∈ committedParticipants ⟨G⟩C Γ₀
-        A∈′ = committedA $ ∈-nub⁺ (persistentParticipants⊆ {g = G} $ ∈-map⁺ proj₁ A∈per)
+        -- A∈′ : A ∈ committedParticipants ⟨G⟩C Γ₀
+        -- A∈′ = committedA $ ∈-nub⁺ (persistentParticipants⊆ {g = G} $ ∈-map⁺ proj₁ A∈per)
 
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] ([C-AuthInit] committedA A∈per) refl
 
         -- (iv) txout = txout′, sechash = sechash′, κ = κ′
-        open H₃ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ A x cfg≈ Γ→Γ′ ∃Γ≈
+        open H₃ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ A x R≈ Γ→Γ′ ∃Γ≈
 
         Tᵢₙᵢₜ : ∃Tx
         Tᵢₙᵢₜ =
@@ -330,7 +306,7 @@ data coher₁₁ where
             K : 𝕂 G
             K {p} _ = K̂ p
 
-            open H₃′ ad∈₀ names⊆
+            open H₃′ committedA
 
             ∃tx¹ , _ = bitml-compiler {ad = ⟨G⟩C} vad sechash₀ txout₀ K κ₀
           in
@@ -348,11 +324,10 @@ data coher₁₁ where
       --——————————————————————————————————————————————————————————————————————
     → coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
 
-
   -- ** Stipulation: activating the contract
-  [4] : ∀ {t Γ₀ G C}
+  [4] : ∀ {t Γ₀} {ad : Advertisement}
     → let
-        ad      = ⟨ G ⟩ C
+        ⟨ G ⟩ C = ad
         toSpend = persistentDeposits G
         partG   = nub-participants G
         v       = sum $ map (proj₁ ∘ proj₂) toSpend
@@ -362,23 +337,8 @@ data coher₁₁ where
           ∣ || map (_auth[ ♯▷ ad ]) partG
         Γₜ = Γ at t
       in
-      {vad : Valid ad}
       -- (i) consume {G}C and its persistent deposits from Rˢ
-      (cfg≈ : Rˢ ≈⋯ Γₜ)
-
-      -- [T0D0] additional hypotheses, should hold since we know the following:
-      --   ∙ from the hypotheses of [C-Advertise]
-      --       ∘ which introduces ` ⟨G⟩C
-      --       ⇒ deposits ⟨G⟩C ⊆ deposits Γ₀
-      --       ⇒ namesʳ ⟨G⟩C ⊆ namesʳ Γ₀ ⊆ namesʳ (_ ∣ Γ₀ ∣ _)
-      --   ∙ from the hypotheses of [C-AuthCommit]
-      --       ∘ which introduces ⟨ Aᵢ ∶ aᵢ ♯ Nᵢ ⟩
-      --       ⇒ secrets ⟨G⟩C ⊆ secrets Γ₀
-      --       ⇒ namesˡ ⟨G⟩C ⊆ namesˡ Γ₀
-    → (names⊆ : G ⊆⦅ᵖnamesᶜ⦆ Γ₀)
-
-      -- [T0D0] additional hypothesis, should hold from the hypotheses of [C-Advertise]
-    → (honG : Any (_∈ Hon) partG)
+      (R≈ : Rˢ ≈⋯ Γₜ)
 
     → let
         α   = init⦅ G , C ⦆
@@ -391,7 +351,7 @@ data coher₁₁ where
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] [C-Init] refl
 
-        open H₄ {Rˢ} 𝕣 t α t′ ad Γ₀ toSpend partG v z cfg≈ Γ→Γ′ ∃Γ≈
+        open H₄ {Rˢ} 𝕣 t α t′ ad Γ₀ toSpend v z R≈ Γ→Γ′ ∃Γ≈
 
         Tᵢₙᵢₜ : ∃Tx
         Tᵢₙᵢₜ =
@@ -399,7 +359,7 @@ data coher₁₁ where
             K̂ : 𝕂 G
             K̂ {p} _ = K̂ p
 
-            open H₄′ honG names⊆
+            open H₄′
 
             ∃tx¹ , _ = bitml-compiler {ad = ad} vad sechash₀ txout₀ K̂ κ₀
           in
@@ -414,10 +374,11 @@ data coher₁₁ where
       --——————————————————————————————————————————————————————————————————————
       coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
 
+{-
 
   -- ** Contract actions: authorize control
   [5] : let open ℝ 𝕣 in
-      ∀ {⟨G⟩C : Advertisement} {vad : Valid ⟨G⟩C} → let ⟨ G ⟩ C = ⟨G⟩C; partG = nub-participants G in
+      ∀ {⟨G⟩C : Advertisement} → let ⟨ G ⟩ C = ⟨G⟩C; partG = nub-participants G in
       ∀ {v x Γ₀ t c′} {i : Index c′} → let d = c′ ‼ i; d∗ = removeTopDecorations d in
       let Γ = ⟨ c′ , v ⟩at x ∣ Γ₀; Γₜ = Γ at t in
 
@@ -425,8 +386,7 @@ data coher₁₁ where
       (D≡A:D′ : A ∈ authDecorations d)
 
       -- (i) Rˢ contains ⟨C′ , v⟩ₓ with C′ = D + ∑ᵢ Dᵢ
-
-    → (cfg≈ : Rˢ ≈⋯ Γₜ)
+    → (R≈ : Rˢ ≈⋯ Γₜ)
 
       -- (ii) {G}C is the ancestor of ⟨C′, v⟩ₓ in Rˢ
     → (anc : Ancestor Rˢ (c′ , v , x) ⟨G⟩C)
@@ -457,7 +417,12 @@ data coher₁₁ where
         Γ→Γ′ = [Action] ([C-AuthControl] D≡A:D′) refl
 
         -- (iv) txout = txout′, sechash = sechash′, κ = κ′
-        open H₅ {Rˢ} 𝕣 t α t′ c′ v x Γ₀ A i cfg≈ Γ→Γ′ ∃Γ≈
+        open H₅ {Rˢ} 𝕣 t α t′ c′ v x Γ₀ A i R≈ Γ→Γ′ ∃Γ≈
+
+        vad : Valid ⟨G⟩C
+        vad =
+          let _ , R′ , ad∈R′ = ⟨c,v⟩∈≈⇒ad∈ {Rˢ} R≈ (here refl)
+          in ad∈⇒valid {R = R′} ad∈R′
 
         -- (iii) broadcast transaction T, as obtained from the compiler, signed by A
         --       where ∙ (T′,o) = txout′(x)
@@ -508,7 +473,7 @@ data coher₁₁ where
       --     let t be the maximum deadline in an after in front of D
       --     T0D0: what should t′ be in case there are not after decorations?
       (d≡ : d ≡⋯∶ put xs &reveal as if p ⇒ c′)
-    → (cfg≈ : Rˢ ≈⋯ Γₜ)
+    → (R≈ : Rˢ ≈⋯ Γₜ)
 
       -- (iii) {G}C″ is the ancestor of ⟨D+C,v⟩y in Rˢ
     → (anc : Ancestor Rˢ (c , v , y) ⟨G⟩C″)
@@ -542,7 +507,7 @@ data coher₁₁ where
         Γ→Γ′ = [Timeout] As≡∅ ∀≤t
                  (⟪ (λ ◆ → (⟨ [ ◆ ] , v ⟩at y ∣ (Γ₁ ∣ Γ₂) —[ α ]→ Γ′)) ⟫ d≡ ~: [C-PutRev] {ds = ds} {ss = ss} p⟦Δ⟧≡) refl
 
-        open H₆ {Rˢ} 𝕣 t α t′ c v y ds Γ₂ c′ y′ cfg≈ Γ→Γ′ ∃Γ≈
+        open H₆ {Rˢ} 𝕣 t α t′ c v y ds Γ₂ c′ y′ R≈ Γ→Γ′ ∃Γ≈
 
         -- (iv) submit transaction T
         --      where ∙ (T′,o) = txout′(y)
@@ -582,7 +547,7 @@ data coher₁₁ where
       ∀ {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)} {k⃗ : 𝕂²′ ⟨G⟩C} → let ⟨ G ⟩ C = ⟨G⟩C in
 
       ∣ m ∣ᵐ ≤ η
-    → (cfg≈ : Rˢ ≈⋯ Γₜ)
+    → (R≈ : Rˢ ≈⋯ Γₜ)
 
     → let
         α   = auth-rev⦅ A , a ⦆
@@ -608,7 +573,7 @@ data coher₁₁ where
         k̅ = concatMap (map pub ∘ codom) (codom k⃗)
 
         a∈ : a ∈ namesˡ Rˢ
-        a∈ = ∈namesˡ-resp-≈ a {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ cfg≈) (here refl)
+        a∈ = ∈namesˡ-resp-≈ a {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈) (here refl)
 
         -- T0D0: should we search for a signature of this message instead?
         C,h̅,k̅ : Message
@@ -618,7 +583,7 @@ data coher₁₁ where
         λᶜ = B →∗∶ m
 
         -- (iii) txout = txout′, sechash = sechash′, κ = κ′
-        open H₇ {Rˢ} 𝕣 t α t′ A a n Γ₀ cfg≈ Γ→Γ′ ∃Γ≈
+        open H₇ {Rˢ} 𝕣 t α t′ A a n Γ₀ R≈ Γ→Γ′ ∃Γ≈
       in
       -- (ii) in Rᶜ we find ⋯ (B → O ∶ m) (O → B : sechash′(a)) for some B ⋯
       (∃ λ B → (B , m , [ sechash′ {a} a∈ ]) ∈ oracleInteractions Rᶜ)
@@ -646,7 +611,7 @@ data coher₁₁ where
       --     let t be the maximum deadline in an after in front of D
       --     T0D0: what should t′ be in case there are not after decorations?
       (d≡ : d ≡⋯∶ split (zip vs cs))
-    → (cfg≈ : Rˢ ≈⋯ Γₜ)
+    → (R≈ : Rˢ ≈⋯ Γₜ)
 
       -- (iii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
     → (anc : Ancestor Rˢ (c , v , y) ⟨G⟩C′)
@@ -677,7 +642,7 @@ data coher₁₁ where
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Timeout] As≡∅ ∀≤t (⟪ (λ ◆ → ⟨ [ ◆ ] , v ⟩at y ∣ Γ₀ —[ α ]→ Γ′) ⟫ d≡ ~: [C-Split] {vcis = vcis}) refl
 
-        open H₈ {Rˢ} 𝕣 t α t′ c v y Γ₀ vcis cfg≈ Γ→Γ′ ∃Γ≈
+        open H₈ {Rˢ} 𝕣 t α t′ c v y Γ₀ vcis R≈ Γ→Γ′ ∃Γ≈
 
         -- (iii) submit transaction T
         --       where ∙ (T′,o) = txout′(y)
@@ -737,7 +702,7 @@ data coher₁₁ where
 
       -- (i) in Rˢ, α consumes ⟨D+C,v⟩y to obtain ⟨A,v⟩ₓ (where D = ⋯ : withdraw A)
       (d≡ : d ≡⋯∶ withdraw A)
-    → (cfg≈ : Rˢ ≈⋯ Γₜ)
+    → (R≈ : Rˢ ≈⋯ Γₜ)
 
       -- (ii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
     → (anc : Ancestor Rˢ (c , v , y) ⟨G⟩C′)
@@ -765,7 +730,7 @@ data coher₁₁ where
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Timeout] As≡∅ ∀≤t (⟪ (λ ◆ → ⟨ [ ◆ ] , v ⟩at y ∣ Γ₀ —[ α ]→ Γ′) ⟫ d≡ ~: [C-Withdraw]) refl
 
-        open H₉ {Rˢ} 𝕣 t α t′ c v y Γ₀ A x cfg≈ Γ→Γ′ ∃Γ≈
+        open H₉ {Rˢ} 𝕣 t α t′ c v y Γ₀ A x R≈ Γ→Γ′ ∃Γ≈
 
         --   ∙ T′ at o = txout′(x)
         --   ∙ T is the first transaction of Bd(d,d,T′,o,v,partG,0)
@@ -806,7 +771,7 @@ data coher₁₁ where
   [10] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let open ℝ 𝕣 in
        ∀ {x x′ : Id} → let Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀; Γₜ = Γ at t in
 
-      (cfg≈ : Rˢ ≈⋯ Γₜ)
+      (R≈ : Rˢ ≈⋯ Γₜ)
 
     → let
         α   = auth-join⦅ A , x ↔ x′ ⦆
@@ -820,10 +785,10 @@ data coher₁₁ where
         Γ→Γ′ = [Action] [DEP-AuthJoin] refl
 
         x∈ : x ∈ namesʳ Rˢ
-        x∈ = ∈namesʳ-resp-≈ x {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ cfg≈) (here refl)
+        x∈ = ∈namesʳ-resp-≈ x {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈) (here refl)
 
         x′∈ : x′ ∈ namesʳ Rˢ
-        x′∈ = ∈namesʳ-resp-≈ x′ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ cfg≈) (there (here refl))
+        x′∈ = ∈namesʳ-resp-≈ x′ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈) (there (here refl))
       in
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
                 → (l ≡ B →∗∶ [ T ♯ ])
@@ -839,7 +804,7 @@ data coher₁₁ where
         λᶜ = B →∗∶ m′
 
         -- (v) txout = txout′, sechash = sechash′, κ = κ′
-        open H₁₀ {Rˢ} 𝕣 t α t′ A v x v′ x′ Γ₀ cfg≈ Γ→Γ′ ∃Γ≈
+        open H₁₀ {Rˢ} 𝕣 t α t′ A v x v′ x′ Γ₀ R≈ Γ→Γ′ ∃Γ≈
       in
       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
       All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
@@ -850,7 +815,7 @@ data coher₁₁ where
   [11] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let open ℝ 𝕣 in
        ∀ {x x′ : Id} → let Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀; Γₜ = Γ at t in
 
-      (cfg≈ : Rˢ ≈⋯ Γₜ)
+      (R≈ : Rˢ ≈⋯ Γₜ)
 
     → let
         α   = join⦅ x ↔ x′ ⦆
@@ -864,10 +829,10 @@ data coher₁₁ where
         Γ→Γ′ = [Action] [DEP-Join] refl
 
         x∈ : x ∈ namesʳ Rˢ
-        x∈ = ∈namesʳ-resp-≈ x {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ cfg≈) (here refl)
+        x∈ = ∈namesʳ-resp-≈ x {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈) (here refl)
 
         x′∈ : x′ ∈ namesʳ Rˢ
-        x′∈ = ∈namesʳ-resp-≈ x′ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ cfg≈) (there (here refl))
+        x′∈ = ∈namesʳ-resp-≈ x′ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈) (there (here refl))
 
         -- (ii) submit transaction T
         T : ∃Tx
@@ -880,7 +845,7 @@ data coher₁₁ where
         λᶜ = submit T
 
         -- (iii) extend txout′ with y↦T₀ (removing {x↦_;x′↦_}), sechash = sechash′, κ = κ′
-        open H₁₁ {Rˢ} 𝕣 t α t′ A v x v′ x′ y Γ₀ cfg≈ (T at 0F) Γ→Γ′ ∃Γ≈
+        open H₁₁ {Rˢ} 𝕣 t α t′ A v x v′ x′ y Γ₀ R≈ (T at 0F) Γ→Γ′ ∃Γ≈
       in
       --——————————————————————————————————————————————————————————————————————
       coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
@@ -889,7 +854,7 @@ data coher₁₁ where
   [12] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let open ℝ 𝕣 in
        ∀ {x : Id} → let Γ = ⟨ A has (v + v′) ⟩at x ∣ Γ₀; Γₜ = Γ at t in
 
-      (cfg≈ : Rˢ ≈⋯ Γₜ)
+      (R≈ : Rˢ ≈⋯ Γₜ)
 
     → let
         α   = auth-divide⦅ A , x ▷ v , v′ ⦆
@@ -903,7 +868,7 @@ data coher₁₁ where
         Γ→Γ′ = [Action] [DEP-AuthDivide] refl
 
         x∈ : x ∈ namesʳ Rˢ
-        x∈ = ∈namesʳ-resp-≈ x {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ cfg≈) (here refl)
+        x∈ = ∈namesʳ-resp-≈ x {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈) (here refl)
       in
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
                 → (l ≡ B →∗∶ [ T ♯ ])
@@ -919,7 +884,7 @@ data coher₁₁ where
         λᶜ = B →∗∶ m′
 
         -- (v) txout = txout′, sechash = sechash′, κ = κ′
-        open H₁₂ {Rˢ} 𝕣 t α t′ A v v′ x Γ₀ cfg≈ Γ→Γ′ ∃Γ≈
+        open H₁₂ {Rˢ} 𝕣 t α t′ A v v′ x Γ₀ R≈ Γ→Γ′ ∃Γ≈
       in
       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
       All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
@@ -930,7 +895,7 @@ data coher₁₁ where
   [13] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let open ℝ 𝕣 in
        ∀ {x : Id} → let Γ = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀; Γₜ = Γ at t in
 
-      (cfg≈ : Rˢ ≈⋯ Γₜ)
+      (R≈ : Rˢ ≈⋯ Γₜ)
 
     → let
         α   = divide⦅ x ▷ v , v′ ⦆
@@ -944,7 +909,7 @@ data coher₁₁ where
         Γ→Γ′ = [Action] [DEP-Divide] refl
 
         x∈ : x ∈ namesʳ Rˢ
-        x∈ = ∈namesʳ-resp-≈ x {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ cfg≈) (here refl)
+        x∈ = ∈namesʳ-resp-≈ x {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈) (here refl)
 
         -- (iii) submit transaction T
         T  = 1 , 2 , sig⋆ (V.replicate [ K̂ A ]) record
@@ -956,7 +921,7 @@ data coher₁₁ where
         λᶜ = submit T
 
         -- (v) extend txout′ with {y↦T₀, y′↦T₁} (removing x↦T₀), sechash = sechash′, κ = κ′
-        open H₁₃ {Rˢ} 𝕣 t α t′ A v v′ x Γ₀ y y′ cfg≈ (T at 0F) (T at 1F) Γ→Γ′ ∃Γ≈
+        open H₁₃ {Rˢ} 𝕣 t α t′ A v v′ x Γ₀ y y′ R≈ (T at 0F) (T at 1F) Γ→Γ′ ∃Γ≈
       in
       --——————————————————————————————————————————————————————————————————————
       coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
@@ -965,7 +930,7 @@ data coher₁₁ where
   [14] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let open ℝ 𝕣 in
        ∀ {x : Id} → let Γ = ⟨ A has v ⟩at x ∣ Γ₀; Γₜ = Γ at t in
 
-      (cfg≈ : Rˢ ≈⋯ Γₜ)
+      (R≈ : Rˢ ≈⋯ Γₜ)
 
     → let
         α   = auth-donate⦅ A , x ▷ᵈ B′ ⦆
@@ -979,7 +944,7 @@ data coher₁₁ where
         Γ→Γ′ = [Action] [DEP-AuthDonate] refl
 
         x∈ : x ∈ namesʳ Rˢ
-        x∈ = ∈namesʳ-resp-≈ x {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ cfg≈) (here refl)
+        x∈ = ∈namesʳ-resp-≈ x {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈) (here refl)
       in
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
                 → (l ≡ B →∗∶ [ T ♯ ])
@@ -995,7 +960,7 @@ data coher₁₁ where
         λᶜ = B →∗∶ m′
 
         -- (v) txout = txout′, sechash = sechash′, κ = κ′
-        open H₁₄ {Rˢ} 𝕣 t α t′ A v x Γ₀ B′ cfg≈ Γ→Γ′ ∃Γ≈
+        open H₁₄ {Rˢ} 𝕣 t α t′ A v x Γ₀ B′ R≈ Γ→Γ′ ∃Γ≈
       in
       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
       All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
@@ -1006,7 +971,7 @@ data coher₁₁ where
   [15] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let open ℝ 𝕣 in
        ∀ {x : Id} → let Γ = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀; Γₜ = Γ at t in
 
-      (cfg≈ : Rˢ ≈⋯ Γₜ)
+      (R≈ : Rˢ ≈⋯ Γₜ)
 
     → let
         α   = donate⦅ x ▷ᵈ B′ ⦆
@@ -1020,7 +985,7 @@ data coher₁₁ where
         Γ→Γ′ = [Action] [DEP-Donate] refl
 
         x∈ : x ∈ namesʳ Rˢ
-        x∈ = ∈namesʳ-resp-≈ x {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ cfg≈) (here refl)
+        x∈ = ∈namesʳ-resp-≈ x {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈) (here refl)
 
         -- (iii) submit transaction T
         T  = 1 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
@@ -1032,7 +997,7 @@ data coher₁₁ where
         λᶜ = submit T
 
         -- (v) extend txout′ with y↦T₀ (removing x↦T₀), sechash = sechash′, κ = κ′
-        open H₁₅ {Rˢ} 𝕣 t α t′ A v x B′ Γ₀ y cfg≈ (T at 0F) Γ→Γ′ ∃Γ≈
+        open H₁₅ {Rˢ} 𝕣 t α t′ A v x B′ Γ₀ y R≈ (T at 0F) Γ→Γ′ ∃Γ≈
       in
       --——————————————————————————————————————————————————————————————————————
       coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
@@ -1056,6 +1021,7 @@ data coher₁₁ where
     in
     --——————————————————————————————————————————————————————————————————————
     coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
+-}
 
 data coher₁₂ where
 
@@ -1072,7 +1038,7 @@ data coher₁₂ where
         Γₜ = Γ at t
       in
       -- (ii) in Rˢ we find ⟨Bᵢ,vᵢ⟩yᵢ for i ∈ 1..k
-      (cfg≈ : Rˢ ≈⋯ Γₜ)
+      (R≈ : Rˢ ≈⋯ Γₜ)
 
     → let
         α   = auth-destroy⦅ A , xs , j′ ⦆
@@ -1086,7 +1052,7 @@ data coher₁₂ where
         Γ→Γ′ = [Action] [DEP-AuthDestroy] refl
 
         -- (vii) txout = txout′, sechash = sechash′, κ = κ′
-        open H₁₆ {Rˢ} 𝕣 t α t′ ds Γ₀  j A y cfg≈ Γ→Γ′ ∃Γ≈
+        open H₁₆ {Rˢ} 𝕣 t α t′ ds Γ₀  j A y R≈ Γ→Γ′ ∃Γ≈
       in
       -- (iii) in Rᶜ we find B → ∗ ∶ T, for some T having txout′(yᵢ) as inputs (+ possibly others)
       (T : Tx i 0)
@@ -1118,7 +1084,7 @@ data coher₁₂ where
         Γₜ = Γ at t
       in
       -- (ii) in Rˢ, α assumes ⟨Aᵢ,vᵢ⟩xᵢ to obtain 0
-      (cfg≈ : Rˢ ≈⋯ Γₜ)
+      (R≈ : Rˢ ≈⋯ Γₜ)
 
     → let
         α   = destroy⦅ xs ⦆
@@ -1133,7 +1099,7 @@ data coher₁₂ where
 
         -- (v) txout = txout′, sechash = sechash′, κ = κ′
         -- remove {⋯ xᵢ ↦ (Tᵢ,j) ⋯} from txout′
-        open H₁₇ {Rˢ} 𝕣 t α t′ ds Γ₀ y cfg≈ Γ→Γ′ ∃Γ≈
+        open H₁₇ {Rˢ} 𝕣 t α t′ ds Γ₀ y R≈ Γ→Γ′ ∃Γ≈
       in
       (T : Tx i 0)
     → (hashTxⁱ <$> codom xs↦) ⊆ V.toList (inputs T)
@@ -1149,6 +1115,7 @@ data coher₁₂ where
          → ¬ coher₁₁ Rˢ 𝕒′ Rᶜ λᶜ 𝕣′)
       --——————————————————————————————————————————————————————————————————————
     → coher₁₂ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
+
 
 data coher₂ Rˢ txout where
 
@@ -1173,18 +1140,18 @@ data coher₂ Rˢ txout where
       --——————————————————————————————————————————————————————————————————————
     → coher₂ Rˢ txout λᶜ
 
-{-
-T0D0: enforce common naming scheme via a module that re-exports names in a systematic way
-e.g. [1]: open —→⟨ (advertise[ ⟨G⟩C ]) ≈ (A →∗∶ C) ⟩ (` ⟨G⟩C ∣ Γ) AT t
+{- T0D0: enforce common naming scheme via a module that re-exports names in a systematic way
 
-module —→⟨_≈_⟩_AT_
-  (`α : S.Label) (`λᶜ : C.Label)
-  (`Γ′ : Cfg) (`t′ : S.Time)
-  where
-    private
-      α   = `α
-      Γ′  = `Γ′
-      t′  = `t′
-      Γₜ′ = `Γ′ at `t′
-      λᶜ  = `λᶜ
+  e.g. [1]: open —→⟨ (advertise[ ⟨G⟩C ]) ≈ (A →∗∶ C) ⟩ (` ⟨G⟩C ∣ Γ) AT t
+
+  module —→⟨_≈_⟩_AT_
+    (`α : S.Label) (`λᶜ : C.Label)
+    (`Γ′ : Cfg) (`t′ : S.Time)
+    where
+      private
+        α   = `α
+        Γ′  = `Γ′
+        t′  = `t′
+        Γₜ′ = `Γ′ at `t′
+        λᶜ  = `λᶜ
 -}

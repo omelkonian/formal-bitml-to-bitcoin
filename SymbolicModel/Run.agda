@@ -55,10 +55,14 @@ _⟨_⟩←——_ : ∀ y {x y′}
   → Run
 (Γₜ ⟨ Γ← ⟩←—— R) {p₁} {p₂} = Γₜ ⟨ Γ← ⟩←—— R ⊣ toWitness p₁ , toWitness p₂
 
-infix 0 _≡⋯_ _≈⋯_
+infix 0 _≡⋯_ _≈⋯_ _≈⋯_⋯
 _≡⋯_ _≈⋯_ : Run → TimedConfiguration → Set
 R ≡⋯ Γ at t = R .end ≡ Γ at t
 R ≈⋯ Γ at t = R .end ≈ Γ at t
+_≈⋯_⋯ : Run → Cfg → Set
+R ≈⋯ Γ ⋯ = Γ ∈ᶜ cfg (R .end)
+_≈⋯_⋯_⋯ : Run → Cfg → Cfg → Set
+R ≈⋯ Γ ⋯ Γ′ ⋯ = Γ′ ∈ᶜ cfg (R .end) × ∃ _≈⋯ Γ ⋯
 
 𝔸 : Run → Cfgᵗ → Set
 𝔸 R Γₜ =
@@ -72,47 +76,8 @@ _∷_⊣_ : (Γₜ : Cfgᵗ) (R : Run) → 𝔸 R Γₜ → Run
 _∷⟩_ : (R : Run) → 𝔸 R Γₜ → Run
 _∷⟩_ {Γₜ} = Γₜ ∷_⊣_
 
-≈ᵗ-refl : Γₜ ≈ Γₜ
-≈ᵗ-refl = refl , ↭-refl
-
-private
-  allStates⁺ : (Γₜ —[ αs ]↠ₜ Γₜ′) → List⁺ TimedConfiguration
-  allStates⁺ = λ where
-    (tc ∎)              → tc ∷ []
-    (tc —→⟨ _ ⟩ _ ⊢ tr) → tc ∷⁺ allStates⁺ tr
-
-  allStates⁺-∷ : ∀ {x′ y y′ z}
-    → (Γ→ : x′ —[ α ]→ₜ y′)
-    → (eq : Γₜ ≈ x′ × y ≈ y′)
-    → (Γ↠ : y —[ αs ]↠ₜ z)
-    → allStates⁺ (Γₜ —→ₜ⟨ Γ→ ⟩ eq ⊢ Γ↠) ≡ (Γₜ ∷⁺ allStates⁺ Γ↠)
-  allStates⁺-∷ Γ→ eq Γ↠ = refl
-
-  allStates : (Γₜ —[ αs ]↠ₜ Γₜ′) → List TimedConfiguration
-  allStates = toList ∘ allStates⁺
-
-  allStates⁺-∷ʳ : ∀ {x y y′}
-    → (Γ↞ : x —[ αs ]↠ₜ y)
-    → (Γ← : y′ —[ α ]→ₜ Γₜ′)
-    → (eq : Γₜ ≈ Γₜ′ × y ≈ y′)
-    → allStates⁺ (Γₜ `⟨ Γ← ⟩←—ₜ eq ⊢ Γ↞) ≡ (allStates⁺ Γ↞ ⁺∷ʳ Γₜ)
-  allStates⁺-∷ʳ (_ ∎) _ _ = refl
-  allStates⁺-∷ʳ {Γₜ = Γₜ} (x —→⟨ Γ←′ ⟩ eq′ ⊢ Γ↞) Γ← eq =
-    begin≡
-      allStates⁺ (Γₜ `⟨ Γ← ⟩←—ₜ eq ⊢ x —→ₜ⟨ Γ←′ ⟩ eq′ ⊢ Γ↞)
-    ≡⟨⟩
-      allStates⁺ (x —→ₜ⟨ Γ←′ ⟩ eq′ ⊢ (Γₜ `⟨ Γ← ⟩←—ₜ eq ⊢ Γ↞))
-    ≡⟨⟩
-      x ∷⁺ allStates⁺ (Γₜ `⟨ Γ← ⟩←—ₜ eq ⊢ Γ↞)
-    ≡⟨ cong (x ∷⁺_) (allStates⁺-∷ʳ Γ↞ Γ← eq) ⟩
-      (x ∷⁺ allStates⁺ Γ↞) ⁺∷ʳ Γₜ
-    ≡⟨⟩
-      allStates⁺ (x —→ₜ⟨ Γ←′ ⟩ eq′ ⊢ Γ↞) ⁺∷ʳ Γₜ
-    ∎≡
-    where open ≡-Reasoning renaming (begin_ to begin≡_; _∎ to _∎≡)
-
 allTCfgs⁺ : Run → List⁺ TimedConfiguration
-allTCfgs⁺ (record {trace = _ , Γ↠}) = allStates⁺ Γ↠
+allTCfgs⁺ (record {trace = _ , Γ↠}) = allStatesᵗ⁺ Γ↠
 
 allCfgs⁺ : Run → List⁺ Configuration
 allCfgs⁺ = L.NE.map cfg ∘ allTCfgs⁺
@@ -139,9 +104,17 @@ start∈allCfgsᵗ {R = record {trace = _ , Γ↞}} with Γ↞
 end∈allCfgsᵗ : R .end ∈ allTCfgs⁺ R
 end∈allCfgsᵗ {R = record {trace = _ , Γ↞}} = go Γ↞
   where
-    go : (tr : Γₜ —[ αs ]↠ₜ Γₜ′) → Γₜ′ ∈ allStates⁺ tr
+    go : (tr : Γₜ —[ αs ]↠ₜ Γₜ′) → Γₜ′ ∈ allStatesᵗ⁺ tr
     go (_ ∎)              = here refl
     go (_ —→⟨ _ ⟩ _ ⊢ tr) = there (go tr)
+
+infix 0 _⋯∈_ _⋯∈ₜ_
+_⋯∈_ : Cfg → Run → Set
+Γ ⋯∈ R = Γ ∈ allCfgs R
+_⋯∈ₜ_ : Cfgᵗ → Run → Set
+Γₜ ⋯∈ₜ R = Γₜ ∈ allTCfgs R
+
+-- Properties.
 
 allTCfgs≡ : ∀ {x}
   → (Γ← : x —[ α ]→ₜ Γₜ′)
@@ -154,14 +127,12 @@ allTCfgs≡  {α}{Γₜ′}{Γₜ}{R@(record {trace = _ , Γ↞})}{x} Γ← eq =
   ≡⟨⟩
     toList (allTCfgs⁺ $ Γₜ ⟨ Γ← ⟩←—— R ⊣ eq)
   ≡⟨⟩
-    toList (allStates⁺ $ Γₜ `⟨ Γ← ⟩←—ₜ eq ⊢ Γ↞)
-  ≡⟨ cong toList $ allStates⁺-∷ʳ Γ↞ Γ← eq ⟩
-    toList (allStates⁺ Γ↞ ⁺∷ʳ Γₜ)
+    toList (allStatesᵗ⁺ $ Γₜ `⟨ Γ← ⟩←—ₜ eq ⊢ Γ↞)
+  ≡⟨ cong toList $ allStatesᵗ⁺-∷ʳ Γ↞ Γ← eq ⟩
+    toList (allStatesᵗ⁺ Γ↞ ⁺∷ʳ Γₜ)
   ≡⟨⟩
     allTCfgs R ∷ʳ Γₜ
-  ∎≡
-  where
-    open ≡-Reasoning renaming (begin_ to begin≡_; _∎ to _∎≡)
+  ∎≡ where open ≡-Reasoning renaming (begin_ to begin≡_; _∎ to _∎≡)
 
 allCfgs≡ : ∀ {x}
   → (Γ← : x —[ α ]→ₜ Γₜ′)
@@ -182,15 +153,51 @@ allCfgs≡  {α}{Γₜ′}{Γₜ}{R@(record {trace = _ , Γ↞})}{x} Γ← eq =
   ∎≡
   where open ≡-Reasoning renaming (begin_ to begin≡_; _∎ to _∎≡)
 
-⊆-concatMap⁺ : ∀ {A : Set} {xs : List A} {xss : List (List A)}
-  → xs ∈ xss
-  → xs ⊆ concat xss
-⊆-concatMap⁺ (here refl) = L.Mem.∈-++⁺ˡ
-⊆-concatMap⁺ (there xs∈) = L.Mem.∈-++⁺ʳ _ ∘ ⊆-concatMap⁺ xs∈
+ad∈≈⇒ℍ :
+    R ≈⋯ Γ at t
+  → ` ad ∈ᶜ Γ
+    --—————————————————————————————————————
+  → ∃ λ x → ∃ λ x′ → ∃ λ y → ∃ λ y′ →
+        (x ⋯∈ R)
+      × (y ⋯∈ R)
+      × (x ≈ x′ × y ≈ y′)
+      × ℍ[C-Advertise]⦅ x′ ↝ y′ ⦆ ad
+ad∈≈⇒ℍ {R@record {init = i , _; trace = _ , tr}}{Γ} (_ , Γ≈) ad∈ =
+  advertise⇒∗ tr (traceAdₜ (Initial⇒∉ i) (∈ᶜ-resp-≈ {Γ}{cfg $ R .end} (↭-sym Γ≈) ad∈) tr)
 
-trace-ad₀ :
-    R ≡⋯ (` ad ∣ Γ) at t
-    --————————————————————
-  → Valid ad
-trace-ad₀ {record { trace = _ , tr ; init = init , _ }} refl
-  = proj₂ $ hₜ (Initial⇒ad∉ init) tr
+auth-commit∈≈⇒ℍ :
+    R ≈⋯ Γ at t
+  → A auth[ ♯▷ ad ] ∈ᶜ Γ
+    --————————————————————————————————————————————
+  → ∃ λ Δ → ∃ λ x → ∃ λ x′ → ∃ λ y → ∃ λ y′ →
+        (x ⋯∈ R)
+      × (y ⋯∈ R)
+      × (x ≈ x′ × y ≈ y′)
+      × ℍ[C-AuthCommit]⦅ x′ ↝ y′ ⦆ ad A Δ
+auth-commit∈≈⇒ℍ {R@record {init = i , _; trace = _ , tr}}{Γ} (_ , Γ≈) auth∈ =
+  let Δ , α∈ = traceAuthCommitₜ (Initial⇒∉ i) (∈ᶜ-resp-≈ {Γ}{cfg $ R .end} (↭-sym Γ≈) auth∈) tr
+  in  Δ , auth-commit⇒∗ tr α∈
+
+auth-init∈≈⇒ℍ :
+    R ≈⋯ Γ at t
+  → A auth[ z ▷ˢ ad ] ∈ᶜ Γ
+    --————————————————————————————————————————————
+  → ∃ λ x → ∃ λ x′ → ∃ λ y → ∃ λ y′ →
+        (x ⋯∈ R)
+      × (y ⋯∈ R)
+      × (x ≈ x′ × y ≈ y′)
+      × ℍ[C-AuthInit]⦅ x′ ↝ y′ ⦆ A ad z
+auth-init∈≈⇒ℍ {R@record {init = i , _; trace = _ , tr}}{Γ} (_ , Γ≈) auth∈ =
+  auth-init⇒∗ tr $ traceAuthInitₜ (Initial⇒∉ i) (∈ᶜ-resp-≈ {Γ}{cfg $ R .end} (↭-sym Γ≈) auth∈) tr
+
+-- init∈≈⇒ℍ :
+--     R ≈⋯ Γ at t
+--   → A auth[ z ▷ˢ ad ] ∈ᶜ Γ
+--     --————————————————————————————————————————————
+--   → ∃ λ x → ∃ λ x′ → ∃ λ y → ∃ λ y′ →
+--         (x ⋯∈ R)
+--       × (y ⋯∈ R)
+--       × (x ≈ x′ × y ≈ y′)
+--       × ℍ[C-Init]⦅ x′ ↝ y′ ⦆ ad
+-- init∈≈⇒ℍ {R@record {init = i , _; trace = _ , tr}}{Γ} (_ , Γ≈) auth∈ =
+--   init⇒∗ tr $ traceInitₜ (Initial⇒∉ i) (∈ᶜ-resp-≈ {Γ}{cfg $ R .end} (↭-sym Γ≈) auth∈) tr

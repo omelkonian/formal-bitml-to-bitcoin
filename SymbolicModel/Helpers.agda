@@ -31,6 +31,9 @@ open import SymbolicModel.Run Participant Honest
          ; {-variables-} g; c; as; vs; xs; ad; Γ; Γ′; Γ″; Γₜ; Γₜ′; Γₜ″; R′; Δ )
 open import SymbolicModel.Collections Participant Honest
 
+AllCommitted : Ad → Cfg → Set
+AllCommitted ad Γ = nub-participants ad ⊆ committedParticipants ad Γ
+
 -- lifting mappings from last configuration to enclosing runs
 -- e.g. Γ →⦅ Txout ⟩ Γ′ ———→ R ⇒⟨ Txout ⦆ R′
 module Lift (r : ℝ R) t α t′
@@ -59,20 +62,22 @@ module Lift (r : ℝ R) t α t′
 
     R′ = Γₜ″ ⟨ valid↝ ⟩←—— R ⊣ eq
 
+  txoutΓ′ : Txout Γ′
+  txoutΓ′ = txout↝ $ Txout≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R)
+
   txout : Txout R′
-  txout = Txout≈ {Γ′}{Γ″} (↭-sym Γ′≈)
-        $ txout↝
-        $ Txout≈ {cfg (R .end)}{Γ} Γ≈ txout′
+  txout = txout∷ {R = R} valid↝ eq txoutΓ′ txout′
+
+  sechashΓ′ : Sechash Γ′
+  sechashΓ′ = sechash↝ $ Sechash≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ sechash′ $ namesˡ⦅end⦆⊆ R)
 
   sechash : Sechash R′
-  sechash = Sechash≈ {Γ′}{Γ″} (↭-sym Γ′≈)
-          $ sechash↝
-          $ Sechash≈ {cfg (R .end)}{Γ} Γ≈ sechash′
+  sechash = sechash∷ {R = R} valid↝ eq sechashΓ′ sechash′
 
   κ : 𝕂² R′
   κ {ad} ad∈ with ads∈-⊎ {α}{Γₜ′}{Γₜ″}{R}{ad}{Γₜ} valid↝ eq ad∈
   ... | inj₁ ad∈R  = κ′ ad∈R
-  ... | inj₂ ad∈Γ″ = κ↝ (𝕂²≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ κ′ $ ads⦅end⦆⊆ {R}))
+  ... | inj₂ ad∈Γ″ = κ↝ (𝕂²≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ κ′ $ ads⦅end⦆⊆ R))
                         (∈ads-resp-≈ ad {Γ″}{Γ′} Γ′≈ ad∈Γ″)
 
   𝕣′ : ℝ R′
@@ -83,6 +88,7 @@ module Lift (r : ℝ R) t α t′
 
 -- invoking the compiler with the correct mappings, lifting them from the current configuration/run
 -- e.g. (Txout R ∣ Γ →⦅ Txout ⦆ G) ———→ Txout G
+{-
 module Lift₀ (r : ℝ R) (t : Time)
   Γ (R≈ : R ≈⋯ Γ at t) ad
   (txout↝   : Γ →⦅ Txout   ⦆ ad .G)
@@ -94,24 +100,76 @@ module Lift₀ (r : ℝ R) (t : Time)
   private Γ≈ = proj₂ R≈
 
   txout₀ : Txout (ad .G)
-  txout₀ = txout↝ $ Txout≈ {cfg (R .end)}{Γ} Γ≈ txout′
+  txout₀ = txout↝ $ Txout≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ txout′ (namesʳ⦅end⦆⊆ R))
 
   sechash₀ : Sechash (ad .G)
-  sechash₀ = sechash↝ $ Sechash≈ {cfg (R .end)}{Γ} Γ≈ sechash′
+  sechash₀ = sechash↝ $ Sechash≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ sechash′ (namesˡ⦅end⦆⊆ R))
 
   κ₀ : 𝕂²′ ad
   κ₀ = κ′ ad∈
+-}
+
+module Lift₀ (r : ℝ R) (t : Time)
+  Γ (R≈ : R ≈⋯ Γ at t) ad
+  (ad∈ : ` ad ∈ᶜ Γ)
+  (committedA : nub-participants ad ⊆ committedParticipants ad Γ)
+  where
+  open ℝ r
+
+  private
+    Γ≈ = proj₂ R≈
+    ℍ-Ad = ad∈≈⇒ℍ {R}{Γ} R≈ ad∈
+
+  vad : Valid ad
+  vad = let _ , _ , _ , _ , _ , _ , _ , _ , vad , _ , _ = ℍ-Ad
+        in vad
+
+  txout₀ : Txout (ad .G)
+  txout₀ =
+    let
+      Γᵢ′ , Γᵢ , _ , _ , Γᵢ∈′ , _ , (x≈ , _) , ℍ = ℍ-Ad
+
+      txoutΓᵢ : Txout Γᵢ
+      txoutΓᵢ = Txout≈ {x = Γᵢ′}{Γᵢ} x≈
+              $ Txout∈ {R = R} txout′ Γᵢ∈′
+    in
+      ℍ[C-Advertise]⇒TxoutG {Γ = Γᵢ}{ad = ad} ℍ txoutΓᵢ
+
+  sechash₀ : Sechash (ad .G)
+  sechash₀ = ℍ[C-AuthCommit]∗⇒SechashG {ad = ad}
+            $ committed⇒ℍ[C-AuthCommit]∗ {R}{Γ}{t}{ad} R≈ committedA sechash′
+
+  κ₀ : 𝕂²′ ad
+  κ₀ = weaken-↦ κ′ (ads⦅end⦆⊆ R ∘ ∈ads-resp-≈ _ {Γ}{cfg (R .end)} (↭-sym $ proj₂ R≈))
+                    (∈-collect-++⁺ʳ (` ad) Γ ad∈Hon)
+    where
+      ad∈Hon : ad ∈ authorizedHonAds Γ
+      ad∈Hon =
+        let
+          _ , _ , _ , _ , _ , _ , _ , (_ , _ , honG , _) = ℍ-Ad
+          honA = L.Any.lookup honG
+
+          hon : honA ∈ Hon
+          hon = L.Any.lookup-result honG
+
+          honA∈ : honA ∈ nub-participants ad
+          honA∈ = L.Mem.∈-lookup (L.Any.index honG)
+        in
+          committed⇒authAd hon {Γ = Γ} $ committedA honA∈
+
+
+
 
 module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
   open ℝ 𝕣
 
-  module _ Γ (cfg≈ : R ≈⋯ Γ at t) ad where
+  module _ Γ (R≈ : R ≈⋯ Γ at t) ad where
     private
       Γ′ = ` ad ∣ Γ
     module H₁ (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
 
-  module _ Γ (cfg≈ : R ≈⋯ Γ at t) B A ad (Δ : List (Secret × Maybe ℕ)) where
+  module _ Γ (R≈ : R ≈⋯ Γ at t) B A ad (Δ : List (Secret × Maybe ℕ)) where
     private
       Γ′ = Γ ∣ || map (uncurry ⟨ B ∶_♯_⟩) Δ ∣ A auth[ ♯▷ ad ]
       as = proj₁ $ unzip Δ
@@ -196,14 +254,14 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
           ... | true  | here refl = k⃗
           ... | false | ()
 
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝ public
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝ public
 
   module _ ad Γ₀ A x where
     private
       g = ad .G
       Γ = ` ad ∣ Γ₀
       Γ′ = Γ ∣ A auth[ x ▷ˢ ad ]
-    module H₃ (cfg≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₃ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       names≡ : Γ′ ≡⦅ names ⦆ Γ
       names≡ rewrite collectFromBase-++ {X = Name} Γ (A auth[ x ▷ˢ ad ]) = L.++-identityʳ _
 
@@ -227,10 +285,14 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
                   | L.++-identityʳ (advertisements Γ)
                   = κ′
 
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝ public
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝ public
 
-      module H₃′ (ad∈ : ad ∈ authorizedHonAds Γ₀) (names⊆ : g ⊆⦅ names ⦆ Γ₀) where
+      private
+        partG = nub-participants g
 
+      module H₃′ (committedA : partG ⊆ committedParticipants ad Γ₀) where
+        open Lift₀ 𝕣 t Γ R≈ ad (here refl) committedA public
+      {-
         txout↝′ : Γ →⦅ Txout ⦆ g
         txout↝′ txout′ = weaken-↦ txout′ (mapMaybe-⊆ isInj₂ names⊆)
 
@@ -241,18 +303,18 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
         ad∈Γ = ad∈
 
         ad∈′ : ad ∈ advertisements R
-        ad∈′ = ads⦅end⦆⊆ {R} $ ∈ads-resp-≈ ad {Γ}{cfg (R .end)} (↭-sym $ proj₂ cfg≈) ad∈Γ
+        ad∈′ = ads⦅end⦆⊆ R $ ∈ads-resp-≈ ad {Γ}{cfg (R .end)} (↭-sym $ proj₂ R≈) ad∈Γ
 
-        open Lift₀ 𝕣 t Γ cfg≈ ad txout↝′ sechash↝′ ad∈′ public
+        open Lift₀ 𝕣 t Γ R≈ ad txout↝′ sechash↝′ ad∈′ public
+      -}
 
-  module _ ad Γ₀ (ds : List DepositRef) partG v z where
+  module _ ad Γ₀ (ds : List DepositRef) v z where
     private
       g = ad .G
       c = C ad
 
       -- [BUG] cannot get this to work here without explicitly passing ⦃ HPᵖ ⦄
-      -- partG : List Participant
-      -- partG = nub-participants g
+      partG = nub-participants ⦃ HPᵖ ⦄ g
       -- [WORKAROUND] give it as module parameters (forgetting the fact that it's computed out of `g`
 
       Γ₁ = ` ad ∣ Γ₀
@@ -261,7 +323,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
       Γ  = Γ₁ ∣ Γ₂ ∣ Γ₃
       Γ′ = ⟨ c , v ⟩at z ∣ Γ₀
 
-    module H₄ (cfg≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₄ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       private
         h₀ : ∀ ps → Null $ namesʳ (|| map (_auth[ ♯▷ ad ]) ps)
         h₀ [] = refl
@@ -338,8 +400,16 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
                    advertisements Γ₀ ⊆⟨ ∈-collect-++⁺ˡ (Γ₁ ∣ Γ₂) Γ₃ ∘ ∈-collect-++⁺ˡ Γ₁ Γ₂ ⟩
                    advertisements Γ  ∎ where open ⊆-Reasoning Advertisement
 
-      module H₄′ (honG : Any (_∈ Hon) partG) (names⊆ : g ⊆⦅ names ⦆ Γ₀) where
+      module H₄′ where
 
+        committedA : partG ⊆ committedParticipants ad Γ
+        committedA {p} p∈ = ∈-collect-++⁺ʳ (Γ₁ ∣ Γ₂) Γ₃ ⦃ ∣committedParticipants∣.go ad ⦄ p∈′
+          where p∈′ : p ∈ committedParticipants ad Γ₃
+                p∈′ rewrite committedPartG≡ {ad} partG = p∈
+
+        open Lift₀ 𝕣 t Γ R≈ ad (here refl) committedA public
+
+      {-
         n⊆ : names Γ₀ ⊆ names Γ
         n⊆ = ∈-collect-++⁺ˡ (Γ₁ ∣ Γ₂) Γ₃ ∘ ∈-collect-++⁺ˡ Γ₁ Γ₂ ∘ ∈-collect-++⁺ʳ (` ad) Γ₀
 
@@ -371,9 +441,10 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
         ad∈ = ∈-collect-++⁺ʳ (Γ₁ ∣ Γ₂) Γ₃ ad∈₀
 
         ad∈′ : ad ∈ advertisements R
-        ad∈′ = ads⦅end⦆⊆ {R} $ ∈ads-resp-≈ ad {Γ}{cfg (R .end)} (↭-sym $ proj₂ cfg≈) ad∈
+        ad∈′ = ads⦅end⦆⊆ R $ ∈ads-resp-≈ ad {Γ}{cfg (R .end)} (↭-sym $ proj₂ R≈) ad∈
 
-        open Lift₀ 𝕣 t Γ cfg≈ ad txout↝ sechash↝ ad∈′ public
+        open Lift₀ 𝕣 t Γ R≈ ad txout↝ sechash↝ ad∈′ public
+      -}
 
       module H₄″ (tx : TxInput′) where
 
@@ -386,19 +457,23 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
         txout↝′ : Γ →⦅ Txout ⦆ Γ′
         txout↝′ txout′ rewrite namesʳ≡₀ = cons-↦ z tx $ weaken-↦ txout′ ∈-++⁺ˡ
 
-        open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝′ sechash↝′ κ↝′ public
+        open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝′ sechash↝′ κ↝′ public
 
+{-
   module _ c v x Γ₀ A i where
     private
       Γ  = ⟨ c , v ⟩at x ∣ Γ₀
       Γ′ = ⟨ c , v ⟩at x ∣ A auth[ x ▷ (c ‼ i) ] ∣ Γ₀
 
-    module H₅ (cfg≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₅ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
 
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
 
       module H₅′ ad (ad∈ : ad ∈ authorizedHonAds R) (names⊆ : ad .G ⊆⦅ names ⦆ Γ₀) where
 
+        open Lift₀ 𝕣 t Γ R≈ ad (here refl) committedA public
+
+      {-
         n⊆ : names Γ₀ ⊆ names Γ
         n⊆ = ∈-++⁺ʳ _
 
@@ -408,7 +483,8 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
         sechash↝ : Γ →⦅ Sechash ⦆ ad .G
         sechash↝ sechash′ = weaken-↦ sechash′ $ mapMaybe-⊆ isInj₁ (n⊆ ∘ names⊆)
 
-        open Lift₀ 𝕣 t Γ cfg≈ ad txout↝ sechash↝ ad∈ public
+        open Lift₀ 𝕣 t Γ R≈ ad txout↝ sechash↝ ad∈ public
+      -}
 
   module _ c v y (ds : List (Participant × Value × Id)) Γ₀  c′ y′ where
     private
@@ -417,7 +493,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
       Γ₁ = || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds
       Γ  = ⟨ c , v ⟩at y ∣ (Γ₁ ∣ Γ₀)
       Γ′ = ⟨ c′ , v + sum vs ⟩at y′ ∣ Γ₀
-    module H₆ (cfg≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₆ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       private
         h₁ : ∀ (ds : List (Participant × Value × Id)) →
           Null $ namesˡ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
@@ -478,7 +554,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
         txout↝ : Γ →⦅ Txout ⦆ Γ′
         txout↝ txout′ rewrite namesʳ≡₀ = cons-↦ y′ tx $ weaken-↦ txout′ (∈-++⁺ʳ _)
 
-        open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝ public
+        open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝ public
 
       module H₆″ ad (ad∈ : ad ∈ authorizedHonAds R) (names⊆ : ad .G ⊆⦅ names ⦆ Γ₀) where
 
@@ -491,14 +567,14 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
         sechash↝ : Γ →⦅ Sechash ⦆ ad .G
         sechash↝ sechash′ = weaken-↦ sechash′ $ mapMaybe-⊆ isInj₁ (n⊆ ∘ names⊆)
 
-        open Lift₀ 𝕣 t Γ cfg≈ ad txout↝ sechash↝ ad∈ public
+        open Lift₀ 𝕣 t Γ R≈ ad txout↝ sechash↝ ad∈ public
 
   module _ A a n Γ₀ where
     private
       Γ  = ⟨ A ∶ a ♯ just n ⟩ ∣ Γ₀
       Γ′ = A ∶ a ♯ n ∣ Γ₀
-    module H₇ (cfg≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
+    module H₇ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
 
   module _ c v y Γ₀  (vcis : List (Value × Contracts × Id)) where
     private
@@ -506,7 +582,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
       xs = proj₂ $ proj₂ $ unzip₃ vcis
       Γ₁ = || map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis
       Γ′ = Γ₁ ∣ Γ₀
-    module H₈ (cfg≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₈ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       private
         hʳ : ∀ (vcis : List (Value × Contracts × Id)) →
           namesʳ (|| map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis) ≡ (proj₂ $ proj₂ $ unzip₃ vcis)
@@ -574,7 +650,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
         κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
         κ↝ = lift Γ —⟨ advertisements ⟩— Γ′ ⊣ ads≡
 
-        open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝ public
+        open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝ public
 
       module H₈″ ad (ad∈ : ad ∈ authorizedHonAds R) (names⊆ : ad .G ⊆⦅ names ⦆ Γ₀) where
 
@@ -587,19 +663,19 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
         sechash↝ : Γ →⦅ Sechash ⦆ ad .G
         sechash↝ sechash′ = weaken-↦ sechash′ $ mapMaybe-⊆ isInj₁ (n⊆ ∘ names⊆)
 
-        open Lift₀ 𝕣 t Γ cfg≈ ad txout↝ sechash↝ ad∈ public
+        open Lift₀ 𝕣 t Γ R≈ ad txout↝ sechash↝ ad∈ public
 
   module _ c v y Γ₀ A x where
     private
       Γ  = ⟨ c , v ⟩at y ∣ Γ₀
       Γ′ = ⟨ A has v ⟩at x ∣ Γ₀
-    module H₉ (cfg≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₉ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
 
       module H₉′ (tx : TxInput′) where
         txout↝ : Γ →⦅ Txout ⦆ Γ′
         txout↝  txout′ = cons-↦ x tx $ weaken-↦ txout′ there
 
-        open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id public
+        open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id public
 
       module H₉″ ad (ad∈ : ad ∈ authorizedHonAds R) (names⊆ : ad .G ⊆⦅ names ⦆ Γ₀) where
 
@@ -612,73 +688,79 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
         sechash↝ : Γ →⦅ Sechash ⦆ ad .G
         sechash↝ sechash′ = weaken-↦ sechash′ $ mapMaybe-⊆ isInj₁ (n⊆ ∘ names⊆)
 
-        open Lift₀ 𝕣 t Γ cfg≈ ad txout↝ sechash↝ ad∈ public
+        open Lift₀ 𝕣 t Γ R≈ ad txout↝ sechash↝ ad∈ public
 
   module _ A v x v′ x′ Γ₀ where
     private
       Γ  = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀
       Γ′ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
-    module H₁₀ (cfg≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
+    module H₁₀ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
 
   module _ A v x v′ x′ y Γ₀ where
     private
       Γ  = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
       Γ′ = ⟨ A has (v + v′) ⟩at y ∣ Γ₀
-    module H₁₁ (cfg≈ : R ≈⋯ Γ at t) (tx : TxInput′) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₁₁ (R≈ : R ≈⋯ Γ at t) (tx : TxInput′) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       txout↝ : Γ →⦅ Txout ⦆ Γ′
       txout↝ txout′ = cons-↦ y tx $ weaken-↦ txout′ (λ x∈ → there (there x∈))
 
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id public
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id public
 
   module _ A v v′ x Γ₀ where
     private
       Γ  = ⟨ A has (v + v′) ⟩at x ∣ Γ₀
       Γ′ = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
-    module H₁₂ (cfg≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
+    module H₁₂ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
 
   module _ A v v′ x Γ₀ y y′ where
     private
       Γ  = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
       Γ′ = ⟨ A has v ⟩at y ∣ ⟨ A has v′ ⟩at y′ ∣ Γ₀
-    module H₁₃ (cfg≈ : R ≈⋯ Γ at t) (tx tx′ : TxInput′) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₁₃ (R≈ : R ≈⋯ Γ at t) (tx tx′ : TxInput′) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       txout↝ : Γ →⦅ Txout ⦆ Γ′
       txout↝ txout′ = cons-↦ y tx $ cons-↦ y′ tx′ $ weaken-↦ txout′ there
 
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id public
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id public
 
   module _ A v x Γ₀ B′ where
     private
       Γ  = ⟨ A has v ⟩at x ∣ Γ₀
       Γ′ = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
-    module H₁₄ (cfg≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
+    module H₁₄ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
 
   module _ A v x B′ Γ₀ y where
     private
       Γ  = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
       Γ′ = ⟨ B′ has v ⟩at y ∣ Γ₀
-    module H₁₅ (cfg≈ : R ≈⋯ Γ at t) (tx : TxInput′) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₁₅ (R≈ : R ≈⋯ Γ at t) (tx : TxInput′) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       txout↝ : Γ →⦅ Txout ⦆ Γ′
       txout↝ txout′ = cons-↦ y tx $ weaken-↦ txout′ there
 
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id public
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id public
+
+-}
 
   module _ (ds : List (Participant × Value × Id)) Γ₀ (j : Index ds) A y where
     private
       xs = map (proj₂ ∘ proj₂) ds
-      Δ  = || map (λ{ (Bᵢ , vᵢ , xᵢ) → ⟨ Bᵢ has vᵢ ⟩at xᵢ }) ds
+      Δ  = || map (uncurry₃ ⟨_has_⟩at_) ds
       Γ  = Δ ∣ Γ₀
       j′ = Index xs ∋ ‼-map {xs = ds} j
       Γ′ = Δ ∣ A auth[ xs , j′ ▷ᵈˢ y ] ∣ Γ₀
 
-    module H₁₆ (cfg≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₁₆ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
 
       -- ** name resolution
       xs⊆ : xs ⊆ namesʳ R
-      xs⊆ = ∈namesʳ-resp-≈ _ {Γ}{cfg (R .end)} (↭-sym $ proj₂ cfg≈)
-          ∘ ⊆-trans (namesʳ-∥map-helper ds) (mapMaybe-⊆ isInj₂ $ ∈-collect-++⁺ˡ Δ Γ₀)
+      xs⊆ = begin xs              ⊆⟨ namesʳ-∥map-authDestroy ds ⟩
+                  namesʳ Δ        ⊆⟨ mapMaybe-⊆ isInj₂ $ ∈-collect-++⁺ˡ Δ Γ₀ ⟩
+                  namesʳ Γ        ⊆⟨ ∈namesʳ-resp-≈ _ {Γ}{cfg (R .end)} (↭-sym $ proj₂ R≈) ⟩
+                  namesʳ (R .end) ⊆⟨ namesʳ⦅end⦆⊆ R ⟩
+                  namesʳ R        ∎ where open ⊆-Reasoning Secret
+
 
       xs↦ : xs ↦ TxInput′
       xs↦ = txout′ ∘ xs⊆
@@ -711,7 +793,7 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
       κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
       κ↝ = lift Γ —⟨ advertisements ⟩— Γ′ ⊣ ads≡
 
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝ public
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝ public
 
   module _ (ds : List (Participant × Value × Id)) Γ₀ y where
     private
@@ -719,12 +801,15 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
       Δ  = || map (λ{ (i , Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xs , ‼-map {xs = ds} i ▷ᵈˢ y ] }) (enumerate ds)
       Γ  = Δ ∣ Γ₀
       Γ′ = Γ₀
-    module H₁₇ (cfg≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₁₇ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
 
       -- ** name resolution
       xs⊆ : xs ⊆ namesʳ R
-      xs⊆ = ∈namesʳ-resp-≈ _ {Γ}{cfg (R .end)} (↭-sym $ proj₂ cfg≈)
-          ∘ ⊆-trans (namesʳ-∥map-helper′ ds) (mapMaybe-⊆ isInj₂ $ ∈-collect-++⁺ˡ Δ Γ₀)
+      xs⊆ = begin xs              ⊆⟨ namesʳ-∥map-destroy ds ⟩
+                  namesʳ Δ        ⊆⟨ mapMaybe-⊆ isInj₂ $ ∈-collect-++⁺ˡ Δ Γ₀ ⟩
+                  namesʳ Γ        ⊆⟨ ∈namesʳ-resp-≈ _ {Γ}{cfg (R .end)} (↭-sym $ proj₂ R≈) ⟩
+                  namesʳ (R .end) ⊆⟨ namesʳ⦅end⦆⊆ R ⟩
+                  namesʳ R        ∎ where open ⊆-Reasoning Secret
 
       xs↦ : xs ↦ TxInput′
       xs↦ = txout′ ∘ xs⊆
@@ -745,10 +830,10 @@ module _ (𝕣 : ℝ R) (t : Time) (α : Label) (t′ : Time) where
       κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
       κ↝ κ′ = weaken-↦ κ′ (∈-collect-++⁺ʳ Δ Γ₀)
 
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝ public
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝ public
 
-  module _ Γ (cfg≈ : R ≈⋯ Γ at t) where
+  module _ Γ (R≈ : R ≈⋯ Γ at t) where
     private
       Γ′ = Γ
     module H₁₈ (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      open Lift 𝕣 t α t′ Γ cfg≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
+      open Lift 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id public
