@@ -194,6 +194,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (record {names-⊆ = names⊆; names-put
     infix 0 _&_&_&_&_&_&_&_&_&_&_
     record State (c : ℂ) : Set where
       constructor _&_&_&_&_&_&_&_&_&_&_
+      pattern
       field
         T,o  : TxInput
         curV : Value

@@ -1,3 +1,5 @@
+-- {-# OPTIONS -v eta:100 #-}
+{-# OPTIONS --auto-inline #-}
 open import Prelude.Init hiding (T)
 open L.Mem
 open import Prelude.Lists
@@ -40,14 +42,14 @@ open import SecureCompilation.Compiler Participant Honest η
 
 private
   variable
-    ⟨G⟩C ⟨G⟩C′ ⟨G⟩C″ : Advertisement
+    ⟨G⟩C ⟨G⟩C′ ⟨G⟩C″ : Ad
     T T′ : ∃Tx
 
     𝕣  : ℝ Rˢ
     ∃𝕣 ∃𝕣′ : ∃ ℝ
 
 postulate
-  encode : Txout Rˢ → Advertisement → Message
+  encode : Txout Rˢ → Ad → Message
   -- ^ encode {G}C as a bitstring, representing each x in it as txout(x)
 
   SIGᵖ : ∀ {A : Set} → ℤ {- public key -} → A → ℤ
@@ -68,12 +70,11 @@ _⊆⦅ᵖnamesᶜ⦆_ : Precondition → Cfg → Set
 _⊆⦅ᵖnamesᶜ⦆_ = _⊆⦅ names ⦆_
 
 -- [Bug]
-_∈⦅ads⦆_ : Advertisement → Cfg → Set
+_∈⦅ads⦆_ : Ad → Cfg → Set
 ad ∈⦅ads⦆ Γ = ad ∈ authorizedHonAds Γ
 
 -- [BUG] See issue #5464
 _≈ᶜ_ = _≈_ ⦃ IS-Cfg ⦄
-
 
 -- ** Types and notation.
 
@@ -164,10 +165,10 @@ data coher₁ where
     → coher₁₂ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
     → coher₁  Rˢ 𝕒 Rᶜ λᶜ 𝕣′
 
-data coher₁₁ where
 
+data coher₁₁ where
   -- ** Advertising a contract
-  [1] :
+  [1] : ∀ {⟨G⟩C : Ad} {𝕣 : ℝ Rˢ} → -- [BUG] cannot use generalised variable ⟨G⟩C
       let
         open ℝ 𝕣
         ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G
@@ -179,13 +180,15 @@ data coher₁₁ where
         Γ′  = ` ⟨G⟩C ∣ Γ
         t′  = t
         Γₜ′ = Γ′ at t′
+
+        C  = encode {Rˢ} txout′ ⟨G⟩C
+        λᶜ = A →∗∶ C
       in
-        (∃Γ≈ : ∃ (_≈ᶜ Γ′))
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′))
       -- Hypotheses from [C-Advertise]
-      → (vad : Valid ⟨G⟩C)
-      → (hon : Any (_∈ Hon) (participants G))
-      → (d⊆  : deposits ⟨G⟩C ⊆ deposits Γ)
-      →
+      (vad : Valid ⟨G⟩C)
+      (hon : Any (_∈ Hon) partG)
+      (d⊆  : ⟨G⟩C ⊆⦅ deposits ⦆ Γ) →
       let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] ([C-Advertise] vad hon d⊆) refl
@@ -195,24 +198,32 @@ data coher₁₁ where
       in
       --——————————————————————————————————————————————————————————————————————
       coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
-      -- coher₁₁⦅ Rˢ —[ 𝕒 ]→ 𝕣′ , Rᶜ ∷ʳ λᶜ ⦆
+      -- coher₁₁⦅ Rˢ —[ 𝕒 ]→ 𝕣′ ∣ Rᶜ ∷ʳ λᶜ ⦆
       -- pattern coher₁₁⦅_—[_]→_∣_∷⟩_⦆ Rˢ 𝕒 𝕣 Rᶜ λᶜ = coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣
 
   -- ** Stipulation: committing secrets
-  [2] : ∀ {Rˢ} {𝕣 : ℝ Rˢ} → let open ℝ 𝕣 in
-      ∀ {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)}
+  [2] : ∀ {Rˢ : S.Run} {𝕣 : ℝ Rˢ} {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)}
         -- [BUG] doesnt work with t/Γ₀/⟨G⟩C as generalized variables
-        {t Γ₀ ⟨G⟩C} {k⃗ : 𝕂²′ ⟨G⟩C} → let ⟨ G ⟩ C = ⟨G⟩C; Γ = ` ⟨G⟩C ∣ Γ₀; Γₜ = Γ at t in
-
-      (R≈ : Rˢ ≈⋯ Γₜ)
-    → let
+        {t Γ₀} {⟨G⟩C : Ad} {k⃗ : 𝕂²′ ⟨G⟩C} →
+      let
+        open ℝ 𝕣
+        ⟨ G ⟩ C = ⟨G⟩C
+        Γ = ` ⟨G⟩C ∣ Γ₀
+        Γₜ = Γ at t
+      in
+      (R≈ : Rˢ ≈⋯ Γₜ) →
+      let
         C : Message
-        C = encode {Rˢ = Rˢ} txout′ ⟨G⟩C
+        C = encode {Rˢ} txout′ ⟨G⟩C
 
         Δ : List (Secret × Maybe ℕ)
         Δ = map (λ{ (s , mn , _) → s , mn }) Δ×h̅
 
-        (as , ms) = unzip Δ
+        -- [BUG] leads to internal error
+        -- (unsolved meta after serialization, c.f. issue #5584)
+        -- (as , ms) = unzip Δ
+        as = proj₁ $ unzip Δ
+        ms = proj₂ $ unzip Δ
 
         Δᶜ : Cfg
         Δᶜ = || map (uncurry ⟨ A ∶_♯_⟩) Δ
@@ -276,7 +287,7 @@ data coher₁₁ where
     → coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
 
   -- ** Stipulation: authorizing deposits
-  [3] : ∀ {⟨G⟩C : Advertisement} → let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants ⦃ HPᵖ ⦄ G in
+  [3] : ∀ {⟨G⟩C : Ad} → let ⟨ G ⟩ C = ⟨G⟩C ; partG = G ∙partG in
         ∀ {t A Γ₀} → let Γ = ` ⟨G⟩C ∣ Γ₀; Γₜ = Γ at t in
         (R≈ : Rˢ ≈⋯ Γₜ)
 
@@ -325,11 +336,11 @@ data coher₁₁ where
     → coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
 
   -- ** Stipulation: activating the contract
-  [4] : ∀ {t Γ₀} {ad : Advertisement}
+  [4] : ∀ {t Γ₀} {ad : Ad}
     → let
         ⟨ G ⟩ C = ad
         toSpend = persistentDeposits G
-        partG   = nub-participants G
+        partG   = G ∙partG
         v       = sum $ map (proj₁ ∘ proj₂) toSpend
 
         Γ = ` ad ∣ Γ₀
@@ -375,10 +386,9 @@ data coher₁₁ where
       coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
 
 {-
-
   -- ** Contract actions: authorize control
   [5] : let open ℝ 𝕣 in
-      ∀ {⟨G⟩C : Advertisement} → let ⟨ G ⟩ C = ⟨G⟩C; partG = nub-participants G in
+      ∀ {⟨G⟩C : Ad} → let ⟨ G ⟩ C = ⟨G⟩C; partG = G ∙partG in
       ∀ {v x Γ₀ t c′} {i : Index c′} → let d = c′ ‼ i; d∗ = removeTopDecorations d in
       let Γ = ⟨ c′ , v ⟩at x ∣ Γ₀; Γₜ = Γ at t in
 
@@ -453,7 +463,7 @@ data coher₁₁ where
     → coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
 
   -- ** Contract actions: put
-  [6] : ∀ {⟨G⟩C″ : Advertisement} {vad : Valid ⟨G⟩C″} → let ⟨ G ⟩ C″ = ⟨G⟩C″; partG = nub-participants G in
+  [6] : ∀ {⟨G⟩C″ : Ad} {vad : Valid ⟨G⟩C″} → let ⟨ G ⟩ C″ = ⟨G⟩C″; partG = G ∙partG in
         -- [T0D0] should we *derive* that ⟨G⟩C is valid??
         ∀ {ds : List (Participant × S.Value × Id)} {ss : List (Participant × Secret × ℕ)}
           {i : Index c} → let d = c ‼ i; d∗ = removeTopDecorations d; As , ts = decorations d in
@@ -601,7 +611,7 @@ data coher₁₁ where
     → coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
 
   -- ** Contract actions: split
-  [8] : ∀ {⟨G⟩C′ : Advertisement} {vad : Valid ⟨G⟩C′} → let ⟨ G ⟩ C′ = ⟨G⟩C′; partG = nub-participants G in
+  [8] : ∀ {⟨G⟩C′ : Ad} {vad : Valid ⟨G⟩C′} → let ⟨ G ⟩ C′ = ⟨G⟩C′; partG = G ∙partG in
         ∀ {i : Index c} → let d = c ‼ i; d∗ = removeTopDecorations d; As , ts = decorations d in
         ∀ {vcis : List (S.Value × Contracts × Id)} → let vs , cs , xs = unzip₃ vcis; v = sum vs in
         ∀ {t} → let Γ = ⟨ c , v ⟩at y ∣ Γ₀; Γₜ = Γ at t in
@@ -696,7 +706,7 @@ data coher₁₁ where
       coher₁₁ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
 
   -- ** Contract actions: withdraw
-  [9] : ∀ {⟨G⟩C′ : Advertisement} {vad : Valid ⟨G⟩C′} → let ⟨ G ⟩ C′ = ⟨G⟩C′; partG = nub-participants G in
+  [9] : ∀ {⟨G⟩C′ : Ad} {vad : Valid ⟨G⟩C′} → let ⟨ G ⟩ C′ = ⟨G⟩C′; partG = G ∙partG in
         ∀ {i : Index c} → let d = c ‼ i; d∗ = removeTopDecorations d; As , ts = decorations d in
         let Γ = ⟨ c , v ⟩at y ∣ Γ₀; Γₜ = Γ at t in
 
@@ -1024,7 +1034,7 @@ data coher₁₁ where
 -}
 
 data coher₁₂ where
-
+{-
   -- ** Deposits: authorize destroy
   [16] : ∀ {ds : List (Participant × S.Value × Id)} {j : Index ds} {xs : Ids}
 
@@ -1115,7 +1125,7 @@ data coher₁₂ where
          → ¬ coher₁₁ Rˢ 𝕒′ Rᶜ λᶜ 𝕣′)
       --——————————————————————————————————————————————————————————————————————
     → coher₁₂ Rˢ 𝕒 Rᶜ λᶜ 𝕣′
-
+-}
 
 data coher₂ Rˢ txout where
 
