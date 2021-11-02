@@ -1,6 +1,28 @@
 module SymbolicModel.Ancestor where
 
 {-
+
+-- ** ancestor advertisement of an active contract
+
+Ancestor : Run → ActiveContract → Advertisement → Set
+Ancestor R (c , v , x) ad
+  = (c ⊆ subtermsᶜ′ (C ad))
+  × (ad ∈ advertisements R)
+  × Any ((` ad) ∈ᶜ_) Rᶜ
+  × Any (⟨ c , v ⟩at x ∈ᶜ_) Rᶜ
+  where Rᶜ = allCfgs R
+
+Ancestor⇒∈ : Ancestor R (c , v , x) ad → c ⊆ subtermsᶜ′ (C ad)
+Ancestor⇒∈ = proj₁
+
+Ancestor→𝕂 : Ancestor R (c , v , x) ad → ad ∈ advertisements R
+Ancestor→𝕂 = proj₁ ∘ proj₂
+
+-- T0D0: replace with SymbolicModel.Ancestor, with proper provenance
+
+-}
+
+{-
 Ancestor : Run → ActiveContract → Advertisement → Set
 Ancestor R (c , v , x) ad
   = (c ⊆ subtermsᶜ′ (C ad))

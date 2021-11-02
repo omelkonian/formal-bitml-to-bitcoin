@@ -139,40 +139,45 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (record {names-⊆ = names⊆; names-put
                              let bi = var (raise ς i)
                              in (hash bi `= ` (sechash₀ (as⊆ a∈))) `∧ (` (+ η) `< Script.∣ bi ∣)))
                         )
+      where
+        m : ℕ
+        m = length as
+
+        p⊆ : putComponents D ⊆ putComponents C₀
+        p⊆ = subterms′-putComponents⊆ᶜˢ {ds = C₀} D∈
+
+        n⊆ : names D ⊆ names C₀
+        n⊆ = subterms′-names⊆ᶜˢ {d = D} {ds = C₀} D∈
+
+        put∈ : (zs , as , p) ∈ putComponents D
+        put∈ rewrite remove-putComponents {D} | eq = here refl
+
+        p⊆as : secrets p ⊆ as
+        p⊆as = proj₂ (lookup putComponents⊆ (p⊆ put∈))
+
+        as⊆ : as ⊆ namesˡ G₀
+        as⊆ = (λ x → ∈-mapMaybe⁺ isInj₁ x refl) ∘ names⊆ ∘ n⊆ ∘ as⊆′ ∘ ∈-map⁺ inj₁
           where
-            m : ℕ
-            m = length as
+            as⊆′ : map inj₁ as ⊆ names D
+            as⊆′ rewrite remove-names {D} | eq = ∈-++⁺ʳ (map inj₂ zs) ∘ ∈-++⁺ˡ
 
-            p⊆ : putComponents D ⊆ putComponents C₀
-            p⊆ = subterms′-putComponents⊆ᶜˢ {ds = C₀} D∈
+        Bᵃʳ : (e : Arith) → secrets e ⊆ as → Script (Ctx (ς + m)) `ℤ
+        Bᵃʳ (Arith.` x)    _   = ` x
+        Bᵃʳ (Arith.∣ s ∣)  ⊆as = Script.∣ var (raise ς (L.Any.index (⊆as (here refl)))) ∣ `- ` (+ η)
+        Bᵃʳ (x Arith.`+ y) ⊆as = Bᵃʳ x (⊆as ∘ ∈-mapMaybe-++⁺ˡ isInj₁ {names x} {names y})
+                              `+ Bᵃʳ y (⊆as ∘ ∈-mapMaybe-++⁺ʳ isInj₁ (names x) {names y})
+        Bᵃʳ (x Arith.`- y) ⊆as = Bᵃʳ x (⊆as ∘ ∈-mapMaybe-++⁺ˡ isInj₁ {names x} {names y})
+                              `- Bᵃʳ y (⊆as ∘ ∈-mapMaybe-++⁺ʳ isInj₁ (names x) {names y})
 
-            n⊆ : names D ⊆ names C₀
-            n⊆ = subterms′-names⊆ᶜˢ {d = D} {ds = C₀} D∈
-
-            put∈ : (zs , as , p) ∈ putComponents D
-            put∈ rewrite remove-putComponents {D} | eq = here refl
-
-            p⊆as : secrets p ⊆ as
-            p⊆as = proj₂ (lookup putComponents⊆ (p⊆ put∈))
-
-            as⊆ : as ⊆ namesˡ G₀
-            as⊆ = (λ x → ∈-mapMaybe⁺ isInj₁ x refl) ∘ names⊆ ∘ n⊆ ∘ as⊆′ ∘ ∈-map⁺ inj₁
-              where
-                as⊆′ : map inj₁ as ⊆ names D
-                as⊆′ rewrite remove-names {D} | eq = ∈-++⁺ʳ (map inj₂ zs) ∘ ∈-++⁺ˡ
-
-            Bᵃʳ : (e : Arith) → secrets e ⊆ as → Script (Ctx (ς + m)) `ℤ
-            Bᵃʳ (Arith.` x)    _   = ` x
-            Bᵃʳ (Arith.∣ s ∣)  ⊆as = Script.∣ var (raise ς (L.Any.index (⊆as (here refl)))) ∣ `- ` (+ η)
-            Bᵃʳ (x Arith.`+ y) ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `+ Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
-            Bᵃʳ (x Arith.`- y) ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `- Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
-
-            Bᵖʳ : (e : Predicate) → secrets e ⊆ as → Script (Ctx (ς + m)) `Bool
-            Bᵖʳ Predicate.`true     _   = `true
-            Bᵖʳ (p Predicate.`∧ p′) ⊆as = Bᵖʳ p (⊆as ∘ ∈-++⁺ˡ) `∧ Bᵖʳ p′ (⊆as ∘ ∈-++⁺ʳ _)
-            Bᵖʳ (Predicate.`¬ p)    ⊆as = `not (Bᵖʳ p ⊆as)
-            Bᵖʳ (x Predicate.`= y)  ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `= Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
-            Bᵖʳ (x Predicate.`< y)  ⊆as = Bᵃʳ x (⊆as ∘ ∈-++⁺ˡ) `< Bᵃʳ y (⊆as ∘ ∈-++⁺ʳ _)
+        Bᵖʳ : (e : Predicate) → secrets e ⊆ as → Script (Ctx (ς + m)) `Bool
+        Bᵖʳ Predicate.`true    _   = `true
+        Bᵖʳ (p Predicate.`∧ q) ⊆as = Bᵖʳ p (⊆as ∘ ∈-mapMaybe-++⁺ˡ isInj₁ {names p} {names q})
+                                  `∧ Bᵖʳ q (⊆as ∘ ∈-mapMaybe-++⁺ʳ isInj₁ (names p) {names q})
+        Bᵖʳ (Predicate.`¬ p)   ⊆as = `not (Bᵖʳ p ⊆as)
+        Bᵖʳ (x Predicate.`= y) ⊆as = Bᵃʳ x (⊆as ∘ ∈-mapMaybe-++⁺ˡ isInj₁ {names x} {names y})
+                                  `= Bᵃʳ y (⊆as ∘ ∈-mapMaybe-++⁺ʳ isInj₁ (names x) {names y})
+        Bᵖʳ (x Predicate.`< y) ⊆as = Bᵃʳ x (⊆as ∘ ∈-mapMaybe-++⁺ˡ isInj₁ {names x} {names y})
+                                  `< Bᵃʳ y (⊆as ∘ ∈-mapMaybe-++⁺ʳ isInj₁ (names x) {names y})
     ... | _ | _
         = Ctx ς , versig (mapWith∈ partG (K² D∈)) (allFin ς)
 

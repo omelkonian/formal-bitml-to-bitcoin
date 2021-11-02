@@ -29,56 +29,12 @@ open import SymbolicModel.Run Participant Honest
 private variable X : Set
 
 instance
-  HAʳ : Run has Advertisement
-  HAʳ .collect = concatMap authorizedHonAds ∘ allCfgs
-
-  HNʳ : Run has Name
-  -- HNʳ .collect = mkCollectʳ
-  -- HNʳ .collect = collect ∘ end
-  HNʳ .collect = concatMap collect ∘ allCfgs
-
-  HSʳ : Run has Secret
-  HSʳ .collect = filter₂ ∘ collect {B = Name}
-
-  HL↠ : (Γ —[ αs ]↠ Γ′) has Label
-  HL↠ {αs = αs} .collect _ = αs
-
-  HL↠′ : (Γ —↠ Γ′) has Label
-  HL↠′ .collect = proj₁
-
-  HL↠ₜ : (Γₜ —[ αs ]↠ₜ Γₜ′) has Label
-  HL↠ₜ {αs = αs} .collect _ = αs
-
-  HL↠ₜ′ : (Γₜ —↠ₜ Γₜ′) has Label
-  HL↠ₜ′ .collect = proj₁
-
-  HLʳ : Run has Label
-  HLʳ .collect = collect ∘ trace
-
-labels : ⦃ X has Label ⦄ → X → Labels
-labels = collect
+  HXʳ : ⦃ ∀ {Γₜ Γₜ′} → (Γₜ —↠ₜ Γₜ′) has X ⦄ → Run has X
+  HXʳ ⦃ h ⦄ .collect = collect ⦃ h ⦄ ∘ trace
 
 -- [BUG] instantiated `advertisements ⦃ HAʳ ⦄`, to aid Agda's type inference
 authorizedHonAdsʳ : Run → List Advertisement
 authorizedHonAdsʳ = collect
-
--- ** ancestor advertisement of an active contract
-
-Ancestor : Run → ActiveContract → Advertisement → Set
-Ancestor R (c , v , x) ad
-  = (c ⊆ subtermsᶜ′ (C ad))
-  × (ad ∈ advertisements R)
-  × Any ((` ad) ∈ᶜ_) Rᶜ
-  × Any (⟨ c , v ⟩at x ∈ᶜ_) Rᶜ
-  where Rᶜ = allCfgs R
-
-Ancestor⇒∈ : Ancestor R (c , v , x) ad → c ⊆ subtermsᶜ′ (C ad)
-Ancestor⇒∈ = proj₁
-
-Ancestor→𝕂 : Ancestor R (c , v , x) ad → ad ∈ advertisements R
-Ancestor→𝕂 = proj₁ ∘ proj₂
-
--- T0D0: replace with SymbolicModel.Ancestor, with proper provenance
 
 ads⦅end⦆⊆ : ∀ R → advertisements (R .end) ⊆ advertisements R
 ads⦅end⦆⊆ R
@@ -211,6 +167,9 @@ record ℝ (R : Run) : Set where
     sechash′ : Sechash R
     κ′       : 𝕂² R
 
+𝔾 : Ad → Set
+𝔾 ad = Valid ad × Txout (ad .G) × Sechash (ad .G) × 𝕂²′ ad
+
 Txout≈ : _≈_ ⇒² _→⦅ Txout ⦆_
 Txout≈ {Γ}{Γ′} = permute-↦ {P = const TxInput′} ∘ ≈⇒namesʳ↭ {Γ}{Γ′}
 
@@ -250,9 +209,31 @@ Txout∈ txout Γ∈ = txout ∘ mapMaybe-⊆ isInj₂ (⊆-concatMap⁺ (L.Mem.
 Sechash∈ : Sechash R → Γ ∈ allCfgs R → Sechash Γ
 Sechash∈ sechash Γ∈ = sechash ∘ mapMaybe-⊆ isInj₁ (⊆-concatMap⁺ (L.Mem.∈-map⁺ collect Γ∈))
 
-ℍ[C-Advertise]⇒TxoutG : ℍ[C-Advertise]⦅ Γ ↝ Γ′ ⦆ ad → Txout Γ → Txout (ad .G)
-ℍ[C-Advertise]⇒TxoutG {Γ = Γ} {ad = ad} (_ , _ , _ , d⊆) txout =
-  weaken-↦ txout (deposits⊆⇒namesʳ⊆ {ad}{Γ} d⊆)
+ℝ⊆ : (xy∈ : (Γₜ , Γₜ′) ⋯∈ᵗ R) → ℝ R → ℝ (splitRunˡ R xy∈)
+ℝ⊆ {R = R} xy∈ᵗ 𝕣 =
+  let
+    open ℝ 𝕣
+    tr  = R ∙trace′
+    R′  = splitRunˡ R xy∈ᵗ
+    tr′ = R′ ∙trace′
+    tr⊆ = ⊆ˢ-splitTraceˡ tr xy∈ᵗ
+
+    Txout⊆ : R →⦅ Txout ⦆ R′
+    Txout⊆ txoutR = txoutR ∘ mapMaybe-⊆ isInj₂ (⊆ˢ⇒names⊆ tr′ tr tr⊆)
+
+    Sechash⊆ : R →⦅ Sechash ⦆ R′
+    Sechash⊆ sechashR = sechashR ∘ mapMaybe-⊆ isInj₁ (⊆ˢ⇒names⊆ tr′ tr tr⊆)
+
+    𝕂⊆ : R →⦅ 𝕂² ⦆ R′
+    𝕂⊆ κ = κ ∘ (⊆ˢ⇒ads⊆ tr′ tr tr⊆)
+  in
+    [txout:   Txout⊆ txout′
+    ∣sechash: Sechash⊆ sechash′
+    ∣κ:       𝕂⊆ κ′
+    ]
+
+ℍ[C-Advertise]⇒TxoutG : ℍ[C-Advertise]⦅ Γ ↝ Γ′ ⦆⦅ ad ⦆ → Txout Γ → Txout (ad .G)
+ℍ[C-Advertise]⇒TxoutG {Γ = Γ} {ad = ad} (_ , _ , _ , d⊆) txout = weaken-↦ txout (deposits⊆⇒namesʳ⊆ {ad}{Γ} d⊆)
 
 committed⇒ℍ[C-AuthCommit]∗ :
     R ≈⋯ Γ₀ at t
@@ -260,14 +241,37 @@ committed⇒ℍ[C-AuthCommit]∗ :
   → Sechash R
   → (∀ {p} → p ∈ nub-participants ad →
       ∃ λ Γ → ∃ λ Γ′ → ∃ λ secrets →
-          ℍ[C-AuthCommit]⦅ Γ ↝ Γ′ ⦆ ad p secrets
+          ℍ[C-AuthCommit]⦅ Γ ↝ Γ′ ⦆⦅ ad , p , secrets ⦆
         × Sechash Γ′)
 committed⇒ℍ[C-AuthCommit]∗ {R}{Γ₀}{t}{ad} R≈ committedA sechash′ {p} p∈ =
   let
     authCommit∈′ : p auth[ ♯▷ ad ] ∈ᶜ Γ₀
     authCommit∈′ = committed⇒authCommit {Γ = Γ₀} $ committedA p∈
 
-    Δ , x , x′ , y , y′ , _ , y∈ , (_ , y≈) , ℍ = auth-commit∈≈⇒ℍ {R}{Γ₀} R≈ authCommit∈′
+    Δ , x , x′ , y , y′ , xy∈ , (_ , y≈) , ℍ = auth-commit∈≈⇒ℍ {R}{Γ₀} R≈ authCommit∈′
+    _ , y∈ = ∈-allTransitions⁻ (R .trace .proj₂) xy∈
+
+    sechash-y : Sechash y′
+    sechash-y = Sechash≈ {x = y}{y′} y≈
+              $ Sechash∈ {R = R} sechash′ y∈
+  in
+    x′ , y′ , Δ , ℍ , sechash-y
+
+committed⇒ℍ[C-AuthCommit]∗′ :
+    (Γ₀ , Γ₀′) ⋯∈ R
+  → nub-participants ad ⊆ committedParticipants ad Γ₀
+  → Sechash R
+  → (∀ {p} → p ∈ nub-participants ad →
+      ∃ λ Γ → ∃ λ Γ′ → ∃ λ secrets →
+          ℍ[C-AuthCommit]⦅ Γ ↝ Γ′ ⦆⦅ ad , p , secrets ⦆
+        × Sechash Γ′)
+committed⇒ℍ[C-AuthCommit]∗′ {Γ₀}{_}{R}{ad} xy∈ committedA sechash′ {p} p∈ =
+  let
+    authCommit∈′ : p auth[ ♯▷ ad ] ∈ᶜ Γ₀
+    authCommit∈′ = committed⇒authCommit {Γ = Γ₀} $ committedA p∈
+
+    Δ , x , x′ , y , y′ , xy∈ , (_ , y≈) , ℍ = auth-commit∈≈⇒ℍ′ {Γ₀}{_}{R} xy∈ authCommit∈′
+    _ , y∈ = ∈-allTransitions⁻ (R .trace .proj₂) xy∈
 
     sechash-y : Sechash y′
     sechash-y = Sechash≈ {x = y}{y′} y≈
@@ -278,7 +282,7 @@ committed⇒ℍ[C-AuthCommit]∗ {R}{Γ₀}{t}{ad} R≈ committedA sechash′ {p
 ℍ[C-AuthCommit]∗⇒SechashG :
     (∀ {p} → p ∈ nub-participants ad →
       ∃ λ Γ → ∃ λ Γ′ → ∃ λ secrets →
-          ℍ[C-AuthCommit]⦅ Γ ↝ Γ′ ⦆ ad p secrets
+          ℍ[C-AuthCommit]⦅ Γ ↝ Γ′ ⦆⦅ ad , p , secrets ⦆
         × Sechash Γ′)
   → Sechash (ad .G)
 ℍ[C-AuthCommit]∗⇒SechashG {ad} ∀p {s} s∈ =
