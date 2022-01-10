@@ -8,6 +8,7 @@ open import Prelude.Membership
 open import Prelude.DecEq
 open import Prelude.Bifunctor
 open import Prelude.Ord
+open import Prelude.Validity
 
 open import Bitcoin
 
@@ -26,7 +27,7 @@ Hon = L.NE.toList Honest
 allParticipants : List Participant
 allParticipants = finList finPart
 
-open import ComputationalModel.KeyPairs Participant keypairs public
+open import ComputationalModel.KeyPairs Participant keypairs
 
 -- Computational runs.
 
@@ -95,8 +96,9 @@ Initial : Run → Set
 Initial R = ∃[ T₀ ] (Coinbase T₀ × (R ≡ (submit T₀ ∷ initialBroadcasts)))
 
 -- A run is valid, when it has an initial run as a prefix.
-Valid : Run → Set
-Valid R = ∃[ R₀ ] (Initial R₀ × Prefix _≡_ R₀ R)
+instance
+  Valid-Run : Validable Run
+  Valid-Run .Valid R = ∃[ R₀ ] (Initial R₀ × Prefix _≡_ R₀ R)
 
 oracleMessages : Run → Labels
 oracleMessages = mapMaybe go
@@ -144,44 +146,43 @@ R ▷ʳ ∃tx =
   × V.All.All (λ w → ∃[ B ] (B →∗∶ V.toList (proj₂ w) ∈ R)) (wit tx)
 
 record ParticipantStrategy (A : Participant) : Set where
-  field
-    Σ : Run → Labels
-
-    valid : -- participant is honest
-            A ∈ Hon
-            -- only valid computational labels
-          × (∀ {R α} → let R∗ = strip A R in
-               α ∈ Σ R∗
-             → ( -- (1) message from A
-                 ∃[ m ]
-                   ( (α ≡ A →∗∶ m)
-                   ⊎ (α ≡ A →O∶ m) )
-                 -- (2) new transaction
-               ⊎ ∃[ tx ]
-                    ( (α ≡ submit tx)
-                    × (R∗ ▷ʳ tx) )
-                 -- (3) delay
-               ⊎ ∃[ δ ] (α ≡ delay δ)
-               )
-            )
-            -- persistence
-          × (∀ {R α}
-             → let
-                 R∗ = strip A R
-                 Λ  = Σ R∗
-                 R′ = α ∷ R∗
-                 Λ′ = Σ R′
-               in
-               α ∈ Λ
-             → ConsistentBlockchain (𝔹 R′)
-             → (∀ {α′} → α′ ∈ Λ → α′ ≢ α → α′ ∈ Λ′)
-             -- → (∀ {tx} → submit tx ∈ Λ → 𝔹 R′ → submit tx ∈ Λ′)
-             -- × (∀ {m} → (A →∗∶ m) ∈ Λ → (A →∗∶ m) ≢ α → (A →∗∶ m) ∈ Λ′)
-             -- × (∀ {m} → (A →O∶ m) ∈ Λ → (A →O∶ m) ≢ α → (A →O∶ m) ∈ Λ′)
-            )
-
+  field Σ : Run → Labels
 open ParticipantStrategy public
 
+instance
+  Valid-Strategy : ∀ {A} → Validable (ParticipantStrategy A)
+  Valid-Strategy {A = A} .Valid (record {Σ = Σ}) =
+      -- participant is honest
+      A ∈ Hon
+      -- only valid computational labels
+    × (∀ {R α} → let R∗ = strip A R in
+          α ∈ Σ R∗
+        → ( -- (1) message from A
+            ∃[ m ]
+              ( (α ≡ A →∗∶ m)
+              ⊎ (α ≡ A →O∶ m) )
+            -- (2) new transaction
+          ⊎ ∃[ tx ]
+              ( (α ≡ submit tx)
+              × (R∗ ▷ʳ tx) )
+            -- (3) delay
+          ⊎ ∃[ δ ] (α ≡ delay δ)
+          ))
+      -- persistence
+    × (∀ {R α}
+        → let
+            R∗ = strip A R
+            Λ  = Σ R∗
+            R′ = α ∷ R∗
+            Λ′ = Σ R′
+          in
+          α ∈ Λ
+        → ConsistentBlockchain (𝔹 R′)
+        → (∀ {α′} → α′ ∈ Λ → α′ ≢ α → α′ ∈ Λ′)
+        -- → (∀ {tx} → submit tx ∈ Λ → 𝔹 R′ → submit tx ∈ Λ′)
+        -- × (∀ {m} → (A →∗∶ m) ∈ Λ → (A →∗∶ m) ≢ α → (A →∗∶ m) ∈ Λ′)
+        -- × (∀ {m} → (A →O∶ m) ∈ Λ → (A →O∶ m) ≢ α → (A →O∶ m) ∈ Λ′)
+      )
 
 HonestStrategies : Set
 HonestStrategies = ∀ {A} → A ∈ Hon → ParticipantStrategy A

@@ -9,5 +9,7 @@ module SymbolicModel
 
 open import SymbolicModel.Run Participant Honest public
 open import SymbolicModel.Collections Participant Honest public
--- open import SymbolicModel.Stripping Participant Honest public
 open import SymbolicModel.Helpers Participant Honest public
+
+open import SymbolicModel.Strategy Participant Honest public
+-- open import SymbolicModel.Stripping Participant Honest public

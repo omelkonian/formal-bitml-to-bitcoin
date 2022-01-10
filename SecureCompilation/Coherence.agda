@@ -31,10 +31,9 @@ module SecureCompilation.Coherence
 open import SymbolicModel Participant Honest as S
   hiding (_∎; begin_; d)
 
-open import ComputationalModel.Strategy Participant Honest finPart keypairs as C
-  hiding (Hon; Initial; Valid; Σ)
-open import Bitcoin as C
-  hiding (t; t′; `; ∣_∣; n)
+open import ComputationalModel Participant Honest finPart keypairs as C
+  hiding (Hon; Initial; Σ
+         ; t; t′; `; ∣_∣; n)
 
 open import SecureCompilation.Compiler Participant Honest η
 

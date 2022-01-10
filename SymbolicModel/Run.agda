@@ -21,6 +21,7 @@ module SymbolicModel.Run
   (Honest : List⁺ Participant)
   where
 
+-- re-export all BitML definitions
 open import BitML Participant Honest public
   hiding (∣_∣; `; _∙)
 

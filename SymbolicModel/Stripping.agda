@@ -1,3 +1,4 @@
+{-# OPTIONS --allow-unsolved-metas #-}
 ------------------------------------------------------------------------
 -- Stripping sensitive information from runs (as well as other elements).
 ------------------------------------------------------------------------
@@ -19,19 +20,9 @@ module SymbolicModel.Stripping
 
 open import SymbolicModel.Run Participant Honest
 
-mapRun : (TimedConfiguration → TimedConfiguration) → (Label → Label) → (Run → Run)
-mapRun f _ (tc ∙)        = f tc ∙
-mapRun f g (tc ∷⟦ α ⟧ s) = f tc ∷⟦ g α ⟧ mapRun f g s
-
-prefixRuns : Run → List Run
-prefixRuns (tc ∙)        = [ tc ∙ ]
-prefixRuns (tc ∷⟦ α ⟧ R) = let rs = prefixRuns R in rs ++ map (tc ∷⟦ α ⟧_) rs
-
-
 record Strippable (A : Set) : Set where
-  field
-    _∗ : A → A
-open Strippable ⦃ ... ⦄ public
+  field _∗ : A → A
+open Strippable ⦃...⦄ public
 
 instance
   ∗ᶜ : Strippable Configuration
@@ -50,6 +41,20 @@ instance
 
   ∗ʳ : Strippable Run
   ∗ʳ ._∗ = mapRun _∗ _∗
+    where
+        mapRun : (TimedConfiguration → TimedConfiguration) → (Label → Label) → (Run → Run)
+        mapRun f g record { start = s ; end = .s ; trace = (.`∅ᶜ , (.s ∎)); init = init }
+          = let s′ = f s in
+            record {start = s′; end = s′; trace = -, (s′ ∎ₜ); init = {!init!}}
+        mapRun f g record { start = start ; end = end ; trace = (.(_ ∷ _) , (.(start) —→⟨ x ⟩ x₁ ⊢ snd)) ; init = init }
+          = {!!}
+        -- mapRun f _ (tc ∎)        = f tc ∎
+        -- mapRun f g (tc ∷⟦ α ⟧ s) = f tc ∷⟦ g α ⟧ mapRun f g s
 
-_∈ʳ_ : Configuration → Run → Set
-_∈ʳ_ c R = c ∈ᶜ cfg (lastCfgᵗ (R ∗))
+prefixRuns : Run → List Run
+prefixRuns record { start = start ; end = end ; trace = trace ; init = init } = {!!}
+-- prefixRuns (tc ∙)        = [ tc ∙ ]
+-- prefixRuns (tc ∷⟦ α ⟧ R) = let rs = prefixRuns R in rs ++ map (tc ∷⟦ α ⟧_) rs
+
+-- _∈ʳ_ : Configuration → Run → Set
+-- _∈ʳ_ c R = c ∈ᶜ cfg (lastCfgᵗ (R ∗))
