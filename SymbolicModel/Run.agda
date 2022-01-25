@@ -3,6 +3,7 @@
 ------------------------------------------------------------------------
 open import Prelude.Init
 open import Prelude.Lists
+open import Prelude.DecLists
 open import Prelude.DecEq
 open import Prelude.Decidable
 open import Prelude.Bifunctor
@@ -111,9 +112,9 @@ _≡⋯_ _≈⋯_ : Run → Cfgᵗ → Set
 R ≡⋯ Γ at t = R .end ≡ Γ at t
 R ≈⋯ Γ at t = R .end ≈ Γ at t
 _≈⋯_⋯ : Run → Cfg → Set
-R ≈⋯ Γ ⋯ = Γ ∈ᶜ cfg (R .end)
+R ≈⋯ Γ ⋯ = Γ ∈ᶜ R .end .cfg
 _≈⋯_⋯_⋯ : Run → Cfg → Cfg → Set
-R ≈⋯ Γ ⋯ Γ′ ⋯ = Γ′ ∈ᶜ cfg (R .end) × ∃ _≈⋯ Γ ⋯
+R ≈⋯ Γ ⋯ Γ′ ⋯ = Γ′ ∈ᶜ R .end .cfg × ∃ _≈⋯ Γ ⋯
 
 splitRunˡ-≈⋯ : (R : Run) (xy∈ : (Γₜ , Γₜ′) ⋯∈ᵗ R) → splitRunˡ R xy∈ ≈⋯ Γₜ
 splitRunˡ-≈⋯ {Γₜ = Γₜ} _ _ = ≈ᵗ-refl {Γₜ}
