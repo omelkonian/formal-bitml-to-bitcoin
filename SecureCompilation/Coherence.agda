@@ -6,6 +6,7 @@ open import Prelude.Lists
 open import Prelude.General
 open import Prelude.DecLists
 open import Prelude.DecEq
+
 open import Prelude.Collections
 open import Prelude.Monoid
 
@@ -64,6 +65,17 @@ v -redeemableWith- k = Ctx 1 , record {value = v;  validator = ƛ (versig [ k ] 
 -- T0D0: redefine Message ≈ ℤ ??
 SIGᵐ : KeyPair → Message → Message
 SIGᵐ k = map (SIG k)
+
+-- Convenient wrapper for calling the BitML compiler.
+COMPILE : 𝔾 ad → ∃Tx¹ × (subtermsᵃ′ ad ↦′ ∃Txᶜ ∘ removeTopDecorations)
+COMPILE {ad = ad} (vad , txout₀ , sechash₀ , κ₀) =
+  let
+    K : 𝕂 (ad .G)
+    K {p} _ = K̂ p
+
+    T , ∀d = bitml-compiler {ad = ad} vad sechash₀ txout₀ K κ₀
+  in
+    T , (∀d ∘ h-subᶜ {ds = ad .C})
 
 -- Convenient extensions of symbolic/computational runs.
 record ℝˢ : Set where
@@ -219,24 +231,18 @@ data _~₁₁_ : ℝˢ → ℝᶜ → Set where
         -- (iv) txout = txout′, sechash = sechash′, κ = κ′
         open H₃ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ A x R≈ Γ→Γ′ ∃Γ≈
 
-        Tᵢₙᵢₜ : ∃Tx
-        Tᵢₙᵢₜ =
-          let -- invoke compiler
-            K : 𝕂 G
-            K {p} _ = K̂ p
-
-            vad , txout₀ , sechash₀ , κ₀ = Liftᶜ committedA
-            ∃tx¹ , _ = bitml-compiler {ad = ⟨G⟩C} vad sechash₀ txout₀ K κ₀
-          in
-            -, -, proj₂ ∃tx¹
+        -- invoke compiler
+        T : ∃Tx
+        T = let (_ , Tᵢₙᵢₜ) , _ = COMPILE (Liftᶜ committedA)
+            in -, -, Tᵢₙᵢₜ
 
         -- (i) broadcast Tᵢₙᵢₜ , signed with A's private key
-        m = [ SIG (K̂ A) Tᵢₙᵢₜ ]
+        m = [ SIG (K̂ A) T ]
         λᶜ = B →∗∶ m
 
       in
       -- (ii) Tᵢₙᵢₜ occurs as a message in Rᶜ
-      (∃ λ B → (B →∗∶ [ Tᵢₙᵢₜ ♯ ]) ∈ Rᶜ)
+      (∃ λ B → (B →∗∶ [ T ♯ ]) ∈ Rᶜ)
 
       -- (iii) broadcast message in Rᶜ
       -- T0D0: make sure that λᶜ is the first occurrence of such a message after Tinit in Rᶜ
@@ -274,22 +280,16 @@ data _~₁₁_ : ℝˢ → ℝᶜ → Set where
 
         open H₄ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ toSpend v z R≈ Γ→Γ′ ∃Γ≈
 
-        Tᵢₙᵢₜ : ∃Tx
-        Tᵢₙᵢₜ =
-          let -- invoke compiler
-            K̂ : 𝕂 G
-            K̂ {p} _ = K̂ p
-
-            vad , txout₀ , sechash₀ , κ₀ = Liftᶜ
-            ∃tx¹ , _ = bitml-compiler {ad = ⟨G⟩C} vad sechash₀ txout₀ K̂ κ₀
-          in
-            -, -, proj₂ ∃tx¹
+        -- invoke compiler
+        T : ∃Tx
+        T = let (_ , Tᵢₙᵢₜ) , _ = COMPILE Liftᶜ
+            in -, -, Tᵢₙᵢₜ
 
         -- (ii) append Tᵢₙᵢₜ to the blockchain
-        λᶜ = submit Tᵢₙᵢₜ
+        λᶜ = submit T
 
         -- (iii) sechash = sechash′, κ = κ′, txout extends txout′ with (z ↦ Tᵢₙᵢₜ)
-        open H₄′ (Tᵢₙᵢₜ at 0F)
+        open H₄′ (T at 0F)
       in
       --——————————————————————————————————————————————————————————————————————
       (Rˢ ⦊ λˢ) ~₁₁ (Rᶜ ⦊ λᶜ)
@@ -329,21 +329,9 @@ data _~₁₁_ : ℝˢ → ℝᶜ → Set where
         A∈ = ∈-nub⁺ $ subterms′-part⊆ᵃ vad d∈ $ auth⊆part {d = d} D≡A:D′
 
         T : ∃Tx
-        T =
-          let -- invoke compiler
-            K̂ : 𝕂 G
-            K̂ {p} _ = K̂ p
-
-            _ , txout₀ , sechash₀ , κ₀ = Liftᶜ anc
-            𝕔 = bitml-compiler vad sechash₀ txout₀ K̂ κ₀
-
-            -- retrieve transaction for specific subterm
-            d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C
-            d∗∈ = h-subᶜ {ds = C} d∈
-
-            ∃tx¹ = (𝕔 .proj₂) d∗∈
-          in
-            -, -, proj₂ ∃tx¹
+        T = let _ , ∀d∗ = COMPILE (Liftᶜ anc)
+                _ , Tᵈ = ∀d∗ d∈
+            in -, -, Tᵈ
 
         λᶜ = B →∗∶ [ SIGᵖ (κ′ ad∈ d∈ {A} A∈ .pub) T ]
       in
@@ -400,33 +388,17 @@ data _~₁₁_ : ℝˢ → ℝᶜ → Set where
         ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = Rˢ} {Γ = Γ} R≈ (here refl)
         ⟨ G ⟩ C″ = ⟨G⟩C″
 
+        d∈ : d ∈ subtermsᵃ′ ⟨G⟩C″
+        d∈ = c⊆ (L.Mem.∈-lookup i)
+
         -- (iv) submit transaction T
         --      where ∙ (T′,o) = txout′(y)
         --            ∙ T is the first transaction in Bc(c′,d,T′,o,v′,x⃗,partG,t)
         --      i.e. the one corresponding to subterm `d∗ = put xs &reveal as if p → c′`
         T : ∃Tx
-        T =
-          let -- invoke compiler
-            K : 𝕂 G
-            K {p} _ = K̂ p
-
-            vad , txout₀ , sechash₀ , κ₀ = Liftᶜ anc
-            𝕔 = bitml-compiler {ad = ⟨G⟩C″} vad sechash₀ txout₀ K κ₀
-
-            -- retrieve transaction for specific subterm
-            d∈ : d ∈ subtermsᵃ′ ⟨G⟩C″
-            d∈ = c⊆ (L.Mem.∈-lookup i)
-
-            d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C″
-            d∗∈ = h-subᶜ {ds = C″} d∈
-
-            ∃tx : ∃Txᶜ d∗
-            ∃tx = (𝕔 .proj₂) d∗∈
-
-            ∃tx¹ : ∃Tx¹
-            ∃tx¹ = ∃tx :~ d≡ ⟪ ∃Txᶜ ⟫
-          in
-            -, -, proj₂ ∃tx¹
+        T = let _ , ∀d∗ = COMPILE (Liftᶜ anc)
+                _ , Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
+            in -, -, Tᵈ
 
         λᶜ = submit T
 
@@ -537,56 +509,38 @@ data _~₁₁_ : ℝˢ → ℝᶜ → Set where
         ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = Rˢ} {Γ = Γ} R≈ (here refl)
         ⟨ G ⟩ C′ = ⟨G⟩C′
 
+        d∈ : d ∈ subtermsᵃ′ ⟨G⟩C′
+        d∈ = c⊆ (L.Mem.∈-lookup i)
+
         -- (iii) submit transaction T
         --       where ∙ (T′,o) = txout′(y)
         --             ∙ T is the first transaction in Bpar(cs,d,T′,o,partG,t)
         --       i.e. the one corresponding to subterm `d∗ = split (zip vs cs)`
-        T : ∃ λ i → Tx i (length xs)
         T =
-          let -- invoke compiler
-            K : 𝕂 G
-            K {p} _ = K̂ p
-
-            vad , txout₀ , sechash₀ , κ₀ = Liftᶜ anc
-            𝕔 = bitml-compiler {ad = ⟨G⟩C′} vad sechash₀ txout₀ K κ₀
-
-            -- retrieve transaction for specific subterm
-            d∈ : d ∈ subtermsᵃ′ ⟨G⟩C′
-            d∈ = c⊆ (L.Mem.∈-lookup i)
-
-            d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C′
-            d∗∈ = h-subᶜ {ds = C′} d∈
-
-
-            ∃tx : ∃Txᶜ d∗
-            ∃tx = (𝕔 .proj₂) d∗∈
-
-            ∃tx′ : ∃[ i ] Tx i (length $ zip vs cs)
-            ∃tx′ = ∃tx :~ d≡ ⟪ ∃Txᶜ ⟫
+          let
+            _ , ∀d∗ = COMPILE (Liftᶜ anc)
+            i , Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
 
             open ≡-Reasoning renaming (_∎ to _∎∎)
             vs≡ , cs≡ , xs≡ = length-unzip₃ vcis
 
             l≡ : length xs ≡ length (zip vs cs)
             l≡ = sym
-                $ begin length (zip vs cs)    ≡⟨ L.length-zipWith _,_ vs cs ⟩
-                        length vs ⊓ length cs ≡⟨ Nat.m≥n⇒m⊓n≡n $ Nat.≤-reflexive $ trans cs≡ (sym vs≡) ⟩
-                        length cs             ≡⟨ cs≡ ⟩
-                        length vcis           ≡⟨ sym xs≡ ⟩
-                        length xs             ∎∎
+               $ begin length (zip vs cs)    ≡⟨ L.length-zipWith _,_ vs cs ⟩
+                       length vs ⊓ length cs ≡⟨ Nat.m≥n⇒m⊓n≡n $ Nat.≤-reflexive $ trans cs≡ (sym vs≡) ⟩
+                       length cs             ≡⟨ cs≡ ⟩
+                       length vcis           ≡⟨ sym xs≡ ⟩
+                       length xs             ∎∎
 
-            ∃tx″ : ∃[ i ] Tx i (length xs)
-            ∃tx″ = ⟪ (λ ◆ → ∃[ i ] Tx i ◆) ⟫ l≡ ~: ∃tx′
-          in
-            ∃tx″
+            Tᵈ′ : Tx i (length xs)
+            Tᵈ′ = ⟪ Tx i ⟫ l≡ ~: Tᵈ
+          in -, -, Tᵈ′
 
-        ∃T = -, -, proj₂ T
-
-        λᶜ = submit ∃T
+        λᶜ = submit T
 
         -- (iv) extend txout′ with {xᵢ ↦ (T,i)}, sechash = sechash′, κ = κ′
         txout⁺ : xs ↦ TxInput′
-        txout⁺ x∈ = ∃T at (L.Any.index x∈)
+        txout⁺ x∈ = T at (L.Any.index x∈)
 
         open H₈′ txout⁺
       in
@@ -622,6 +576,9 @@ data _~₁₁_ : ℝˢ → ℝᶜ → Set where
         ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = Rˢ} {Γ = Γ} R≈ (here refl)
         ⟨ G ⟩ C′ = ⟨G⟩C′
 
+        d∈ : d ∈ subtermsᵃ′ ⟨G⟩C′
+        d∈ = c⊆ (L.Mem.∈-lookup i)
+
         --   ∙ T′ at o = txout′(x)
         --   ∙ T is the first transaction of Bd(d,d,T′,o,v,partG,0)
         -- i.e.
@@ -629,26 +586,9 @@ data _~₁₁_ : ℝˢ → ℝᶜ → Set where
         --       where ∙ (T′,o) = txout′(y)
         --             ∙ T is the first transaction in Bd(d,d,T′,o,v,partG,0)
         --       i.e. the one corresponding to subterm `d∗ = withdraw A`
-        T : ∃Tx
-        T =
-          let -- invoke compiler
-            K : 𝕂 G
-            K {p} _ = K̂ p
-
-            vad , txout₀ , sechash₀ , κ₀ = Liftᶜ anc
-            𝕔 = bitml-compiler {ad = ⟨G⟩C′} vad sechash₀ txout₀ K κ₀
-
-            -- retrieve transaction for specific subterm
-            d∈ : d ∈ subtermsᵃ′ ⟨G⟩C′
-            d∈ = c⊆ (∈-lookup i)
-
-            d∗∈ : d∗ ∈ subtermsᵃ⁺ ⟨G⟩C′
-            d∗∈ = h-subᶜ {ds = C′} d∈
-
-            ∃tx = (𝕔 .proj₂) d∗∈
-            ∃tx¹ = ∃tx :~ d≡ ⟪ ∃Txᶜ ⟫
-          in
-            -, -, proj₂ ∃tx¹
+        T = let _ , ∀d∗ = COMPILE (Liftᶜ anc)
+                _ , Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
+            in -, -, Tᵈ
 
         λᶜ = submit T
 

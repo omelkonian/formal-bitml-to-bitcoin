@@ -454,7 +454,7 @@ module _ (𝕣 : ℝ R) t α t′ where
       abstract
         Liftᶜ : ∀ {ad} → ∃[ R ∋ʳ Ancestor⦅ ad ↝ c ⦆ ] → 𝔾 ad
         Liftᶜ = LIFTᶜ 𝕣
-      module H₆′ (tx : TxInput′) where -- abstract
+      module H₆′ (tx : TxInput′) where
         private
           h₁ : ∀ (ds : List (Participant × Value × Id)) →
             Null $ namesˡ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
