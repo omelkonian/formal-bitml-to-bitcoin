@@ -1,4 +1,4 @@
-## Secure Compilation from BitML calculus to Bitcoin transactions [![Build Status](https://travis-ci.com/omelkonian/formal-bitml-to-bitcoin.svg?branch=master)](https://travis-ci.com/omelkonian/formal-bitml-to-bitcoin)
+## Secure Compilation from BitML calculus to Bitcoin transactions, mechanized in Agda [![CI](https://github.com/omelkonian/formal-bitml-to-bitcoin/workflows/CI/badge.svg)](https://github.com/omelkonian/formal-bitml-to-bitcoin/actions)
 
 Based on:
 > Massimo Bartoletti and Roberto Zunino, 2018, January.
