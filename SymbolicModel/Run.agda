@@ -63,9 +63,9 @@ start∈allCfgsᵗ {R = record {trace = _ , Γ↞}} with Γ↞
 ... | _ ∎              = here refl
 ... | _ —→⟨ _ ⟩ _ ⊢ tr = here refl
 
-end∈allCfgsᵗ : R .end ∈ allTCfgs⁺ R
-end∈allCfgsᵗ {R = record {trace = _ , Γ↞}} = go Γ↞
-  where
+end∈allCfgsᵗ : ∀ R → R .end ∈ allTCfgs⁺ R
+end∈allCfgsᵗ = go ∘ _∙trace′
+  module ⟫end∈allCfgsᵗ where
     go : (tr : Γₜ —[ αs ]↠ₜ Γₜ′) → Γₜ′ ∈ allStatesᵗ⁺ tr
     go (_ ∎)              = here refl
     go (_ —→⟨ _ ⟩ _ ⊢ tr) = there (go tr)
