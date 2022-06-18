@@ -1,8 +1,10 @@
+-- {-# OPTIONS --auto-inline #-}
 open import Prelude.Init
 open import Prelude.General
 open import Prelude.Lists
 open L.Mem using (∈-++⁻; ∈-++⁺ˡ; ∈-++⁺ʳ)
 open L.Perm using (Any-resp-↭; ∈-resp-↭)
+open import Prelude.Lists.PermutationsMeta using (↭-sym∘↭-reflexive)
 open import Prelude.Membership
 open import Prelude.DecEq
 open import Prelude.Sets
@@ -31,19 +33,15 @@ module SymbolicModel.Helpers
 open import SymbolicModel.Run Participant Honest as S
   hiding ( _∎; begin_
          ; {-variables-} g; c; as; vs; xs; Γ; Γ′; Γ″; Γₜ; Γₜ′; Γₜ″; R′; Δ )
+open import SymbolicModel.Accessors Participant Honest
 open import SymbolicModel.Collections Participant Honest
+open import SymbolicModel.Mappings Participant Honest
+open import SymbolicModel.ValuePreservation Participant Honest
 
 -- [BUG] See issue #5464
-_≈ᶜ_ = _≈_ ⦃ IS-Cfg ⦄
+_≈ᶜ_ = _≈_ ⦃ Setoid-Cfg ⦄
 
--- Auxilliary wrappers.
-
-𝕃 : S.Run → Cfgᵗ → Set
-𝕃 R Γ = Σ[ 𝕒 ∈ 𝔸 R Γ ] ℝ (Γ ∷ R ⊣ 𝕒)
-
-𝕃⇒ℝ : ∀ {Γₜ} → 𝕃 R Γₜ → ℝ R
-𝕃⇒ℝ (𝕒 , 𝕣′) = drop-ℝ 𝕒 𝕣′
-
+-- Well-formed traces that additionally carry mappings.
 data ℝ∗ : Run → Set where
   _∎⊣_✓ : ∀ {Γₜ} →
 
@@ -55,16 +53,14 @@ data ℝ∗ : Run → Set where
   _∷_⊣_✓ :
     ∀ Γₜ →
     ∙ ℝ∗ R
-    → (𝕒ℽ : 𝔸ℾ R Γₜ) →
+    → (λˢ : 𝕃 R Γₜ) →
       ───────────────────────
-      ℝ∗ (Γₜ ∷ R ⊣ 𝕒ℽ .proj₁)
+      ℝ∗ (Γₜ ∷ R ⊣ λˢ .proj₁)
 
 ℝ∗⇒ℝ : ℝ∗ ⊆¹ ℝ
 ℝ∗⇒ℝ {R} = λ where
   (ℽ ∎⊣ init ✓)  → ℝ-base {init = init} ℽ
-  (_ ∷ 𝕣 ⊣ 𝕒ℽ ✓) → ℝ-step (ℝ∗⇒ℝ 𝕣) 𝕒ℽ
-
---
+  (_ ∷ 𝕣 ⊣ λˢ ✓) → ℝ-step (ℝ∗⇒ℝ 𝕣) λˢ
 
 -- lifting mappings from last configuration to enclosing runs
 -- i.e. Γ →⦅ Txout ⟩ Γ′ ———→ R ⇒⟨ Txout ⦆ R′
@@ -75,10 +71,8 @@ LIFTˢ : ∀ (r : ℝ R) t α t′ Γ (R≈ : R ≈⋯ Γ at t) Γ′
   → Γ →⦅ Sechash ⦆ Γ′
   → Γ →⦅ 𝕂² ⦆ Γ′
     --——————————————————––––––———–
-  -- → 𝕃 R (∃Γ≈ .proj₁ at t′)
-  → 𝔸ℾ R (∃Γ≈ .proj₁ at t′)
+  → 𝕃 R (∃Γ≈ .proj₁ at t′)
 LIFTˢ {R} r t α t′ Γ R≈@(_ , Γ≈) Γ′ Γ→Γ′ (Γ″ , Γ≈″) txout↝ sechash↝ κ↝
-  -- = 𝕒 , [txout: txout ∣sechash: sechash ∣κ: κ ]
   = 𝕒 , [txout: txoutΓ′ ∣sechash: sechashΓ′ ∣κ: κΓ′ ]
   where
     open ℝ r; Γₜ = Γ at t; Γₜ′ = Γ′ at t′; Γₜ″ = Γ″ at t′
@@ -99,18 +93,6 @@ LIFTˢ {R} r t α t′ Γ R≈@(_ , Γ≈) Γ′ Γ→Γ′ (Γ″ , Γ≈″) t
 
     κΓ′ : 𝕂² Γ′
     κΓ′ = κ↝ (𝕂²≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ κ′ $ ads⦅end⦆⊆ R))
-
-    -- txout : Txout R′
-    -- txout = txout∷ {R = R} Γ→Γ′ eq txoutΓ′ txout′
-
-    -- sechash : Sechash R′
-    -- sechash = sechash∷ {R = R} Γ→Γ′ eq sechashΓ′ sechash′
-
-    -- κ : 𝕂² R′
-    -- κ {ad} ad∈ with ads∈-⊎ {α}{Γₜ′}{Γₜ″}{R}{ad}{Γₜ} Γ→Γ′ eq ad∈
-    -- ... | inj₁ ad∈R  = κ′ ad∈R
-    -- ... | inj₂ ad∈Γ″ = κ↝ (𝕂²≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ κ′ $ ads⦅end⦆⊆ R))
-    --                         (∈ads-resp-≈ ad {Γ″}{Γ′} Γ≈″ ad∈Γ″)
 
 ANCESTOR : ∀ {c Γ}
   → R ≈⋯ Γ at t
@@ -207,6 +189,8 @@ LIFTᶜ {R} 𝕣 {ad} ∃H =
   in
     LIFT₀ 𝕣′ tᵢ x R≈′ ad ad∈ p⊆
 
+open import ComputationalModel.Accessors using (_∙value)
+
 module _ {R} (𝕣 : ℝ R) where
   _∙txout_ = 𝕣 .ℝ.txout′
 
@@ -231,7 +215,7 @@ module _ {R} (𝕣 : ℝ R) where
 
 module _ (𝕣 : ℝ R) t α t′ where
   open ℝ 𝕣
-
+{-
   -- [1]
   module _ Γ (R≈ : R ≈⋯ Γ at t) ad where
     private Γ′ = ` ad ∣ Γ
@@ -243,245 +227,198 @@ module _ (𝕣 : ℝ R) t α t′ where
         Γₜ  = Γ at t
         Γₜ′ = Γ′ at t′
         Γₜ″ = Γ″ at t′
-      -- abstract
-      -- λˢ : 𝕃 R Γₜ″
-      -- λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
 
-      𝕒ℽ : 𝔸ℾ R Γₜ″
-      𝕒ℽ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
+        $λˢ : 𝕃 R Γₜ″
+        $λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
 
-      -- module Properties where
-      private
-        -- 𝕒  = λˢ .proj₁
-        𝕒  = 𝕒ℽ .proj₁
+        𝕒  = $λˢ .proj₁
         R′ = Γₜ″ ∷ R ⊣ 𝕒
 
+        𝕣′ : ℝ R′
+        𝕣′ = ℝ-step 𝕣 $λˢ
+
+      -- abstract
+      λˢ : 𝕃 R Γₜ″
+      λˢ = $λˢ
+
+      private
         R≈′ : R′ ≈⋯ Γ′ at t′
         R≈′ = refl , Γ≈
 
-        namesʳ≡ : Γ′ ≡⦅ namesʳ ⦆ Γ
-        namesʳ≡ = refl
+        namesʳ↭ : R .end ↭⦅ namesʳ ⦆ R′ .end
+        namesʳ↭ = ↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+                          (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym $ R≈′ .proj₂))
 
-      𝕣′ : ℝ R′
-      𝕣′ = ℝ-step 𝕣 𝕒ℽ
+        txoutΓ : Txout (R .end)
+        txoutΓ = 𝕣 ∙txoutEnd_
 
-      namesʳ↭ : R .end ↭⦅ namesʳ ⦆ R′ .end
-      namesʳ↭ = ↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
-                        (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym $ R≈′ .proj₂))
+        txoutΓ′≈ : Txout (R′ .end)
+        txoutΓ′≈ = permute-↦ namesʳ↭ txoutΓ
 
-      -- ** there are repetitions, since we keep the whole history (R′ contains R)
-      -- NB: this might be easier with a permutation-modulo-repetition relation _↭♯_
-      --     e.g. _↭♯_ = _↭_ on nub
-      -- namesʳ↭′ : R ↭⦅ namesʳ ⦆ R′
-      -- namesʳ↭′ = ?
+        txoutΓ′ : Txout Γ′
+        txoutΓ′ = Txout≈ {R′ ∙cfg}{Γ′} Γ≈ txoutΓ′≈
 
-      -- abstract
-      -- txout′ : Txout R
+        txoutR′ : Txout R′
+        txoutR′ = txout∷ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′
 
-      txoutΓ : Txout (R .end)
-      txoutΓ = 𝕣 ∙txoutEnd_ -- weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R
+        txoutΓₜ′ : Txout (Γ′ at t′)
+        txoutΓₜ′ = Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ
 
-      txoutΓ≗ : txoutΓ ≗⟨ namesʳ⦅end⦆⊆ R ⊆⟩↦ txout′
-      txoutΓ≗ _ = refl
+        x∈⇒ : namesʳ (R .end) ⊆ namesʳ (R′ .end)
+        x∈⇒ = ∈-resp-↭ namesʳ↭
 
-      txoutΓ′≈ : Txout (R′ .end)
-      txoutΓ′≈ = permute-↦ namesʳ↭ txoutΓ
-
-      txoutEnd≗ : txoutΓ′≈ ≗⟨ namesʳ↭ ⟩↦ txoutΓ
-      txoutEnd≗ = permute-≗↦ namesʳ↭ txoutΓ
-
-      txoutΓ′ : Txout Γ′
-      txoutΓ′ = Txout≈ {R′ ∙cfg}{Γ′} Γ≈ txoutΓ′≈
-
-      namesʳ↭′ : R′ .end ↭⦅ namesʳ ⦆ Γ′
-      namesʳ↭′ = ≈⇒namesʳ↭ {R′ ∙cfg}{Γ′} Γ≈
-
-      txoutEnd≗′ : txoutΓ′ ≗⟨ namesʳ↭′ ⟩↦ txoutΓ′≈
-      txoutEnd≗′ = permute-≗↦ namesʳ↭′ txoutΓ′≈
-
-      -- NB: refactor to simply permute-↦ with names↭ (i.e. simple-case Liftˢ)
-
-      txoutR′ : Txout R′
-      txoutR′ = txout∷ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′
-
-      txoutΓₜ′ : Txout (Γ′ at t′)
-      txoutΓₜ′ = Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ
-
-      x∈⇒ : namesʳ (R .end) ⊆ namesʳ (R′ .end)
-      x∈⇒ = ∈-resp-↭ namesʳ↭
-
-      txoutEnd≡ : ∀ {x : Id} (x∈ : x ∈ namesʳ (R .end))
-        → 𝕣′ ∙txoutEnd (x∈⇒ x∈) ≡ 𝕣 ∙txoutEnd x∈
-      txoutEnd≡ {x} x∈ =
-        begin
-          𝕣′ ∙txoutEnd (x∈⇒ x∈)
-        ≡⟨⟩
-          𝕣′ ∙txout (namesʳ⦅end⦆⊆ R′ $ x∈⇒ x∈)
-        ≡⟨⟩
-          (txout∷ {R = R} Γ→Γ′ (R≈′ , R≈)
-                  (Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ)
-                  txout′)
-          (namesʳ⦅end⦆⊆ R′ $ x∈⇒ x∈)
-        ≡⟨ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈)
-                              (Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ)
-                              txout′
-                              (∈-resp-↭ namesʳ↭ x∈) ⟩
-          ( Txout≈ {Γₜ′ .cfg}{Γₜ″ .cfg} (↭-sym $ R≈′ .proj₂)
-          $ Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ
-          ) (x∈⇒ x∈)
-        ≡⟨⟩
-          ( permute-↦ (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ}          $ R≈ .proj₂)
-                               (≈⇒namesʳ↭ {Γₜ′ .cfg}{Γₜ″ .cfg} $ ↭-sym Γ≈))
-          $ txoutΓ
-          ) (x∈⇒ x∈)
-        ≡⟨⟩
-          ( permute-↦ (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ}          $ R≈ .proj₂)
-                               (≈⇒namesʳ↭ {Γₜ′ .cfg}{Γₜ″ .cfg} $ ↭-sym Γ≈))
-          $ txoutΓ
-          ) (∈-resp-↭ namesʳ↭ x∈)
-        ≡⟨ cong (λ ◆ →
-          ( permute-↦ (↭-trans (≈⇒namesʳ↭ {R ∙cfg} {Γ} $ R≈ .proj₂)
-                               (≈⇒namesʳ↭ {Γₜ′ .cfg} {Γₜ″ .cfg} $ ↭-sym Γ≈))
-          $ txoutΓ
-          ) (∈-resp-↭ ◆ x∈)) (sym $ L.Perm.↭-sym-involutive namesʳ↭) ⟩
-          ( permute-↦ (↭-sym namesʳ↭)
-          $ permute-↦ (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ}          $ R≈ .proj₂)
-                               (≈⇒namesʳ↭ {Γₜ′ .cfg}{Γₜ″ .cfg} $ ↭-sym Γ≈))
-          $ txoutΓ
-          ) x∈
-        ≡⟨⟩
-          ( permute-↦ (↭-trans (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ}          $ R≈ .proj₂)
-                                        (≈⇒namesʳ↭ {Γₜ′ .cfg}{Γₜ″ .cfg} $ ↭-sym Γ≈))
-                               (↭-sym namesʳ↭))
-          $ txoutΓ
-          ) x∈
-        ≡⟨⟩
-          permute-↦ (↭-trans namesʳ↭ (↭-sym namesʳ↭)) txoutΓ x∈
-        ≡⟨ permute-↦∘permute-↦˘ namesʳ↭ txoutΓ x∈ ⟩
-          txoutΓ x∈
-        ≡⟨⟩
-          𝕣 ∙txoutEnd x∈
-        ∎ where open ≡-Reasoning
+        txoutEnd≡ : ∀ {x : Id} (x∈ : x ∈ namesʳ (R .end))
+          → 𝕣′ ∙txoutEnd (x∈⇒ x∈) ≡ 𝕣 ∙txoutEnd x∈
+        txoutEnd≡ {x} x∈ =
+          begin
+            𝕣′ ∙txoutEnd (x∈⇒ x∈)
+          ≡⟨⟩
+            𝕣′ ∙txout (namesʳ⦅end⦆⊆ R′ $ x∈⇒ x∈)
+          ≡⟨⟩
+            (txout∷ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓₜ′ txout′)
+            (namesʳ⦅end⦆⊆ R′ $ x∈⇒ x∈)
+          ≡⟨ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓₜ′ txout′
+               $ ∈-resp-↭ namesʳ↭ x∈ ⟩
+            ( Txout≈ {Γₜ′ .cfg}{Γₜ″ .cfg} (↭-sym $ R≈′ .proj₂)
+            $ Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ
+            ) (x∈⇒ x∈)
+          ≡⟨⟩
+            ( permute-↦ (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ}          $ R≈ .proj₂)
+                                 (≈⇒namesʳ↭ {Γₜ′ .cfg}{Γₜ″ .cfg} $ ↭-sym Γ≈))
+            $ txoutΓ
+            ) (x∈⇒ x∈)
+          ≡⟨⟩
+            ( permute-↦ (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ}          $ R≈ .proj₂)
+                                 (≈⇒namesʳ↭ {Γₜ′ .cfg}{Γₜ″ .cfg} $ ↭-sym Γ≈))
+            $ txoutΓ
+            ) (∈-resp-↭ namesʳ↭ x∈)
+          ≡⟨ cong (λ ◆ →
+            ( permute-↦ (↭-trans (≈⇒namesʳ↭ {R ∙cfg} {Γ} $ R≈ .proj₂)
+                                 (≈⇒namesʳ↭ {Γₜ′ .cfg} {Γₜ″ .cfg} $ ↭-sym Γ≈))
+            $ txoutΓ
+            ) (∈-resp-↭ ◆ x∈)) (sym $ L.Perm.↭-sym-involutive namesʳ↭) ⟩
+            ( permute-↦ (↭-sym namesʳ↭)
+            $ permute-↦ (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ}          $ R≈ .proj₂)
+                                 (≈⇒namesʳ↭ {Γₜ′ .cfg}{Γₜ″ .cfg} $ ↭-sym Γ≈))
+            $ txoutΓ
+            ) x∈
+          ≡⟨⟩
+            ( permute-↦ (↭-trans (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ}          $ R≈ .proj₂)
+                                          (≈⇒namesʳ↭ {Γₜ′ .cfg}{Γₜ″ .cfg} $ ↭-sym Γ≈))
+                                 (↭-sym namesʳ↭))
+            $ txoutΓ
+            ) x∈
+          ≡⟨⟩
+            permute-↦ (↭-trans namesʳ↭ (↭-sym namesʳ↭)) txoutΓ x∈
+          ≡⟨ permute-↦∘permute-↦˘ namesʳ↭ txoutΓ x∈ ⟩
+            txoutΓ x∈
+          ≡⟨⟩
+            𝕣 ∙txoutEnd x∈
+          ∎ where open ≡-Reasoning
 
       module _ {c v x} where
 
         private
-          Γ′⊆ᶜΓ : ⟨ c , v ⟩at x ∈ᶜ Γ′
+          c∈Γ⇐ : ⟨ c , v ⟩at x ∈ᶜ Γ′
                 → ⟨ c , v ⟩at x ∈ᶜ Γ
-          Γ′⊆ᶜΓ (there c∈) = c∈
+          c∈Γ⇐ (there c∈) = c∈
 
           c∈⇒x∈∘Γ⊆ : ∀ (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ′) →
             ( c∈⇒x∈ Γ
-            ∘ Γ′⊆ᶜΓ
+            ∘ c∈Γ⇐
             ) c∈
             ≡ c∈⇒x∈ Γ′ c∈
           c∈⇒x∈∘Γ⊆ (there _) = refl
 
-        c∈⇐ : R′ ≈⋯ ⟨ c , v ⟩at x ⋯
-            → R  ≈⋯ ⟨ c , v ⟩at x ⋯
-        c∈⇐ = ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
-            ∘ Γ′⊆ᶜΓ
-            ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈
-
-        private
-          H : (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ″)
-            → x∈⇒ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
-            ≡ c∈⇒x∈ (R′ ∙cfg) c∈
-          {- i.e. the following diagram commutes
-
-               x ∈                      x ∈
-              ids Γ ——————— x∈⇒ —————→ ids (` ad) ++ ids Γ
-                ↑                    ⇑
-                ∣                    ∥
-                ∣                    ∥
-              c∈⇒x∈                c∈⇒x∈
-                ∣                    ∥
-                ∣                    ∥
-                Γ ←—————— c∈⇐ —————— Γ′ ≈ ` ad ∣ Γ
-          -}
-          H c∈ =
-            begin
-              x∈⇒ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
-            ≡⟨⟩
-              ( x∈⇒
-              ∘ c∈⇒x∈ (R ∙cfg)
-              ∘ c∈⇐
-              ) c∈
-            ≡⟨⟩
-              ( ∈-resp-↭ namesʳ↭
-              ∘ c∈⇒x∈ (R ∙cfg)
-              ∘ c∈⇐
-              ) c∈
-            ≡⟨⟩
-              ( ∈-resp-↭ (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
-                                  (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym Γ≈)))
-              ∘ c∈⇒x∈ (R ∙cfg)
-              ∘ c∈⇐
-              ) c∈
-            ≡⟨⟩
-              ( ∈-resp-↭ (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
-                                  (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym Γ≈)))
-              ∘ c∈⇒x∈ (R ∙cfg)
-              ∘ ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
-              ∘ Γ′⊆ᶜΓ
-              ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} (∃Γ≈ .proj₂)
-              ) c∈
-            ≡⟨⟩
-              ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{Γ″} (↭-sym Γ≈))
-              ∘ ∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
-              ∘ c∈⇒x∈ (R ∙cfg)
-              ∘ ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
-              ∘ Γ′⊆ᶜΓ
+        abstract
+          c∈⇐ : R′ ≈⋯ ⟨ c , v ⟩at x ⋯
+              → R  ≈⋯ ⟨ c , v ⟩at x ⋯
+          c∈⇐ = ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
+              ∘ c∈Γ⇐
               ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈
-              ) c∈
-            ≡˘⟨ cong (λ ◆ → ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{Γ″} (↭-sym Γ≈))
-                            ∘ ∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} ◆)
-                            ∘ c∈⇒x∈ (R ∙cfg)
-                            ∘ ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
-                            ∘ Γ′⊆ᶜΓ
-                            ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈
-                            ) c∈)
-                  $ L.Perm.↭-sym-involutive (R≈ .proj₂) ⟩
-              ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{Γ″} (↭-sym Γ≈))
-              ∘ ∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} (↭-sym $ ↭-sym $ R≈ .proj₂))
-              ∘ c∈⇒x∈ (R ∙cfg)
-              ∘ ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
-              ∘ Γ′⊆ᶜΓ
-              ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈
-              ) c∈
-            ≡⟨ cong (∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{Γ″} (↭-sym Γ≈)))
-                  $ ∈-resp-↭∘c∈⇒x∈∘∈ᶜ-resp-≈ Γ (R ∙cfg) (↭-sym $ R≈ .proj₂)
-                      (Γ′⊆ᶜΓ $ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈ c∈) ⟩
-              ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym Γ≈))
-              ∘ c∈⇒x∈ Γ ∘ Γ′⊆ᶜΓ
-              ∘ ∈ᶜ-resp-≈ {R′ ∙cfg}{Γ′} Γ≈
-              ) c∈
-            ≡⟨ cong (∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym Γ≈)))
-                  $ c∈⇒x∈∘Γ⊆ (∈ᶜ-resp-≈ {R′ ∙cfg}{Γ′} Γ≈ c∈) ⟩
-              ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym Γ≈))
-              ∘ c∈⇒x∈ Γ′
-              ∘ ∈ᶜ-resp-≈ {R′ ∙cfg}{Γ′} Γ≈
-              ) c∈
-            ≡⟨ ∈-resp-↭∘c∈⇒x∈∘∈ᶜ-resp-≈ (R′ ∙cfg) Γ′ Γ≈ c∈ ⟩
-              c∈⇒x∈ (R′ ∙cfg) c∈
-            ∎ where open ≡-Reasoning
 
-        txoutEndC≡ :
-          (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ″) →
+          txoutEndC≡ : ∀ (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ″) →
             𝕣′ ∙txoutC c∈ ≡ 𝕣 ∙txoutC (c∈⇐ c∈)
-        txoutEndC≡ c∈ =
-          begin
-            𝕣′ ∙txoutC c∈
-          ≡⟨⟩
-            𝕣′ ∙txoutEnd (c∈⇒x∈ (R′ ∙cfg) c∈)
-          ≡⟨ cong (𝕣′ ∙txoutEnd_) $ sym $ H c∈ ⟩
-            𝕣′ ∙txoutEnd (x∈⇒ $ c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
-          ≡⟨ txoutEnd≡ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈) ⟩
-            𝕣 ∙txoutEnd (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
-          ≡⟨⟩
-            𝕣 ∙txoutC (c∈⇐ c∈)
-          ∎ where open ≡-Reasoning
-{-
+          txoutEndC≡ c∈ =
+            begin
+              𝕣′ ∙txoutC c∈
+            ≡⟨⟩
+              𝕣′ ∙txoutEnd (c∈⇒x∈ (R′ ∙cfg) c∈)
+            ≡⟨ cong (𝕣′ ∙txoutEnd_) $ sym $ H c∈ ⟩
+              𝕣′ ∙txoutEnd (x∈⇒ $ c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+            ≡⟨ txoutEnd≡ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈) ⟩
+              𝕣 ∙txoutEnd (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+            ≡⟨⟩
+              𝕣 ∙txoutC (c∈⇐ c∈)
+            ∎ where
+              open ≡-Reasoning
+              H : (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ″)
+                → x∈⇒ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+                ≡ c∈⇒x∈ (R′ ∙cfg) c∈
+              {- i.e. the following diagram commutes
+
+                  x ∈                      x ∈
+                  ids Γ ——————— x∈⇒ —————→ ids (` ad) ++ ids Γ
+                    ↑                    ⇑
+                    ∣                    ∥
+                    ∣                    ∥
+                  c∈⇒x∈                c∈⇒x∈
+                    ∣                    ∥
+                    ∣                    ∥
+                    Γ ←—————— c∈⇐ —————— Γ′ ≈ ` ad ∣ Γ
+              -}
+              H c∈ =
+                begin
+                  x∈⇒ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+                ≡⟨⟩
+                  ( x∈⇒
+                  ∘ c∈⇒x∈ (R ∙cfg)
+                  ∘ c∈⇐
+                  ) c∈
+                ≡⟨⟩
+                  ( ∈-resp-↭ namesʳ↭
+                  ∘ c∈⇒x∈ (R ∙cfg)
+                  ∘ c∈⇐
+                  ) c∈
+                ≡⟨⟩
+                  ( ∈-resp-↭ (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+                                      (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym Γ≈)))
+                  ∘ c∈⇒x∈ (R ∙cfg)
+                  ∘ c∈⇐
+                  ) c∈
+                ≡⟨⟩
+                  ( ∈-resp-↭ (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+                                      (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym Γ≈)))
+                  ∘ c∈⇒x∈ (R ∙cfg)
+                  ∘ ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
+                  ∘ c∈Γ⇐
+                  ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} (∃Γ≈ .proj₂)
+                  ) c∈
+                ≡⟨⟩
+                  ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{Γ″} (↭-sym Γ≈))
+                  ∘ ∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+                  ∘ c∈⇒x∈ (R ∙cfg)
+                  ∘ ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
+                  ∘ c∈Γ⇐
+                  ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈
+                  ) c∈
+                ≡⟨ cong (∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{Γ″} (↭-sym Γ≈)))
+                      $ ∈-resp-↭∘c∈⇒x∈∘∈ᶜ-resp-≈˘ Γ (R ∙cfg) (R≈ .proj₂)
+                          (c∈Γ⇐ $ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈ c∈) ⟩
+                  ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym Γ≈))
+                  ∘ c∈⇒x∈ Γ ∘ c∈Γ⇐
+                  ∘ ∈ᶜ-resp-≈ {R′ ∙cfg}{Γ′} Γ≈
+                  ) c∈
+                ≡⟨ cong (∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym Γ≈)))
+                      $ c∈⇒x∈∘Γ⊆ (∈ᶜ-resp-≈ {R′ ∙cfg}{Γ′} Γ≈ c∈) ⟩
+                  ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym Γ≈))
+                  ∘ c∈⇒x∈ Γ′
+                  ∘ ∈ᶜ-resp-≈ {R′ ∙cfg}{Γ′} Γ≈
+                  ) c∈
+                ≡⟨ ∈-resp-↭∘c∈⇒x∈∘∈ᶜ-resp-≈ (R′ ∙cfg) Γ′ Γ≈ c∈ ⟩
+                  c∈⇒x∈ (R′ ∙cfg) c∈
+                ∎
+
   -- [2]
   module _ Γ (R≈ : R ≈⋯ Γ at t) B A ad (Δ : List (Secret × Maybe ℕ)) where
     private
@@ -489,29 +426,7 @@ module _ (𝕣 : ℝ R) t α t′ where
       as = proj₁ $ unzip Δ
     module H₂ (sechash⁺ : as ↦ ℤ) (k⃗ : 𝕂²′ ad) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       private
-        hʳ : ∀ Δ → Null $ namesʳ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ)
-        hʳ [] = refl
-        hʳ (_ ∷ []) = refl
-        hʳ (_ ∷ Δ@(_ ∷ _)) rewrite hʳ Δ = L.++-identityʳ _
-
-        hˡ : ∀ Δ → namesˡ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ) ≡ proj₁ (unzip Δ)
-        hˡ [] = refl
-        hˡ (_ ∷ []) = refl
-        hˡ ((s , m) ∷ Δ@(_ ∷ _)) =
-          begin
-            namesˡ (⟨ B ∶ s ♯ m ⟩ ∣ || map (uncurry ⟨ B ∶_♯_⟩) Δ)
-          ≡⟨ mapMaybe∘collectFromBase-++ isInj₁ ⟨ B ∶ s ♯ m ⟩ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ) ⟩
-            namesˡ ⟨ B ∶ s ♯ m ⟩ ++ namesˡ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ)
-          ≡⟨⟩
-            s ∷ namesˡ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ)
-          ≡⟨ cong (s ∷_) (hˡ Δ) ⟩
-            s ∷ proj₁ (unzip Δ)
-          ∎ where open ≡-Reasoning
-
-        hᵃ : ∀ Δ → Null $ advertisements (|| map (uncurry ⟨ B ∶_♯_⟩) Δ)
-        hᵃ [] = refl
-        hᵃ (_ ∷ []) = refl
-        hᵃ (_ ∷ Δ@(_ ∷ _)) rewrite hᵃ Δ = L.++-identityʳ _
+        open ≡-Reasoning
 
         namesʳ≡ : Γ′ ≡⦅ namesʳ ⦆ Γ
         namesʳ≡ =
@@ -531,7 +446,11 @@ module _ (𝕣 : ℝ R) t α t′ where
             namesʳ Γ ++ []
           ≡⟨ L.++-identityʳ _ ⟩
             namesʳ Γ
-          ∎ where open ≡-Reasoning
+          ∎ where
+            hʳ : ∀ Δ → Null $ namesʳ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ)
+            hʳ [] = refl
+            hʳ (_ ∷ []) = refl
+            hʳ (_ ∷ Δ@(_ ∷ _)) rewrite hʳ Δ = L.++-identityʳ _
 
         namesˡ≡ : namesˡ Γ′ ≡ namesˡ Γ ++ as
         namesˡ≡ =
@@ -545,7 +464,25 @@ module _ (𝕣 : ℝ R) t α t′ where
             namesˡ Γ ++ namesˡ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ)
           ≡⟨ cong (namesˡ Γ ++_) (hˡ Δ) ⟩
             namesˡ Γ ++ as
-          ∎ where open ≡-Reasoning
+          ∎ where
+            hˡ : ∀ Δ → namesˡ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ) ≡ proj₁ (unzip Δ)
+            hˡ [] = refl
+            hˡ (_ ∷ []) = refl
+            hˡ ((s , m) ∷ Δ@(_ ∷ _)) =
+              begin
+                namesˡ (⟨ B ∶ s ♯ m ⟩ ∣ || map (uncurry ⟨ B ∶_♯_⟩) Δ)
+              ≡⟨ mapMaybe∘collectFromBase-++ isInj₁ ⟨ B ∶ s ♯ m ⟩ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ) ⟩
+                namesˡ ⟨ B ∶ s ♯ m ⟩ ++ namesˡ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ)
+              ≡⟨⟩
+                s ∷ namesˡ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ)
+              ≡⟨ cong (s ∷_) (hˡ Δ) ⟩
+                s ∷ proj₁ (unzip Δ)
+              ∎
+
+        hᵃ : ∀ Δ → Null $ advertisements (|| map (uncurry ⟨ B ∶_♯_⟩) Δ)
+        hᵃ [] = refl
+        hᵃ (_ ∷ []) = refl
+        hᵃ (_ ∷ Δ@(_ ∷ _)) rewrite hᵃ Δ = L.++-identityʳ _
 
         ads≡ : advertisements Γ′ ≡ advertisements Γ ++ advertisements (A auth[ ♯▷ ad ])
         ads≡ rewrite collectFromBase-++ {X = Advertisement} (Γ ∣ || map (uncurry ⟨ B ∶_♯_⟩) Δ) (A auth[ ♯▷ ad ])
@@ -566,11 +503,284 @@ module _ (𝕣 : ℝ R) t α t′ where
             κ″ : advertisements (A auth[ ♯▷ ad ]) ↦′ 𝕂²′
             κ″ x∈ with does (A ∈? Hon) | x∈
             ... | true  | here refl = k⃗
-            ... | false | ()--
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
+            ... | false | ()
 
+        --
+
+        Γ″ = ∃Γ≈ .proj₁
+        Γ≈ = ∃Γ≈ .proj₂
+        Γₜ Γₜ′ Γₜ″ : Cfgᵗ
+        Γₜ  = Γ at t
+        Γₜ′ = Γ′ at t′
+        Γₜ″ = Γ″ at t′
+
+        $λˢ : 𝕃 R Γₜ″
+        $λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
+
+        𝕒  = $λˢ .proj₁
+        R′ = Γₜ″ ∷ R ⊣ 𝕒
+
+        𝕣′ : ℝ R′
+        𝕣′ = ℝ-step 𝕣 $λˢ
+
+        R≈′ : R′ ≈⋯ Γ′ at t′
+        R≈′ = refl , Γ≈
+
+        namesʳ↭ : R .end ↭⦅ namesʳ ⦆ R′ .end
+        namesʳ↭ = ↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+                $ ↭-trans (↭-reflexive $ sym namesʳ≡)
+                          (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym $ R≈′ .proj₂))
+
+        txoutΓ : Txout (R .end)
+        txoutΓ = 𝕣 ∙txoutEnd_
+
+        txoutΓ′ : Txout Γ′
+        txoutΓ′ = txout↝ $ Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R)
+
+        x∈⇒ : namesʳ (R .end) ⊆ namesʳ (R′ .end)
+        x∈⇒ = ∈-resp-↭ namesʳ↭
+
+        txoutEnd≡ : ∀ {x : Id} (x∈ : x ∈ namesʳ (R .end))
+          → 𝕣′ ∙txoutEnd (x∈⇒ x∈) ≡ 𝕣 ∙txoutEnd x∈
+        txoutEnd≡ {x} x∈ =
+          begin
+            𝕣′ ∙txoutEnd (x∈⇒ x∈)
+          ≡⟨⟩
+            𝕣′ ∙txout (namesʳ⦅end⦆⊆ R′ $ x∈⇒ x∈)
+          ≡⟨⟩
+            ( txout∷ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′
+            ∘ namesʳ⦅end⦆⊆ R′
+            ∘ x∈⇒
+            ) x∈
+          ≡⟨ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′ (x∈⇒ x∈) ⟩
+            ( Txout≈ {Γₜ′ .cfg}{Γₜ″ .cfg} (↭-sym $ R≈′ .proj₂) txoutΓ′
+            ∘ x∈⇒
+            ) x∈
+          ≡⟨⟩
+            ( Txout≈ {Γₜ′ .cfg}{Γₜ″ .cfg} (↭-sym $ R≈′ .proj₂)
+                ( txout↝
+                $ Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ
+                )
+            ∘ x∈⇒
+            ) x∈
+          ≡⟨⟩
+            ( Txout≈ {Γ′}{Γ″} (↭-sym $ R≈′ .proj₂)
+                ( txout↝
+                $ Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ
+                )
+            ∘ ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym $ R≈′ .proj₂))
+            ∘ ∈-resp-↭ (↭-reflexive $ sym namesʳ≡)
+            ∘ ∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+            ) x∈
+          ≡⟨ Txout≗ {Γ′}{Γ″} (↭-sym $ R≈′ .proj₂) (txout↝ $ Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ)
+               ( ∈-resp-↭ (↭-reflexive $ sym namesʳ≡)
+               $ ∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂)) x∈) ⟩
+            ( txout↝ (Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ)
+            ∘ ∈-resp-↭ (↭-reflexive $ sym namesʳ≡)
+            ∘ ∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+            ) x∈
+          ≡⟨ (lift≗ Γ —⟨ namesʳ ⟩— Γ′ ⊣ namesʳ≡)
+               (Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ)
+               (∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂)) x∈) ⟩
+            ( Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ
+            ∘ ∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+            ) x∈
+          ≡⟨ Txout≗ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ x∈ ⟩
+            txoutΓ x∈
+          ≡⟨⟩
+            𝕣 ∙txoutEnd x∈
+          ∎
+
+        Γ₁ = || map (uncurry ⟨ B ∶_♯_⟩) Δ
+        Γ₂ = A auth[ ♯▷ ad ]
+
+        postulate
+          ∈-resp-↭∘∈-++⁺ˡ∘∈-++⁺ˡ : ∀ {A : Set} {x : A} {xs ys zs : List A} →
+            (xs≡ : (xs ++ ys) ++ zs ≡ xs)
+            (x∈ : x ∈ xs) →
+            --————————————————————————————————
+            ( ∈-resp-↭ (↭-reflexive xs≡)
+            ∘ ∈-++⁺ˡ {xs = (xs ++ ys)}{zs}
+            ∘ ∈-++⁺ˡ {xs = xs}{ys}
+            ) x∈
+            ≡ x∈
+
+        ∈-resp-↭∘∈-ids-++⁺ˡ : ∀ (x∈ : x ∈ ids Γ) →
+          ( ∈-resp-↭ (↭-reflexive namesʳ≡)
+          ∘ ∈-ids-++⁺ˡ (Γ ∣ Γ₁) Γ₂
+          ∘ ∈-ids-++⁺ˡ Γ Γ₁
+          ) x∈
+          ≡ x∈
+        ∈-resp-↭∘∈-ids-++⁺ˡ x∈
+          with eq ← namesʳ≡
+          rewrite ids-++ (Γ ∣ Γ₁) Γ₂
+                | ids-++ Γ Γ₁
+                = ∈-resp-↭∘∈-++⁺ˡ∘∈-++⁺ˡ eq x∈
+
+      -- abstract
+      λˢ : 𝕃 R Γₜ″
+      λˢ = $λˢ
+
+      module _ {c v x} where
+        private
+          c∈Γ⇐ : ⟨ c , v ⟩at x ∈ᶜ Γ′
+               → ⟨ c , v ⟩at x ∈ᶜ Γ
+          c∈Γ⇐ c∈
+            with destruct-∈ᶜ-++ (Γ ∣ || map (uncurry ⟨ B ∶_♯_⟩) Δ) (A auth[ ♯▷ ad ]) c∈
+          ... | inj₂ (here () , _)
+          ... | inj₁ (c∈ , _)
+            with destruct-∈ᶜ-++ Γ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ) c∈
+          ... | inj₁ (c∈Γ , _) = c∈Γ
+          ... | inj₂ (c∈Δ , _) = ⊥-elim $ ∉ᶜ-|| (λ where (here ())) Δ c∈Δ
+
+          c∈⇒x∈∘c∈Γ⇐ : ∀ (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ′)
+            --————————————————————————————————
+            → ( c∈⇒x∈ Γ   -- x ∈ ids Γ
+              ∘ c∈Γ⇐      -- ⟨C,v⟩ₓ ∈ᶜ Γ
+              ) c∈        -- ⟨C,v⟩ₓ ∈ᶜ Γ′
+            ≡ ( ∈-resp-↭ (↭-reflexive namesʳ≡) -- x ∈ ids Γ
+              ∘ c∈⇒x∈ Γ′                       -- x ∈ ids Γ′
+              ) c∈                             -- ⟨C,v⟩ₓ ∈ᶜ Γ′
+          c∈⇒x∈∘c∈Γ⇐ c∈
+            with destruct-∈ᶜ-++ (Γ ∣ || map (uncurry ⟨ B ∶_♯_⟩) Δ) (A auth[ ♯▷ ad ]) c∈
+          ... | inj₂ (here () , refl)
+          ... | inj₁ (c∈′ , refl)
+            with destruct-∈ᶜ-++ Γ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ) c∈′
+          ... | inj₂ (c∈Δ , _) = ⊥-elim $ ∉ᶜ-|| (λ where (here ())) Δ c∈Δ
+          ... | inj₁ (c∈Γ , refl)
+            = begin
+              c∈⇒x∈ Γ c∈Γ
+            ≡˘⟨ ∈-resp-↭∘∈-ids-++⁺ˡ (c∈⇒x∈ Γ c∈Γ) ⟩
+              ( ∈-resp-↭ (↭-reflexive namesʳ≡) -- x ∈ ids Γ
+              ∘ ∈-ids-++⁺ˡ (Γ ∣ Γ₁) Γ₂         -- x ∈ ids Γ′
+              ∘ ∈-ids-++⁺ˡ Γ Γ₁                -- x ∈ ids (Γ ∣ Γ₁)
+              ∘ c∈⇒x∈ Γ                        -- x ∈ ids Γ
+              ) c∈Γ                            -- ⟨C,v⟩ₓ ∈ᶜ Γ
+            ≡⟨ cong (∈-resp-↭ (↭-reflexive namesʳ≡) ∘ ∈-ids-++⁺ˡ (Γ ∣ Γ₁) Γ₂)
+                  $ sym $ c∈⇒x∈∘∈ᶜ-++⁺ˡ {Γ = Γ}{Γ₁} c∈Γ ⟩
+              ( ∈-resp-↭ (↭-reflexive namesʳ≡) -- x ∈ ids Γ
+              ∘ ∈-ids-++⁺ˡ (Γ ∣ Γ₁) Γ₂         -- x ∈ ids Γ′
+              ∘ c∈⇒x∈ (Γ ∣ Γ₁)                 -- x ∈ ids (Γ ∣ Γ₁)
+              ∘ ∈ᶜ-++⁺ˡ Γ Γ₁                   -- ⟨C,v⟩ₓ ∈ᶜ (Γ ∣ Γ₁)
+              ) c∈Γ                            -- ⟨C,v⟩ₓ ∈ᶜ Γ
+            ≡⟨ cong (∈-resp-↭ (↭-reflexive namesʳ≡))
+                  $ sym $ c∈⇒x∈∘∈ᶜ-++⁺ˡ {Γ = Γ ∣ Γ₁}{Γ₂} (∈ᶜ-++⁺ˡ Γ Γ₁ c∈Γ) ⟩
+              ( ∈-resp-↭ (↭-reflexive namesʳ≡) -- x ∈ ids Γ
+              ∘ c∈⇒x∈ Γ′                       -- x ∈ ids Γ′
+              ∘ ∈ᶜ-++⁺ˡ (Γ ∣ Γ₁) Γ₂            -- ⟨C,v⟩ₓ ∈ᶜ Γ′
+              ∘ ∈ᶜ-++⁺ˡ Γ Γ₁                   -- ⟨C,v⟩ₓ ∈ᶜ (Γ ∣ Γ₁)
+              ) c∈Γ                            -- ⟨C,v⟩ₓ ∈ᶜ Γ
+            ∎
+
+          ↭-reflexive∘c∈⇒x∈∘c∈Γ⇐ : ∀ (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ′) →
+            ( ∈-resp-↭ (↭-reflexive $ sym namesʳ≡)
+            ∘ c∈⇒x∈ Γ
+            ∘ c∈Γ⇐
+            ) c∈
+            ≡ c∈⇒x∈ Γ′ c∈
+          ↭-reflexive∘c∈⇒x∈∘c∈Γ⇐ c∈
+            = begin
+              ( ∈-resp-↭ (↭-reflexive $ sym namesʳ≡)
+              ∘ c∈⇒x∈ Γ
+              ∘ c∈Γ⇐
+              ) c∈
+            ≡⟨ cong (∈-resp-↭ (↭-reflexive $ sym namesʳ≡)) (c∈⇒x∈∘c∈Γ⇐ c∈) ⟩
+              ( ∈-resp-↭ (↭-reflexive $ sym namesʳ≡)
+              ∘ ∈-resp-↭ (↭-reflexive namesʳ≡)
+              ∘ c∈⇒x∈ Γ′
+              ) c∈
+            ≡⟨ cong (λ ◆ → ∈-resp-↭ ◆
+                         $ ∈-resp-↭ (↭-reflexive namesʳ≡)
+                         $ c∈⇒x∈ Γ′ c∈)
+                  $ sym $ ↭-sym∘↭-reflexive namesʳ≡ ⟩
+              ( ∈-resp-↭ (↭-sym $ ↭-reflexive namesʳ≡)
+              ∘ ∈-resp-↭ (↭-reflexive namesʳ≡)
+              ∘ c∈⇒x∈ Γ′
+              ) c∈
+            ≡⟨ Any-resp-↭∘Any-resp-↭˘ (↭-reflexive namesʳ≡) (c∈⇒x∈ Γ′ c∈) ⟩
+              c∈⇒x∈ Γ′ c∈
+            ∎ where open ≡-Reasoning
+
+          c∈⇐ : R′ ≈⋯ ⟨ c , v ⟩at x ⋯
+              → R  ≈⋯ ⟨ c , v ⟩at x ⋯
+          c∈⇐ = ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
+              ∘ c∈Γ⇐
+              ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈
+
+          H : (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ″)
+            → x∈⇒ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+            ≡ c∈⇒x∈ (R′ ∙cfg) c∈
+          {- i.e. the following diagram commutes
+
+              x ∈                      x ∈
+              ids Γ ——————— x∈⇒ —————→ ids (` ad) ++ ids Γ
+                ↑                    ⇑
+                ∣                    ∥
+                ∣                    ∥
+              c∈⇒x∈                c∈⇒x∈
+                ∣                    ∥
+                ∣                    ∥
+                Γ ←—————— c∈⇐ —————— Γ′ ≈ ` ad ∣ Γ
+          -}
+          H c∈ =
+            begin
+              x∈⇒ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+            ≡⟨⟩
+              ( x∈⇒
+              ∘ c∈⇒x∈ (R ∙cfg)
+              ∘ c∈⇐
+              ) c∈
+            ≡⟨⟩
+              ( ∈-resp-↭ namesʳ↭
+              ∘ c∈⇒x∈ (R ∙cfg)
+              ∘ ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
+              ∘ c∈Γ⇐
+              ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈
+              ) c∈
+            ≡⟨⟩
+              ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym $ R≈′ .proj₂))
+              ∘ ∈-resp-↭ (↭-reflexive $ sym namesʳ≡)
+              ∘ ∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+              ∘ c∈⇒x∈ (R ∙cfg)
+              ∘ ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
+              ∘ c∈Γ⇐
+              ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈
+              ) c∈
+            ≡⟨ cong ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym $ R≈′ .proj₂))
+                    ∘ ∈-resp-↭ (↭-reflexive $ sym namesʳ≡) )
+                  $ ∈-resp-↭∘c∈⇒x∈∘∈ᶜ-resp-≈˘ Γ (R ∙cfg) (R≈ .proj₂)
+                      (c∈Γ⇐ $ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈ c∈) ⟩
+              ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym $ R≈′ .proj₂))
+              ∘ ∈-resp-↭ (↭-reflexive $ sym namesʳ≡) ∘ c∈⇒x∈ Γ ∘ c∈Γ⇐
+              ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈
+              ) c∈
+            ≡⟨ cong (∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym $ R≈′ .proj₂)))
+                  $ ↭-reflexive∘c∈⇒x∈∘c∈Γ⇐ (∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈ c∈) ⟩
+              ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym Γ≈))
+              ∘ c∈⇒x∈ Γ′
+              ∘ ∈ᶜ-resp-≈ {R′ ∙cfg}{Γ′} Γ≈
+              ) c∈
+            ≡⟨ ∈-resp-↭∘c∈⇒x∈∘∈ᶜ-resp-≈ (R′ ∙cfg) Γ′ Γ≈ c∈ ⟩
+              c∈⇒x∈ (R′ ∙cfg) c∈
+            ∎
+
+        abstract
+          txoutEndC≡ : ∀ (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ″) →
+            𝕣′ ∙txoutC c∈ ≡ 𝕣 ∙txoutC (c∈⇐ c∈)
+          txoutEndC≡ c∈ =
+            begin
+              𝕣′ ∙txoutC c∈
+            ≡⟨⟩
+              𝕣′ ∙txoutEnd (c∈⇒x∈ (R′ ∙cfg) c∈)
+            ≡⟨ cong (𝕣′ ∙txoutEnd_) $ sym $ H c∈ ⟩
+              𝕣′ ∙txoutEnd (x∈⇒ $ c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+            ≡⟨ txoutEnd≡ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈) ⟩
+              𝕣 ∙txoutEnd (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+            ≡⟨⟩
+              𝕣 ∙txoutC (c∈⇐ c∈)
+            ∎
+-}
+{-
   -- [3]
   module _ ad Γ₀ A x where
     private
@@ -733,7 +943,7 @@ module _ (𝕣 : ℝ R) t α t′ where
 
         λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
         λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
-
+-}
   -- [6]
   module _ c v y (ds : List (Participant × Value × Id)) Γ₀  c′ y′ where
     private
@@ -748,17 +958,7 @@ module _ (𝕣 : ℝ R) t α t′ where
         Liftᶜ = LIFTᶜ 𝕣
       module H₆′ (tx : TxInput′) where
         private
-          h₁ : ∀ (ds : List (Participant × Value × Id)) →
-            Null $ namesˡ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
-          h₁ [] = refl
-          h₁ (_ ∷ []) = refl
-          h₁ (_ ∷ xs@(_ ∷ _)) = h₁ xs
-
-          h₁′ : ∀ (ds : List (Participant × Value × Id)) →
-            Null $ advertisements (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
-          h₁′ [] = refl
-          h₁′ (_ ∷ []) = refl
-          h₁′ (_ ∷ xs@(_ ∷ _)) = h₁′ xs
+          open ≡-Reasoning
 
           namesʳ≡₀ : namesʳ Γ ≡ (y ∷ namesʳ Γ₁) ++ namesʳ Γ₀
           namesʳ≡₀ =
@@ -766,7 +966,7 @@ module _ (𝕣 : ℝ R) t α t′ where
               namesʳ Γ
             ≡⟨ mapMaybe∘collectFromBase-++ isInj₂ (⟨ c , v ⟩at y ∣ Γ₁) Γ₀ ⟩
               (y ∷ namesʳ Γ₁) ++ namesʳ Γ₀
-            ∎ where open ≡-Reasoning
+            ∎
 
           namesˡ≡ : Γ′ ≡⦅ namesˡ ⦆ Γ
           namesˡ≡ =
@@ -778,11 +978,16 @@ module _ (𝕣 : ℝ R) t α t′ where
               namesˡ Γ₀
             ≡˘⟨ L.++-identityˡ _ ⟩
               [] ++ namesˡ Γ₀
-            ≡˘⟨ cong (_++ namesˡ Γ₀) (h₁ ds) ⟩
+            ≡˘⟨ cong (_++ namesˡ Γ₀) (go ds) ⟩
               namesˡ (⟨ c′ , v ⟩at y ∣ Γ₁) ++ namesˡ Γ₀
             ≡˘⟨ mapMaybe∘collectFromBase-++ isInj₁ (⟨ c′ , v ⟩at y ∣ Γ₁) Γ₀ ⟩
               namesˡ Γ
-            ∎ where open ≡-Reasoning
+            ∎ where
+              go : ∀ (ds : List (Participant × Value × Id)) →
+                Null $ namesˡ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
+              go [] = refl
+              go (_ ∷ []) = refl
+              go (_ ∷ xs@(_ ∷ _)) = go xs
 
           ads≡ : Γ′ ≡⦅ advertisements ⦆ Γ
           ads≡ =
@@ -790,11 +995,16 @@ module _ (𝕣 : ℝ R) t α t′ where
               advertisements Γ′
             ≡⟨⟩
               advertisements Γ₀
-            ≡˘⟨ cong (_++ advertisements Γ₀) (h₁′ ds) ⟩
+            ≡˘⟨ cong (_++ advertisements Γ₀) (go ds) ⟩
               advertisements Γ₁ ++ advertisements Γ₀
             ≡⟨ sym $ collectFromBase-++ Γ₁ Γ₀ ⟩
               advertisements Γ
-            ∎ where open ≡-Reasoning
+            ∎ where
+              go : ∀ (ds : List (Participant × Value × Id)) →
+                Null $ advertisements (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
+              go [] = refl
+              go (_ ∷ []) = refl
+              go (_ ∷ xs@(_ ∷ _)) = go xs
 
           sechash↝ :  Γ →⦅ Sechash ⦆ Γ′
           sechash↝ = lift Γ —⟨ namesˡ ⟩— Γ′ ⊣ namesˡ≡
@@ -802,12 +1012,285 @@ module _ (𝕣 : ℝ R) t α t′ where
           κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
           κ↝ = lift Γ —⟨ advertisements ⟩— Γ′ ⊣ ads≡
 
-          txout↝ : Γ →⦅ Txout ⦆ Γ′
-          txout↝ txout′ rewrite namesʳ≡₀ = cons-↦ y′ tx $ weaken-↦ txout′ (∈-++⁺ʳ _)
-        abstract
-          λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-          λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
+          -- txoutΓ₀ : Txout Γ₀
+          -- txoutΓ₀ = weaken-↦ (txout′ :~ namesʳ≡₀ ⟪ _↦ TxInput′ ⟫) (∈-++⁺ʳ _)
 
+          txout↝ : Γ →⦅ Txout ⦆ Γ′
+          -- txout↝ txout′ rewrite namesʳ≡₀ = cons-↦ y′ tx $ weaken-↦ txout′ (∈-++⁺ʳ _)
+          txout↝ txout′ = cons-↦ y′ tx
+                        $ weaken-↦ (txout′ :~ namesʳ≡₀ ⟪ _↦ TxInput′ ⟫) (∈-++⁺ʳ _)
+
+          Γ″ = ∃Γ≈ .proj₁; Γ≈ = ∃Γ≈ .proj₂
+
+          Γₜ Γₜ′ Γₜ″ : Cfgᵗ
+          Γₜ  = Γ at t; Γₜ′ = Γ′ at t′; Γₜ″ = Γ″ at t′
+
+          $λˢ : 𝕃 R Γₜ″
+          $λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
+
+          𝕒  = $λˢ .proj₁
+          R′ = Γₜ″ ∷ R ⊣ 𝕒
+
+          R≈′ : R′ ≈⋯ Γ′ at t′
+          R≈′ = refl , Γ≈
+
+          𝕣′ : ℝ R′
+          𝕣′ = ℝ-step 𝕣 $λˢ
+
+          cvy  = ⟨ c , v ⟩at y
+          cvy′ = ⟨ c , v + sum vs ⟩at y′
+
+          txoutΓ : Txout Γ
+          txoutΓ = Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_)
+
+          txoutΓ₀ : Txout Γ₀
+          txoutΓ₀ = weaken-↦ (txoutΓ :~ namesʳ≡₀ ⟪ _↦ TxInput′ ⟫) (∈-++⁺ʳ _)
+
+          txoutΓ′ : Txout Γ′
+          -- txoutΓ′ = txout↝ $ Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R)
+          txoutΓ′ = txout↝ txoutΓ
+
+          txoutΓ≡ : ∀ {x : Id} (x∈ : x ∈ namesʳ Γ′)
+            → (txoutΓ′ x∈ ≡ tx)
+            ⊎ (∃ λ (x∈′ : x ∈ namesʳ (R .end)) → txoutΓ′ x∈ ≡ 𝕣 ∙txoutEnd x∈′)
+          txoutΓ≡ {x} x∈ with x∈
+          ... | here refl  = inj₁ refl
+          ... | there x∈Γ₀ = inj₂ (-, eq)
+            where
+            H : ∀ {A B : Set} {x : A} {xs ys : List A} →
+              (eq : xs ≡ ys)
+              (f : xs ↦ B)
+              (x∈ : x ∈ ys)
+              → (f :~ eq ⟪ _↦ B ⟫) x∈
+              ≡ f (⟪ x L.Mem.∈_ ⟫ eq ~: x∈)
+            H refl _ _ = refl
+
+            eq : txoutΓ′ (there x∈Γ₀)
+               ≡ ( 𝕣 ∙txoutEnd_
+                 ∘ ∈-resp-↭ (↭-sym $ ≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+                 ) (⟪ x L.Mem.∈_ ⟫ namesʳ≡₀ ~: ∈-++⁺ʳ _ x∈Γ₀)
+            eq =
+              begin
+                txoutΓ′ (there x∈Γ₀)
+              ≡⟨⟩
+                txout↝
+                  (Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R))
+                  (there x∈Γ₀)
+              ≡⟨⟩
+                cons-↦ y′ tx
+                  (weaken-↦
+                     (  (Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R))
+                     :~ namesʳ≡₀ ⟪ _↦ TxInput′ ⟫
+                     ) (∈-++⁺ʳ _))
+                  (there x∈Γ₀)
+              ≡⟨⟩
+                weaken-↦
+                  (  (Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R))
+                  :~ namesʳ≡₀ ⟪ _↦ TxInput′ ⟫
+                  ) (∈-++⁺ʳ _) x∈Γ₀
+              ≡⟨⟩
+                (  (Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R))
+                :~ namesʳ≡₀ ⟪ _↦ TxInput′ ⟫
+                ) (∈-++⁺ʳ _ x∈Γ₀)
+              ≡⟨ H namesʳ≡₀ _ _ ⟩
+                (Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R))
+                (⟪ x L.Mem.∈_ ⟫ namesʳ≡₀ ~: ∈-++⁺ʳ _ x∈Γ₀)
+              ≡⟨⟩
+                ( txout′
+                ∘ namesʳ⦅end⦆⊆ R
+                ∘ ∈-resp-↭ (↭-sym $ ≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+                ) (⟪ x L.Mem.∈_ ⟫ namesʳ≡₀ ~: ∈-++⁺ʳ _ x∈Γ₀)
+              ≡⟨⟩
+                ( 𝕣 ∙txoutEnd_
+                ∘ ∈-resp-↭ (↭-sym $ ≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+                ) (⟪ x L.Mem.∈_ ⟫ namesʳ≡₀ ~: ∈-++⁺ʳ _ x∈Γ₀)
+              ∎
+
+          txoutEnd≡ : ∀ {x : Id} (x∈ : x ∈ namesʳ (R′ .end))
+            → (𝕣′ ∙txoutEnd x∈ ≡ tx)
+            ⊎ (∃ λ (x∈′ : x ∈ namesʳ (R .end)) → 𝕣′ ∙txoutEnd x∈ ≡ 𝕣 ∙txoutEnd x∈′)
+          txoutEnd≡ {x} x∈
+            rewrite begin
+                𝕣′ ∙txoutEnd x∈
+              ≡⟨ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′ {x} x∈ ⟩
+                txoutΓ′ (∈-resp-↭ (↭-sym $′ ≈⇒namesʳ↭ {Γ′}{Γ″} $′ ↭-sym $ Γ≈) x∈)
+              ∎
+            = txoutΓ≡ (∈-resp-↭ (↭-sym $′ ≈⇒namesʳ↭ {Γ′}{Γ″} $′ ↭-sym $ Γ≈) x∈)
+
+          module _ {c v x} where
+            cvx  = ⟨ c , v ⟩at x
+
+            postulate pv-txoutC : ValuePreserving {R ∙cfg} (𝕣 ∙txoutC_)
+
+            pv-txoutΓ : ValuePreservingₓ {Γ} txoutΓ
+            pv-txoutΓ = ValuePreservingₓ-Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_) pv-txoutC
+
+            -- pv-weaken-↦ : ∀ (txout : ids Γ₁ ++ ids Γ₀ ↦ TxInput′)
+            --   ValuePreservingₓ {Γ₀} txout
+            --   ─────────────────────────────────────
+            --   ValuePreservingₓ {Γ₀} (weaken-↦ txout (∈-++⁺ʳ _))
+            -- pv-weaken-↦ = {!!}
+
+            pv-txoutΓ₀ : ValuePreservingₓ {Γ₀} txoutΓ₀
+            pv-txoutΓ₀ = {!pv-txoutΓ ?!}
+
+            -- pv-txout↝ : ∀ (txoutΓ : Txout Γ) →
+            --   ValuePreservingₓ {Γ} txoutΓ
+            --   ─────────────────────────────────────
+            --   ValuePreservingₓ {Γ′} (txout↝ txoutΓ)
+            -- pv-txout↝ txoutΓ pv = {!pv-cons-↦ txoutΓ₀ pv-txoutΓ₀  !}
+
+            pv-txoutΓ′ : ValuePreservingₓ {Γ′} txoutΓ′
+            -- pv-txoutΓ′ = pv-txout↝ txoutΓ pv-txoutΓ
+            pv-txoutΓ′ = pv-cons-↦ txoutΓ₀ y′ tx pv-txoutΓ₀
+
+            txoutC′ : R′ ≈⋯ cvx ⋯ → TxInput′
+            txoutC′ c∈ = txoutΓ′ (c∈⇒x∈ Γ′ $ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈ c∈)
+
+            pv-txoutC″ : ValuePreserving {Γ″} txoutC′
+            pv-txoutC″ = ValuePreserving⇒ {Γ″}{Γ′} Γ≈ (txoutΓ′ ∘ c∈⇒x∈ Γ′) pv-txoutΓ′
+
+            txoutC≗ : (𝕣′ ∙txoutC_) ≗ txoutC′
+            txoutC≗ c∈ =
+              begin
+                𝕣′ ∙txoutC c∈
+              ≡⟨⟩
+                𝕣′ ∙txoutEnd (c∈⇒x∈ Γ″ c∈)
+              ≡⟨⟩
+                𝕣′ ∙txout (namesʳ⦅end⦆⊆ R′ $ c∈⇒x∈ Γ″ c∈)
+              ≡⟨ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′ _ ⟩
+                Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′ (c∈⇒x∈ Γ″ c∈)
+              ≡⟨⟩
+                txoutΓ′ (∈-resp-↭ (↭-sym $ ≈⇒namesʳ↭ {Γ′}{Γ″} $ ↭-sym Γ≈) (c∈⇒x∈ Γ″ c∈))
+              ≡⟨ cong txoutΓ′
+                 (begin
+                   ∈-resp-↭ (↭-sym $ ≈⇒namesʳ↭ {Γ′}{Γ″} $ ↭-sym Γ≈) (c∈⇒x∈ Γ″ c∈)
+                 ≡⟨ cong (λ ◆ → ∈-resp-↭ ◆ (c∈⇒x∈ Γ″ c∈))
+                    (begin
+                      ↭-sym (≈⇒namesʳ↭ {Γ′}{Γ″} $ ↭-sym Γ≈)
+                    ≡⟨ ↭-sym∘≈⇒namesʳ↭ {Γ′}{Γ″} $ ↭-sym Γ≈ ⟩
+                      ≈⇒namesʳ↭ {Γ″}{Γ′} (↭-sym $ ↭-sym Γ≈)
+                    ≡⟨ cong (≈⇒namesʳ↭ {Γ″}{Γ′}) $ L.Perm.↭-sym-involutive Γ≈ ⟩
+                      ≈⇒namesʳ↭ {Γ″}{Γ′} Γ≈
+                    ∎) ⟩
+                   ∈-resp-↭ (≈⇒namesʳ↭ {Γ″}{Γ′} Γ≈) (c∈⇒x∈ Γ″ c∈)
+                 ≡⟨ ∈-resp-↭∘c∈⇒x∈ Γ″ Γ′ Γ≈ c∈ ⟩
+                   c∈⇒x∈ Γ′ (∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈ c∈)
+                 ∎) ⟩
+                txoutΓ′ (c∈⇒x∈ Γ′ $ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈ c∈)
+              ≡⟨⟩
+                txoutC′ c∈
+              ∎
+
+            pv-txoutC′ : ValuePreserving {Γ″} (𝕣′ ∙txoutC_)
+            pv-txoutC′ = ValuePreserving≗ {Γ″} _ _ (≗-sym txoutC≗) pv-txoutC″
+
+{-
+            txoutC≡ : ∀ (c∈ : R′ ≈⋯ ⟨ c , v ⟩at x ⋯)
+              → (𝕣′ ∙txoutC c∈ ≡ tx)
+              ⊎ (∃ λ (c∈′ : R ≈⋯ ⟨ c , v ⟩at x ⋯) → 𝕣′ ∙txoutC c∈ ≡ 𝕣 ∙txoutC c∈′)
+            txoutC≡ c∈
+            --   with txoutEnd≡ {x = x} (c∈⇒x∈ (R′ ∙cfg) c∈)
+            -- ... | inj₁ eq        = inj₁ eq
+            -- ... | inj₂ (x∈ , eq) = inj₂ ({!!} , eq′)
+              -- with x∈′ ← ∈-resp-↭ (↭-sym $′ ≈⇒namesʳ↭ {Γ′}{Γ″} $′ ↭-sym $ Γ≈)
+              --          $ c∈⇒x∈ (R′ ∙cfg) c∈
+              rewrite
+                begin
+                  𝕣′ ∙txoutC c∈
+                ≡⟨⟩
+                  𝕣′ ∙txoutEnd (c∈⇒x∈ (R′ ∙cfg) c∈)
+                ≡⟨ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′ _  ⟩
+                  ( txoutΓ′
+                  ∘ ∈-resp-↭ (↭-sym $′ ≈⇒namesʳ↭ {Γ′}{Γ″} $′ ↭-sym $ Γ≈)
+                  ∘ c∈⇒x∈ (R′ ∙cfg)
+                  ) c∈
+                ∎
+              with ∈-resp-↭ (↭-sym $′ ≈⇒namesʳ↭ {Γ′}{Γ″} $′ ↭-sym $ Γ≈) $ c∈⇒x∈ (R′ ∙cfg) c∈
+                in x∈≡
+            ... | here refl
+              = inj₁
+              $ begin
+                  txoutΓ′ (here refl)
+                ≡⟨⟩
+                  tx
+                ∎
+            ... | there x∈′
+              = inj₂ $ -,
+              (begin
+                txoutΓ′ (there x∈′)
+              ≡⟨ {!!} ⟩
+                𝕣 ∙txoutEnd (c∈⇒x∈ (R ∙cfg) c∈R)
+              ≡⟨⟩
+                𝕣 ∙txoutC c∈R
+              ∎)
+              where
+                c∈Γ₀ : ⟨ c , v ⟩at x ∈ᶜ Γ₀
+                c∈Γ₀ = {!!}
+
+                c∈Γ : ⟨ c , v ⟩at x ∈ᶜ Γ
+                c∈Γ = ∈ᶜ-++⁺ʳ (⟨ _ , _ ⟩at _ ∣ Γ₁) Γ₀ c∈Γ₀
+
+                c∈R : R ≈⋯ ⟨ c , v ⟩at x ⋯
+                c∈R = ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂) c∈Γ
+
+              -- where
+              -- eq′ : txoutΓ′ x∈′ ≡ 𝕣 ∙txoutC ?
+              -- eq′ =
+              --   begin
+              --     txoutΓ′ x∈′
+              --   -- ≡⟨ eq ⟩
+              --   --   𝕣 ∙txoutEnd x∈
+
+        --     c∈Γ⇐ : ⟨ c , v ⟩at x ∈ᶜ Γ′
+        --         → (⟨ c , v ⟩at x ≡ ⟨ c′ , v₀ + sum vs ⟩at y′)
+        --         ⊎ (⟨ c , v ⟩at x ∈ᶜ Γ)
+        --     c∈Γ⇐ = λ where
+        --       (here px)  → inj₁ px
+        --       (there c∈) → inj₂ $ there $ ∈ᶜ-++⁺ʳ Γ₁ Γ₀ c∈
+
+        --     c∈⇐ : R′ ≈⋯ ⟨ c , v ⟩at x ⋯
+        --         → x ≢ y′
+        --         → R  ≈⋯ ⟨ c , v ⟩at x ⋯
+        --     c∈⇐ c∈ x≢ with c∈Γ⇐ $ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈ c∈
+        --     ... | inj₁ refl = ⊥-elim $ x≢ refl
+        --     ... | inj₂ c∈   = ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂) c∈
+
+        --     -- c∈↓ : R′ ≈⋯ ⟨ c , v ⟩at x ⋯
+        --     --     → x ≡ y′
+        --     --     → ⟨ c , v ⟩at x ≡ ⟨ c′ , v₀ + sum vs ⟩at y′
+        --     -- c∈↓ c∈ x≡ with c∈Γ⇐ $ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈ c∈
+        --     -- ... | inj₁ refl = ⊥-elim $ x≢ refl
+        --     -- ... | Inj₂ c∈   = ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂) c∈
+
+        -- abstract
+        --   λˢ : 𝕃 R Γₜ″
+        --   λˢ = $λˢ
+
+          txout-preserves-value :
+            ValuePreserving 𝕣
+            ───────────────────
+            ValuePreserving 𝕣′
+          txout-preserves-value IH {c = c}{v}{x} c∈
+            = {!!}
+          --   with txoutC≡ c∈
+          -- ... | inj₁ eq         = trans eq refl
+          -- ... | inj₂ (c∈′ , eq) = trans eq (IH c∈′)
+            -- = begin
+            --   (𝕣′ ∙txoutC c∈) ∙value
+            -- ≡⟨⟩
+            --   (𝕣′ ∙txoutEnd (c∈⇒x∈ (R′ ∙cfg) c∈)) ∙value
+            -- ≡⟨ cong (𝕣′ ∙txoutEnd_) $ sym $ H c∈ ⟩
+            --   𝕣′ ∙txoutEnd (x∈⇒ $ c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+            -- ≡⟨ txoutEnd≡ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈) ⟩
+            --   𝕣 ∙txoutEnd (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+            -- ≡⟨⟩
+            --   𝕣 ∙txoutC (c∈⇐ c∈)
+            -- ≡⟨ {!!} ⟩
+            --   v
+            -- ∎
+-}
+{-
   -- [7]
   module _ A a n Γ₀ where
     private
@@ -933,9 +1416,45 @@ module _ (𝕣 : ℝ R) t α t′ where
       private
         txout↝ : Γ →⦅ Txout ⦆ Γ′
         txout↝ txout′ = cons-↦ y tx $ weaken-↦ txout′ (λ x∈ → there (there x∈))
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id
+
+        -- Γ″  = ∃Γ≈ .proj₁
+        -- Γₜ″ = Γ″ at t′
+
+        $λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′) -- Γₜ″
+        $λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id
+      --   𝕒  = $λˢ .proj₁
+      --   R′ = Γₜ″ ∷ R ⊣ 𝕒
+
+      --   𝕣′ : ℝ R′
+      --   𝕣′ = ℝ-step 𝕣 $λˢ
+
+      -- -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = $λˢ
+
+      -- 𝕣′ : ℝ R′
+      -- 𝕣′ = 𝕣′
+
+      -- module _ {c v x} where
+      --   private
+      --     c∈⇐ : R′ ≈⋯ ⟨ c , v ⟩at x ⋯
+      --         → R  ≈⋯ ⟨ c , v ⟩at x ⋯
+      --     c∈⇐ = ?
+        -- abstract
+        --   txoutEndC≡ : ∀ (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ″) →
+        --     𝕣′ ∙txoutC c∈ ≡ 𝕣 ∙txoutC (c∈⇐ c∈)
+        --   txoutEndC≡ c∈ =
+        --     begin
+        --       𝕣′ ∙txoutC c∈
+        --     ≡⟨⟩
+        --       𝕣′ ∙txoutEnd (c∈⇒x∈ (R′ ∙cfg) c∈)
+        --     -- ≡⟨ cong (𝕣′ ∙txoutEnd_) $ sym $ H c∈ ⟩
+        --     --   𝕣′ ∙txoutEnd (x∈⇒ $ c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+        --     -- ≡⟨ txoutEnd≡ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈) ⟩
+        --     --   𝕣 ∙txoutEnd (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+        --     ≡⟨ ? ⟩
+        --       𝕣 ∙txoutC (c∈⇐ c∈)
+        --     ∎ where open ≡-Reasoning
 
   -- [12]
   module _ A v v′ x Γ₀ where
@@ -1071,12 +1590,124 @@ module _ (𝕣 : ℝ R) t α t′ where
       abstract
         λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
         λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
-
+-}
+{-
   -- [18]
   module _ Γ (R≈ : R ≈⋯ Γ at t) where
     private Γ′ = Γ
     module H₁₈ (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+      private
+        $λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+        $λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
+
+        Γ″ = ∃Γ≈ .proj₁; Γ≈ = ∃Γ≈ .proj₂
+        Γₜ Γₜ′ Γₜ″ : Cfgᵗ
+        Γₜ  = Γ at t; Γₜ′ = Γ′ at t′; Γₜ″ = Γ″ at t′
+        𝕒  = $λˢ .proj₁
+        R′ = Γₜ″ ∷ R ⊣ 𝕒
+
+        R≈′ : R′ ≈⋯ Γ′ at t′
+        R≈′ = refl , Γ≈
+
+        𝕣′ : ℝ R′
+        𝕣′ = ℝ-step 𝕣 $λˢ
+
+        namesʳ↭ : R .end ↭⦅ namesʳ ⦆ R′ .end
+        namesʳ↭ = ↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+                          (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym $ R≈′ .proj₂))
+
+        txoutΓ : Txout (R .end)
+        txoutΓ = 𝕣 ∙txoutEnd_
+
+        txoutΓ′ : Txout Γ′
+        txoutΓ′ = Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R)
+
+        x∈⇒ : namesʳ (R .end) ⊆ namesʳ (R′ .end)
+        x∈⇒ = ∈-resp-↭ namesʳ↭
+
+        open ≡-Reasoning
+
+        txoutEnd≡ : ∀ {x : Id} (x∈ : x ∈ namesʳ (R .end))
+          → 𝕣′ ∙txoutEnd (x∈⇒ x∈) ≡ 𝕣 ∙txoutEnd x∈
+        txoutEnd≡ {x} x∈ =
+          begin
+            𝕣′ ∙txoutEnd (x∈⇒ x∈)
+          ≡⟨⟩
+            𝕣′ ∙txout (namesʳ⦅end⦆⊆ R′ $ x∈⇒ x∈)
+          ≡⟨⟩
+            ( txout∷ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′
+            ∘ namesʳ⦅end⦆⊆ R′
+            ∘ x∈⇒
+            ) x∈
+          ≡⟨ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ _ txoutΓ′ txout′ _ ⟩
+            ( Txout≈ {Γₜ′ .cfg}{Γₜ″ .cfg} (↭-sym $ R≈′ .proj₂) txoutΓ′
+            ∘ x∈⇒
+            ) x∈
+          ≡⟨⟩
+            ( Txout≈ {Γ′}{Γ″} (↭-sym $ R≈′ .proj₂) txoutΓ′
+            ∘ ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym $ R≈′ .proj₂))
+            ∘ ∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+            ) x∈
+          ≡⟨ Txout≗ {Γ′}{Γ″} (↭-sym $ R≈′ .proj₂) txoutΓ′ _ ⟩
+            ( Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ
+            ∘ ∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+            ) x∈
+          ≡⟨ Txout≗ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ _ ⟩
+            txoutΓ x∈
+          ≡⟨⟩
+            𝕣 ∙txoutEnd x∈
+          ∎
+
+        module _ {c v x} where
+          c∈⇐ : R′ ≈⋯ ⟨ c , v ⟩at x ⋯
+              → R  ≈⋯ ⟨ c , v ⟩at x ⋯
+          c∈⇐ = ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
+              ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈
+
+          txoutEndC≡ : ∀ (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ″) →
+            𝕣′ ∙txoutC c∈ ≡ 𝕣 ∙txoutC (c∈⇐ c∈)
+          txoutEndC≡ c∈ =
+            begin
+              𝕣′ ∙txoutC c∈
+            ≡⟨⟩
+              𝕣′ ∙txoutEnd (c∈⇒x∈ (R′ ∙cfg) c∈)
+            ≡⟨ cong (𝕣′ ∙txoutEnd_) $ sym $ H c∈ ⟩
+              𝕣′ ∙txoutEnd (x∈⇒ $ c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+            ≡⟨ txoutEnd≡ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈) ⟩
+              𝕣 ∙txoutEnd (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+            ≡⟨⟩
+              𝕣 ∙txoutC (c∈⇐ c∈)
+            ∎ where
+              H : (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ″)
+                → x∈⇒ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+                ≡ c∈⇒x∈ (R′ ∙cfg) c∈
+              H c∈ =
+                begin
+                  x∈⇒ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
+                ≡⟨⟩
+                  ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{Γ″} (↭-sym Γ≈))
+                  ∘ ∈-resp-↭ (≈⇒namesʳ↭ {R ∙cfg}{Γ} (R≈ .proj₂))
+                  ∘ c∈⇒x∈ (R ∙cfg)
+                  ∘ ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
+                  ∘ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈
+                  ) c∈
+                ≡⟨ cong (∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{Γ″} (↭-sym Γ≈)))
+                      (∈-resp-↭∘c∈⇒x∈∘∈ᶜ-resp-≈˘ Γ (R ∙cfg) (R≈ .proj₂) _) ⟩
+                  ( ∈-resp-↭ (≈⇒namesʳ↭ {Γ′}{R′ ∙cfg} (↭-sym Γ≈))
+                  ∘ c∈⇒x∈ Γ′
+                  ∘ ∈ᶜ-resp-≈ {R′ ∙cfg}{Γ′} Γ≈
+                  ) c∈
+                ≡⟨ ∈-resp-↭∘c∈⇒x∈∘∈ᶜ-resp-≈ (R′ ∙cfg) Γ′ Γ≈ c∈ ⟩
+                  c∈⇒x∈ (R′ ∙cfg) c∈
+                ∎
+
       abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
+        λˢ : 𝕃 R Γₜ″
+        λˢ = $λˢ
+
+        value-preserving⇒ :
+          ValuePreserving 𝕣
+          ──────────────────
+          ValuePreserving 𝕣′
+        value-preserving⇒ IH c∈ = trans (cong _∙value (txoutEndC≡ _)) (IH (c∈⇐ _))
 -}

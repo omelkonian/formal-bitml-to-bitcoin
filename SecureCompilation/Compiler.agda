@@ -58,6 +58,7 @@ open import BitML.Contracts Participant Honest
 open Induction
 
 open import SymbolicModel.Collections Participant Honest
+open import SymbolicModel.Mappings Participant Honest
 
 -- single-output transactions
 Tx¹ : ℕ → Set
