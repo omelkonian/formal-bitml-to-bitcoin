@@ -18,7 +18,6 @@ module SymbolicModel.Collections
 
 open import SymbolicModel.Run Participant Honest
   hiding ( _∎; begin_)
-open import SymbolicModel.Accessors Participant Honest
 
 open ≡-Reasoning
 

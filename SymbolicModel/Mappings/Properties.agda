@@ -329,3 +329,20 @@ Txout≈∘Txout≈⁻¹ {Γ}{Γ′} Γ≈ txout {x} x∈ =
   with L.Mem.∈-++⁻ (namesʳ Γ₀) x∈
 ... | inj₁ _  = refl
 ... | inj₂ y∈ = Txout≈∘Txout≈⁻¹ {Γ}{Γ′} Γ≈ txoutʳ y∈
+
+open import ComputationalModel.Accessors using (_∙value)
+
+module _ {R} (𝕣 : ℝ R) where
+  _∙txout_ = 𝕣 .ℝ.txout′
+
+  _∙txoutEnd_ : Txout (R .end)
+  _∙txoutEnd_ = _∙txout_ ∘ namesʳ⦅end⦆⊆ R
+
+  _∙txoutΓ_ : ∀ {Γ} → (R ≈⋯ Γ at t) × (x ∈ namesʳ Γ) → TxInput′
+  _∙txoutΓ_ {Γ = Γ} (R≈@(_ , Γ≈) , x∈) = Txout≈ {R .end .cfg}{Γ} Γ≈ _∙txoutEnd_ x∈
+
+  _∙txoutΓ⟨_⟩_ : ∀ Γ → (R ≈⋯ Γ at t) × (x ∈ namesʳ Γ) → TxInput′
+  _∙txoutΓ⟨_⟩_ Γ (R≈@(_ , Γ≈) , x∈) = Txout≈ {R .end .cfg}{Γ} Γ≈ _∙txoutEnd_ x∈
+
+  _∙txoutC_ : ∀ {c v x} → R ≈⋯ ⟨ c , v ⟩at x ⋯ → TxInput′
+  _∙txoutC_ = _∙txoutEnd_ ∘ c∈⇒x∈ (R ∙cfg)

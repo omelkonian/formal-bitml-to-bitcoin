@@ -12,6 +12,7 @@ open import Prelude.Functor
 open import Prelude.InferenceRules
 open import Prelude.Sets
 open import Prelude.Accessors
+open import Prelude.Nary
 
 import Bitcoin.Crypto as BTC
 
@@ -33,18 +34,24 @@ open import ComputationalModel Participant Honest finPart keypairs as C
 open import SecureCompilation.Compiler Participant Honest η
 open import SecureCompilation.Coherence Participant Honest finPart keypairs η
 
+record $ValuePreservingʳᶜ {R} (𝕣 : ℝ R) : Set where
+  constructor mk_
+  field unmk : ValuePreservingʳᶜ 𝕣
+open $ValuePreservingʳᶜ public
+
 txout-preserves-value : ∀ {𝕣∗ : ℝ∗ Rˢ} →
   ∙ 𝕣∗ ~′ Rᶜ
-  → (c∈ : Rˢ ≈⋯ ⟨ c , v ⟩at x ⋯) →
+  -- → (c∈ : Rˢ ≈⋯ ⟨ c , v ⟩at x ⋯) →
     ─────────────────────────────────
-    ((ℝ∗⇒ℝ 𝕣∗) ∙txoutC c∈) ∙value ≡ v
-txout-preserves-value (step₁ {Rˢ = Rˢ}{𝕣∗}{λˢ = (α , Γ at t , _ at t′ , Γ→Γ′ , _ , R≈) , _} Rˢ~Rᶜ coh) c∈
+    $ValuePreservingʳᶜ (ℝ∗⇒ℝ 𝕣∗)
+    -- ((ℝ∗⇒ℝ 𝕣∗) ∙txoutC c∈) ∙value ≡ v
+txout-preserves-value (step₁ {Rˢ = Rˢ}{𝕣∗}{λˢ = (α , Γ at t , _ at t′ , Γ→Γ′ , _ , R≈) , _} Rˢ~Rᶜ coh)
   with coh
 ... | [L] [1] {⟨G⟩C = ⟨G⟩C} _ ∃Γ≈ _ _ _
-  = trans (cong _∙value $ txoutEndC≡ c∈) (txout-preserves-value Rˢ~Rᶜ _)
-  where open H₁ (ℝ∗⇒ℝ 𝕣∗) t α t Γ R≈ ⟨G⟩C Γ→Γ′ ∃Γ≈ using (txoutEndC≡)
+  = mk value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ .unmk)
+  where open H₁ (ℝ∗⇒ℝ 𝕣∗) t α t Γ R≈ ⟨G⟩C Γ→Γ′ ∃Γ≈
 ... | [L] [2] {⟨G⟩C = ⟨G⟩C} {A = A} {Δ×h̅ = Δ×h̅ } {k⃗ = k⃗} R≈ ∃Γ≈ as≡ All∉ Hon⇒ _ _ _ _ _
-  = trans (cong _∙value (txoutEndC≡ c∈)) (txout-preserves-value Rˢ~Rᶜ _)
+  = mk value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ .unmk)
   where
     _Δ : List (Secret × Maybe ℕ)
     _Δ = map (λ{ (s , mn , _) → s , mn }) Δ×h̅
@@ -55,12 +62,38 @@ txout-preserves-value (step₁ {Rˢ = Rˢ}{𝕣∗}{λˢ = (α , Γ at t , _ at 
           (_ , _ , z) , _ = L.Mem.∈-map⁻ (λ{ (s , mn , _) → s , mn }) a×m∈
       in z
 
-    open H₂ (ℝ∗⇒ℝ 𝕣∗) t α t _ R≈ A A ⟨G⟩C _Δ sechash⁺ k⃗ Γ→Γ′ ∃Γ≈ using (txoutEndC≡)
-... | [L] [18] _ ∃Γ≈
-  = value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ _)
-  where open H₁₈ (ℝ∗⇒ℝ 𝕣∗) t α t′ Γ R≈ Γ→Γ′ ∃Γ≈ using (value-preserving⇒)
+    open H₂ (ℝ∗⇒ℝ 𝕣∗) t α t _ R≈ A A ⟨G⟩C _Δ sechash⁺ k⃗ Γ→Γ′ ∃Γ≈
+... | [L] [6] {c = c} {Γ₀ = Γ₀} {c′ = c′} {y′ = y′}
+              {ds = ds}{ss}{i} {v = v}{y}
+              t≡ d≡ R≈ ∃Γ≈ fresh-y′ p⟦Δ⟧≡ As≡∅
+  = mk value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ .unmk)
+  where
+    open ∣SELECT c i
+    _Δ  = || map (uncurry₃ _∶_♯_) ss
+    Γ₂  = _Δ ∣ Γ₀
 
-txout-preserves-value _ _ = {!!}
+    open H₆ (ℝ∗⇒ℝ 𝕣∗) t α t′ c v y ds Γ₂ c′ y′ R≈ Γ→Γ′ ∃Γ≈ using (module H₆′; Liftᶜ)
+
+    open H₆′ (
+      let
+        ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = Rˢ} {Γ = Γ} R≈ (here refl)
+        ⟨ G ⟩ C″ = ⟨G⟩C″
+
+        d∈ : d ∈ subtermsᵃ′ ⟨G⟩C″
+        d∈ = c⊆ (L.Mem.∈-lookup i)
+
+        T : ∃Tx
+        T = let _ , ∀d∗ = COMPILE (Liftᶜ anc)
+                _ , Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
+            in -, -, Tᵈ
+      in
+        T at 0F
+      )
+... | [L] [18] _ ∃Γ≈
+  = mk value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ .unmk)
+  where open H₁₈ (ℝ∗⇒ℝ 𝕣∗) t α t′ Γ R≈ Γ→Γ′ ∃Γ≈
+
+txout-preserves-value _ = {!!}
 {-
 ... | [L] [2]  R≈ ∃Γ≈ as≡ All∉ Hon⇒ ∃B h≡ h∈O unique-h h♯sechash = {!!}
 ... | [L] [3]  R≈ ∃Γ≈ committedA A∈per ∃B = {!!}

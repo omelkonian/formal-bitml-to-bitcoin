@@ -1,4 +1,5 @@
 -- {-# OPTIONS --auto-inline #-}
+-- {-# OPTIONS --allow-unsolved-metas #-}
 open import Prelude.Init
 open import Prelude.General
 open import Prelude.Lists
@@ -23,6 +24,7 @@ open import Prelude.Irrelevance
 
 open import Bitcoin.Crypto
 open import Bitcoin.Tx
+open import ComputationalModel.Accessors
 
 module SymbolicModel.Helpers
   (Participant : Set)
@@ -87,6 +89,16 @@ LIFTˢ {R} r t α t′ Γ R≈@(_ , Γ≈) Γ′ Γ→Γ′ (Γ″ , Γ≈″) t
 
     txoutΓ′ : Txout Γ′
     txoutΓ′ = txout↝ $ Txout≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R)
+
+    -- pv↝ :
+    --   ∙ ValuePreserving  {Γ} txout′
+    --   ∙ ValuePreserving↝ {Γ}{Γ′} txout↝
+    --     ──────────────────────────────────
+    --     ValuePreserving txoutΓ′
+    -- pv↝ pv pvΓ
+    --   = pvΓ (Txout≈ {R ∙cfg}{Γ} Γ≈ (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R))
+    --   ∘ ValuePreserving-Txout≈ {R ∙cfg}{Γ} Γ≈ (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R)
+    --   ∘ {!!}
 
     sechashΓ′ : Sechash Γ′
     sechashΓ′ = sechash↝ $ Sechash≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ sechash′ $ namesˡ⦅end⦆⊆ R)
@@ -189,23 +201,6 @@ LIFTᶜ {R} 𝕣 {ad} ∃H =
   in
     LIFT₀ 𝕣′ tᵢ x R≈′ ad ad∈ p⊆
 
-open import ComputationalModel.Accessors using (_∙value)
-
-module _ {R} (𝕣 : ℝ R) where
-  _∙txout_ = 𝕣 .ℝ.txout′
-
-  _∙txoutEnd_ : Txout (R .end)
-  _∙txoutEnd_ = _∙txout_ ∘ namesʳ⦅end⦆⊆ R
-
-  _∙txoutΓ_ : ∀ {Γ} → (R ≈⋯ Γ at t) × (x ∈ namesʳ Γ) → TxInput′
-  _∙txoutΓ_ {Γ = Γ} (R≈@(_ , Γ≈) , x∈) = Txout≈ {R .end .cfg}{Γ} Γ≈ _∙txoutEnd_ x∈
-
-  _∙txoutΓ⟨_⟩_ : ∀ Γ → (R ≈⋯ Γ at t) × (x ∈ namesʳ Γ) → TxInput′
-  _∙txoutΓ⟨_⟩_ Γ (R≈@(_ , Γ≈) , x∈) = Txout≈ {R .end .cfg}{Γ} Γ≈ _∙txoutEnd_ x∈
-
-  _∙txoutC_ : ∀ {c v x} → R ≈⋯ ⟨ c , v ⟩at x ⋯ → TxInput′
-  _∙txoutC_ = _∙txoutEnd_ ∘ c∈⇒x∈ (R ∙cfg)
-
 -- Helpers for coherence, in order not to over-complicate the constructor definitions for `_~₁₁_`.
 -- Also we need the complete power of rewrites/with that let-only expressions in constructors do not give us.
 -- ∙ each module corresponds to an inductive case for Coherence
@@ -215,7 +210,7 @@ module _ {R} (𝕣 : ℝ R) where
 
 module _ (𝕣 : ℝ R) t α t′ where
   open ℝ 𝕣
-{-
+
   -- [1]
   module _ Γ (R≈ : R ≈⋯ Γ at t) ad where
     private Γ′ = ` ad ∣ Γ
@@ -237,11 +232,6 @@ module _ (𝕣 : ℝ R) t α t′ where
         𝕣′ : ℝ R′
         𝕣′ = ℝ-step 𝕣 $λˢ
 
-      -- abstract
-      λˢ : 𝕃 R Γₜ″
-      λˢ = $λˢ
-
-      private
         R≈′ : R′ ≈⋯ Γ′ at t′
         R≈′ = refl , Γ≈
 
@@ -266,6 +256,8 @@ module _ (𝕣 : ℝ R) t α t′ where
 
         x∈⇒ : namesʳ (R .end) ⊆ namesʳ (R′ .end)
         x∈⇒ = ∈-resp-↭ namesʳ↭
+
+        open ≡-Reasoning
 
         txoutEnd≡ : ∀ {x : Id} (x∈ : x ∈ namesʳ (R .end))
           → 𝕣′ ∙txoutEnd (x∈⇒ x∈) ≡ 𝕣 ∙txoutEnd x∈
@@ -314,11 +306,10 @@ module _ (𝕣 : ℝ R) t α t′ where
             txoutΓ x∈
           ≡⟨⟩
             𝕣 ∙txoutEnd x∈
-          ∎ where open ≡-Reasoning
+          ∎
+{-
+        module _ {c v x} where
 
-      module _ {c v x} where
-
-        private
           c∈Γ⇐ : ⟨ c , v ⟩at x ∈ᶜ Γ′
                 → ⟨ c , v ⟩at x ∈ᶜ Γ
           c∈Γ⇐ (there c∈) = c∈
@@ -330,7 +321,6 @@ module _ (𝕣 : ℝ R) t α t′ where
             ≡ c∈⇒x∈ Γ′ c∈
           c∈⇒x∈∘Γ⊆ (there _) = refl
 
-        abstract
           c∈⇐ : R′ ≈⋯ ⟨ c , v ⟩at x ⋯
               → R  ≈⋯ ⟨ c , v ⟩at x ⋯
           c∈⇐ = ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂)
@@ -351,7 +341,6 @@ module _ (𝕣 : ℝ R) t α t′ where
             ≡⟨⟩
               𝕣 ∙txoutC (c∈⇐ c∈)
             ∎ where
-              open ≡-Reasoning
               H : (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ″)
                 → x∈⇒ (c∈⇒x∈ (R ∙cfg) $ c∈⇐ c∈)
                 ≡ c∈⇒x∈ (R′ ∙cfg) c∈
@@ -418,6 +407,62 @@ module _ (𝕣 : ℝ R) t α t′ where
                 ≡⟨ ∈-resp-↭∘c∈⇒x∈∘∈ᶜ-resp-≈ (R′ ∙cfg) Γ′ Γ≈ c∈ ⟩
                   c∈⇒x∈ (R′ ∙cfg) c∈
                 ∎
+-}
+      -- abstract
+      λˢ : 𝕃 R Γₜ″
+      λˢ = $λˢ
+
+      abstract
+        -- value-preserving⇒ :
+        --   ValuePreservingʳᶜ 𝕣
+        --   ────────────────────
+        --   ValuePreservingʳᶜ 𝕣′
+        -- value-preserving⇒ IH c∈ = trans (cong _∙value (txoutEndC≡ _)) (IH (c∈⇐ _))
+        value-preserving⇒ :
+          ValuePreservingʳ 𝕣
+          ───────────────────
+          ValuePreservingʳ 𝕣′
+        -- value-preserving⇒ pv-txout x∈ =
+        --   begin
+        --     (𝕣′ ∙txoutEnd x∈) ∙value
+        --   ≡⟨⟩
+        --     (𝕣′ ∙txout (namesʳ⦅end⦆⊆ R′ x∈)) ∙value
+        --   -- ≡⟨ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓₜ′ txout′ x∈ ⟩
+        --   --   ( Txout≈ {Γₜ′ .cfg}{Γₜ″ .cfg} (↭-sym $ R≈′ .proj₂)
+        --   --   $ Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) txoutΓ
+        --   --   ) x∈
+        --   -- ≡⟨⟩
+        --   --   ( permute-↦ (↭-trans (≈⇒namesʳ↭ {R ∙cfg}{Γ}          $ R≈ .proj₂)
+        --   --                        (≈⇒namesʳ↭ {Γₜ′ .cfg}{Γₜ″ .cfg} $ ↭-sym Γ≈))
+        --   --   $ txoutΓ
+        --   --   ) x∈
+        --   ≡⟨ {!!} ⟩
+        --     (Γ″ , x∈) ∙value
+        --   ∎
+        value-preserving⇒ pv-txout = pv-txout′
+          where
+          -- pv-txoutΓ′ : ValuePreserving {Γ′} txoutΓ′
+          -- pv-txoutΓ′ = pv-txout
+
+          txoutΓ″ : Txout Γ″
+          txoutΓ″ = Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′
+
+          pv-txoutΓ″ : ValuePreserving {Γ″} txoutΓ″
+          pv-txoutΓ″ = {!!} -- ValuePreserving-Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′ pv-txoutΓ′
+
+          pv-txout′ : ValuePreservingʳ 𝕣′
+          -- pv-txout′ = {!pv-permute-↦ {R ∙cfg}{R′ ∙cfg} txoutΓ namesʳ↭ ? pv-txout!}
+          pv-txout′ x∈ =
+            begin
+              (𝕣′ ∙txoutEnd x∈) ∙value
+            -- ≡⟨ cong _∙value
+            --       $ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′ _ ⟩
+            --   (txoutΓ″ x∈) ∙value
+            -- ≡⟨ pv-txoutΓ″ _ ⟩
+            ≡⟨ {!!} ⟩
+              (Γ″ , x∈) ∙value
+            ∎
+
 
   -- [2]
   module _ Γ (R≈ : R ≈⋯ Γ at t) B A ad (Δ : List (Secret × Maybe ℕ)) where
@@ -617,12 +662,7 @@ module _ (𝕣 : ℝ R) t α t′ where
                 | ids-++ Γ Γ₁
                 = ∈-resp-↭∘∈-++⁺ˡ∘∈-++⁺ˡ eq x∈
 
-      -- abstract
-      λˢ : 𝕃 R Γₜ″
-      λˢ = $λˢ
-
-      module _ {c v x} where
-        private
+        module _ {c v x} where
           c∈Γ⇐ : ⟨ c , v ⟩at x ∈ᶜ Γ′
                → ⟨ c , v ⟩at x ∈ᶜ Γ
           c∈Γ⇐ c∈
@@ -764,7 +804,6 @@ module _ (𝕣 : ℝ R) t α t′ where
               c∈⇒x∈ (R′ ∙cfg) c∈
             ∎
 
-        abstract
           txoutEndC≡ : ∀ (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ″) →
             𝕣′ ∙txoutC c∈ ≡ 𝕣 ∙txoutC (c∈⇐ c∈)
           txoutEndC≡ c∈ =
@@ -779,7 +818,17 @@ module _ (𝕣 : ℝ R) t α t′ where
             ≡⟨⟩
               𝕣 ∙txoutC (c∈⇐ c∈)
             ∎
--}
+
+      -- abstract
+      λˢ : 𝕃 R Γₜ″
+      λˢ = $λˢ
+
+      abstract
+        value-preserving⇒ :
+          ValuePreservingʳᶜ 𝕣
+          ────────────────────
+          ValuePreservingʳᶜ 𝕣′
+        value-preserving⇒ IH c∈ = trans (cong _∙value (txoutEndC≡ _)) (IH (c∈⇐ _))
 {-
   -- [3]
   module _ ad Γ₀ A x where
@@ -1015,10 +1064,15 @@ module _ (𝕣 : ℝ R) t α t′ where
           -- txoutΓ₀ : Txout Γ₀
           -- txoutΓ₀ = weaken-↦ (txout′ :~ namesʳ≡₀ ⟪ _↦ TxInput′ ⟫) (∈-++⁺ʳ _)
 
+          p⊆ : Γ₀ ⊆⦅ ids ⦆ Γ
+          -- p⊆ = ⟪ ids Γ₀ ⊆_ ⟫ namesʳ≡₀ ~: ∈-++⁺ʳ _
+          p⊆ = there ∘ ∈-ids-++⁺ʳ Γ₁ Γ₀
+
           txout↝ : Γ →⦅ Txout ⦆ Γ′
           -- txout↝ txout′ rewrite namesʳ≡₀ = cons-↦ y′ tx $ weaken-↦ txout′ (∈-++⁺ʳ _)
-          txout↝ txout′ = cons-↦ y′ tx
-                        $ weaken-↦ (txout′ :~ namesʳ≡₀ ⟪ _↦ TxInput′ ⟫) (∈-++⁺ʳ _)
+          txout↝ txout′ = cons-↦ y′ tx $ weaken-↦ txout′ p⊆
+          -- txout↝ txout′ = cons-↦ y′ tx
+          --               $ weaken-↦ (txout′ :~ namesʳ≡₀ ⟪ _↦ TxInput′ ⟫) (∈-++⁺ʳ _)
 
           Γ″ = ∃Γ≈ .proj₁; Γ≈ = ∃Γ≈ .proj₂
 
@@ -1044,12 +1098,14 @@ module _ (𝕣 : ℝ R) t α t′ where
           txoutΓ = Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_)
 
           txoutΓ₀ : Txout Γ₀
-          txoutΓ₀ = weaken-↦ (txoutΓ :~ namesʳ≡₀ ⟪ _↦ TxInput′ ⟫) (∈-++⁺ʳ _)
+          -- txoutΓ₀ = weaken-↦ (txoutΓ :~ namesʳ≡₀ ⟪ _↦ TxInput′ ⟫) (∈-++⁺ʳ _)
+          txoutΓ₀ = weaken-↦ txoutΓ p⊆
 
           txoutΓ′ : Txout Γ′
           -- txoutΓ′ = txout↝ $ Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R)
           txoutΓ′ = txout↝ txoutΓ
 
+        {-
           txoutΓ≡ : ∀ {x : Id} (x∈ : x ∈ namesʳ Γ′)
             → (txoutΓ′ x∈ ≡ tx)
             ⊎ (∃ λ (x∈′ : x ∈ namesʳ (R .end)) → txoutΓ′ x∈ ≡ 𝕣 ∙txoutEnd x∈′)
@@ -1116,36 +1172,11 @@ module _ (𝕣 : ℝ R) t α t′ where
                 txoutΓ′ (∈-resp-↭ (↭-sym $′ ≈⇒namesʳ↭ {Γ′}{Γ″} $′ ↭-sym $ Γ≈) x∈)
               ∎
             = txoutΓ≡ (∈-resp-↭ (↭-sym $′ ≈⇒namesʳ↭ {Γ′}{Γ″} $′ ↭-sym $ Γ≈) x∈)
+        -}
 
-          module _ {c v x} where
-            cvx  = ⟨ c , v ⟩at x
-
-            postulate pv-txoutC : ValuePreserving {R ∙cfg} (𝕣 ∙txoutC_)
-
-            pv-txoutΓ : ValuePreservingₓ {Γ} txoutΓ
-            pv-txoutΓ = ValuePreservingₓ-Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_) pv-txoutC
-
-            -- pv-weaken-↦ : ∀ (txout : ids Γ₁ ++ ids Γ₀ ↦ TxInput′)
-            --   ValuePreservingₓ {Γ₀} txout
-            --   ─────────────────────────────────────
-            --   ValuePreservingₓ {Γ₀} (weaken-↦ txout (∈-++⁺ʳ _))
-            -- pv-weaken-↦ = {!!}
-
-            pv-txoutΓ₀ : ValuePreservingₓ {Γ₀} txoutΓ₀
-            pv-txoutΓ₀ = {!pv-txoutΓ ?!}
-
-            -- pv-txout↝ : ∀ (txoutΓ : Txout Γ) →
-            --   ValuePreservingₓ {Γ} txoutΓ
-            --   ─────────────────────────────────────
-            --   ValuePreservingₓ {Γ′} (txout↝ txoutΓ)
-            -- pv-txout↝ txoutΓ pv = {!pv-cons-↦ txoutΓ₀ pv-txoutΓ₀  !}
-
-            pv-txoutΓ′ : ValuePreservingₓ {Γ′} txoutΓ′
-            -- pv-txoutΓ′ = pv-txout↝ txoutΓ pv-txoutΓ
-            pv-txoutΓ′ = pv-cons-↦ txoutΓ₀ y′ tx pv-txoutΓ₀
-
-            txoutC′ : R′ ≈⋯ cvx ⋯ → TxInput′
-            txoutC′ c∈ = txoutΓ′ (c∈⇒x∈ Γ′ $ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈ c∈)
+{-
+          txoutC′ : R′ ≈⋯ cvx ⋯ → TxInput′
+          txoutC′ c∈ = txoutΓ′ (c∈⇒x∈ Γ′ $ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈ c∈)
 
             pv-txoutC″ : ValuePreserving {Γ″} txoutC′
             pv-txoutC″ = ValuePreserving⇒ {Γ″}{Γ′} Γ≈ (txoutΓ′ ∘ c∈⇒x∈ Γ′) pv-txoutΓ′
@@ -1185,7 +1216,7 @@ module _ (𝕣 : ℝ R) t α t′ where
             pv-txoutC′ : ValuePreserving {Γ″} (𝕣′ ∙txoutC_)
             pv-txoutC′ = ValuePreserving≗ {Γ″} _ _ (≗-sym txoutC≗) pv-txoutC″
 
-{-
+
             txoutC≡ : ∀ (c∈ : R′ ≈⋯ ⟨ c , v ⟩at x ⋯)
               → (𝕣′ ∙txoutC c∈ ≡ tx)
               ⊎ (∃ λ (c∈′ : R ≈⋯ ⟨ c , v ⟩at x ⋯) → 𝕣′ ∙txoutC c∈ ≡ 𝕣 ∙txoutC c∈′)
@@ -1262,17 +1293,134 @@ module _ (𝕣 : ℝ R) t α t′ where
         --     -- c∈↓ c∈ x≡ with c∈Γ⇐ $ ∈ᶜ-resp-≈ {Γ″}{Γ′} Γ≈ c∈
         --     -- ... | inj₁ refl = ⊥-elim $ x≢ refl
         --     -- ... | Inj₂ c∈   = ∈ᶜ-resp-≈ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂) c∈
-
+-}
         -- abstract
-        --   λˢ : 𝕃 R Γₜ″
-        --   λˢ = $λˢ
+        λˢ : 𝕃 R Γₜ″
+        λˢ = $λˢ
 
-          txout-preserves-value :
-            ValuePreserving 𝕣
+        abstract
+          value-preserving⇒ʳ :
+            ValuePreservingʳ 𝕣
             ───────────────────
-            ValuePreserving 𝕣′
-          txout-preserves-value IH {c = c}{v}{x} c∈
-            = {!!}
+            ValuePreservingʳ 𝕣′
+          value-preserving⇒ʳ pv-txout = pv-txout′
+            where
+            pv-txoutΓ : ValuePreserving {Γ} txoutΓ
+            pv-txoutΓ = ValuePreserving-Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_) pv-txout
+
+            pv-txoutΓ₀ : ValuePreserving {Γ₀} txoutΓ₀
+            pv-txoutΓ₀ x∈ =
+              begin
+                txoutΓ₀ x∈ ∙value
+              ≡⟨⟩
+                weaken-↦ txoutΓ p⊆ x∈ ∙value
+              ≡⟨ pv-weaken-↦ {Γ}{Γ₀} txoutΓ p⊆ pv⊆ pv-txoutΓ x∈ ⟩
+                (Γ₀ , x∈) ∙value
+              ∎ where open ≡-Reasoning
+                      pv⊆ : ValuePreserving⊆ {Γ₀}{Γ} p⊆
+                      pv⊆ x∈ =
+                        begin
+                          (Γ₀ , x∈) ∙value
+                        ≡˘⟨ ∈-ids-++⁺ʳ∙value {Γ′ = Γ₀}{Γ₁} x∈ ⟩
+                          (Γ₁ ∣ Γ₀ , ∈-ids-++⁺ʳ Γ₁ Γ₀ x∈) ∙value
+                        ≡⟨⟩
+                          (Γ , there (∈-ids-++⁺ʳ Γ₁ Γ₀ x∈)) ∙value
+                        ≡⟨⟩
+                          (Γ , p⊆ x∈) ∙value
+                        ∎
+
+            postulate val≡ : tx ∙value ≡ v + sum vs
+
+            pv-txoutΓ′ : ValuePreserving {Γ′} txoutΓ′
+            pv-txoutΓ′ = pv-cons-↦ val≡ pv-txoutΓ₀
+
+            txoutΓ″ : Txout Γ″
+            txoutΓ″ = Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′
+
+            pv-txoutΓ″ : ValuePreserving {Γ″} txoutΓ″
+            pv-txoutΓ″ = ValuePreserving-Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′ pv-txoutΓ′
+
+            pv-txout′ : ValuePreservingʳ 𝕣′
+            pv-txout′ x∈ =
+              begin
+                (𝕣′ ∙txoutEnd x∈) ∙value
+              ≡⟨ cong _∙value
+                    $ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′ _ ⟩
+                (txoutΓ″ x∈) ∙value
+              ≡⟨ pv-txoutΓ″ _ ⟩
+                (Γ″ , x∈) ∙value
+              ∎
+
+          value-preserving⇒ :
+            ValuePreservingʳᶜ 𝕣
+            ────────────────────
+            ValuePreservingʳᶜ 𝕣′
+          value-preserving⇒ pv-txoutᶜ = pv-txoutRC′
+            where
+            postulate pv-txout : ValuePreservingʳ 𝕣
+
+            pv-txoutΓ : ValuePreserving {Γ} txoutΓ
+            pv-txoutΓ = ValuePreserving-Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_) pv-txout
+
+            pv-txoutΓ₀ : ValuePreserving {Γ₀} txoutΓ₀
+            pv-txoutΓ₀ x∈ =
+              begin
+                txoutΓ₀ x∈ ∙value
+              ≡⟨⟩
+                weaken-↦ txoutΓ p⊆ x∈ ∙value
+              ≡⟨ pv-weaken-↦ {Γ}{Γ₀} txoutΓ p⊆ pv⊆ pv-txoutΓ x∈ ⟩
+                (Γ₀ , x∈) ∙value
+              ∎ where open ≡-Reasoning
+                      pv⊆ : ValuePreserving⊆ {Γ₀}{Γ} p⊆
+                      pv⊆ x∈ =
+                        begin
+                          (Γ₀ , x∈) ∙value
+                        ≡˘⟨ ∈-ids-++⁺ʳ∙value {Γ′ = Γ₀}{Γ₁} x∈ ⟩
+                          (Γ₁ ∣ Γ₀ , ∈-ids-++⁺ʳ Γ₁ Γ₀ x∈) ∙value
+                        ≡⟨⟩
+                          (Γ , there (∈-ids-++⁺ʳ Γ₁ Γ₀ x∈)) ∙value
+                        ≡⟨⟩
+                          (Γ , p⊆ x∈) ∙value
+                        ∎
+
+            postulate val≡ : tx ∙value ≡ v + sum vs
+
+            pv-txoutΓ′ : ValuePreserving {Γ′} txoutΓ′
+            pv-txoutΓ′ = pv-cons-↦ val≡ pv-txoutΓ₀
+
+            txoutΓ″ : Txout Γ″
+            txoutΓ″ = Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′
+
+            pv-txoutΓ″ : ValuePreserving {Γ″} txoutΓ″
+            pv-txoutΓ″ = ValuePreserving-Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′ pv-txoutΓ′
+
+            𝕣′∙txoutEnd≡ : ∀ (x∈ : x ∈ ids Γ″) → 𝕣′ ∙txoutEnd x∈ ≡ txoutΓ″ x∈
+            𝕣′∙txoutEnd≡ x∈ =
+              begin
+                𝕣′ ∙txoutEnd x∈
+              ≡⟨⟩
+                𝕣′ ∙txout (namesʳ⦅end⦆⊆ R′ x∈)
+              ≡⟨ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′ _ ⟩
+                Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′ x∈
+              ≡⟨⟩
+                txoutΓ″ x∈
+              ∎
+
+            pv-txout′ : ValuePreservingʳ 𝕣′
+            pv-txout′ x∈ =
+              begin
+                (𝕣′ ∙txoutEnd x∈) ∙value
+              ≡⟨ cong _∙value $ 𝕣′∙txoutEnd≡ x∈ ⟩
+                (txoutΓ″ x∈) ∙value
+              ≡⟨ pv-txoutΓ″ _ ⟩
+                (Γ″ , x∈) ∙value
+              ∎
+
+            pv-txoutC′ : ValuePreservingᶜ {𝕣′ ∙cfg} (𝕣′ ∙txoutC_)
+            pv-txoutC′ = ValuePreserving⇒ {𝕣′ ∙cfg} (𝕣′ ∙txoutEnd_) pv-txout′
+
+            pv-txoutRC′ : ValuePreservingʳᶜ 𝕣′
+            pv-txoutRC′ = pv-txoutC′
           --   with txoutC≡ c∈
           -- ... | inj₁ eq         = trans eq refl
           -- ... | inj₂ (c∈′ , eq) = trans eq (IH c∈′)
@@ -1289,7 +1437,7 @@ module _ (𝕣 : ℝ R) t α t′ where
             -- ≡⟨ {!!} ⟩
             --   v
             -- ∎
--}
+
 {-
   -- [7]
   module _ A a n Γ₀ where
@@ -1591,7 +1739,6 @@ module _ (𝕣 : ℝ R) t α t′ where
         λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
         λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
 -}
-{-
   -- [18]
   module _ Γ (R≈ : R ≈⋯ Γ at t) where
     private Γ′ = Γ
@@ -1657,7 +1804,7 @@ module _ (𝕣 : ℝ R) t α t′ where
           ≡⟨⟩
             𝕣 ∙txoutEnd x∈
           ∎
-
+{-
         module _ {c v x} where
           c∈⇐ : R′ ≈⋯ ⟨ c , v ⟩at x ⋯
               → R  ≈⋯ ⟨ c , v ⟩at x ⋯
@@ -1700,14 +1847,29 @@ module _ (𝕣 : ℝ R) t α t′ where
                 ≡⟨ ∈-resp-↭∘c∈⇒x∈∘∈ᶜ-resp-≈ (R′ ∙cfg) Γ′ Γ≈ c∈ ⟩
                   c∈⇒x∈ (R′ ∙cfg) c∈
                 ∎
+-}
+      -- abstract
+      λˢ : 𝕃 R Γₜ″
+      λˢ = $λˢ
 
       abstract
-        λˢ : 𝕃 R Γₜ″
-        λˢ = $λˢ
+      --   value-preserving⇒ :
+      --     ValuePreservingʳᶜ 𝕣
+      --     ────────────────────
+      --     ValuePreservingʳᶜ 𝕣′
+      --   value-preserving⇒ IH c∈ = trans (cong _∙value (txoutEndC≡ _)) (IH (c∈⇐ _))
 
-        value-preserving⇒ :
-          ValuePreserving 𝕣
-          ──────────────────
-          ValuePreserving 𝕣′
-        value-preserving⇒ IH c∈ = trans (cong _∙value (txoutEndC≡ _)) (IH (c∈⇐ _))
--}
+          value-preserving⇒ʳ :
+            ValuePreservingʳ 𝕣
+            ───────────────────
+            ValuePreservingʳ 𝕣′
+          value-preserving⇒ʳ pv-txout x∈ =
+            begin
+              (𝕣′ ∙txoutEnd x∈) ∙value
+            ≡⟨ cong _∙value
+                  $ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′ _ ⟩
+              (Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′ x∈) ∙value
+            ≡⟨ ValuePreserving-Txout≈ {Γ′} {Γ″} (↭-sym Γ≈) txoutΓ′
+                 (ValuePreserving-Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_) pv-txout) _ ⟩
+              (Γ″ , x∈) ∙value
+            ∎

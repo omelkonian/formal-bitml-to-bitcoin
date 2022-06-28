@@ -32,11 +32,11 @@ module _ (A∈ : A ∈ S.Hon) (Rᶜ : C.Run) where
       Rˢ = parseRun ls
     in
       case l of λ where
-        (x →∗∶ x₁) → {!!}
-        (submit x) → {!!}
-        (delay δ) → {!!}
-        (x →O∶ x₁) → {!!}
-        (O→ x ∶ x₁) → {!!}
+        (A →∗∶ m)  → {!!}
+        (submit T) → {!!}
+        (delay δ)  → {!!}
+        (A →O∶ m)  → {!!}
+        (O→ A ∶ m) → {!!}
 
   ℵ : S.ParticipantStrategy A → C.ParticipantStrategy A
   ℵ Σˢ = Σᶜ
@@ -59,24 +59,24 @@ module _ (A∈ : A ∈ S.Hon) (Rᶜ : C.Run) where
           -- when Λˢ contains A:{G}C,Δ or A:{G}C,x follow stipulation protocol
           Λᶜ : C.Labels
           Λᶜ = flip map Λˢ $ λ where
-            auth-join⦅ x , x₁ ↔ x₂ ⦆ → {!!}
-            join⦅ x ↔ x₁ ⦆ → {!!}
-            auth-divide⦅ x , x₁ ▷ x₂ , x₃ ⦆ → {!!}
-            divide⦅ x ▷ x₁ , x₂ ⦆ → {!!}
-            auth-donate⦅ x , x₁ ▷ᵈ x₂ ⦆ → {!!}
-            donate⦅ x ▷ᵈ x₁ ⦆ → {!!}
-            auth-destroy⦅ x , xs , x₁ ⦆ → {!!}
-            destroy⦅ x ⦆ → {!!}
-            advertise⦅ x ⦆ → {!!}
-            auth-commit⦅ x , x₁ , x₂ ⦆ → {!!}
-            auth-init⦅ x , x₁ , x₂ ⦆ → {!!}
-            init⦅ x , x₁ ⦆ → {!!}
-            split⦅ x ⦆ → {!!}
-            auth-rev⦅ x , x₁ ⦆ → {!!}
-            put⦅ x , x₁ , x₂ ⦆ → {!!}
-            withdraw⦅ x , x₁ , x₂ ⦆ → {!!}
-            auth-control⦅ x , x₁ ▷ x₂ ⦆ → {!!}
-            delay⦅ x ⦆ → {!!}
+            auth-join⦅ A , x ↔ y ⦆        → {!!}
+            join⦅ x ↔ y ⦆                 → {!!}
+            auth-divide⦅ A , x ▷ v , v′ ⦆ → {!!}
+            divide⦅ A ▷ v , v′ ⦆          → {!!}
+            auth-donate⦅ A , x ▷ᵈ B ⦆     → {!!}
+            donate⦅ x ▷ᵈ B ⦆              → {!!}
+            auth-destroy⦅ A , xs , j ⦆    → {!!}
+            destroy⦅ xs ⦆                 → {!!}
+            advertise⦅ ad ⦆               → {!!}
+            auth-commit⦅ A , ad , Δ ⦆     → {!!}
+            auth-init⦅ A , ad , x ⦆       → {!!}
+            init⦅ G , C ⦆                 → {!!}
+            split⦅ y ⦆                    → {!!}
+            auth-rev⦅ A , a ⦆             → {!!}
+            put⦅ xs , as , y ⦆            → {!!}
+            withdraw⦅ A , v , y ⦆         → {!!}
+            auth-control⦅ A , x ▷ D ⦆     → {!!}
+            delay⦅ δ ⦆                    → {!!}
         in
           Λᶜ
 

@@ -15,6 +15,7 @@ module SymbolicModel.Mappings.Base
   where
 
 open import SymbolicModel.Run Participant Honest
+open import SymbolicModel.Accessors Participant Honest
 open import SymbolicModel.Collections Participant Honest
 
 private variable X : Set ℓ
@@ -45,6 +46,10 @@ record 𝕎 ⦃ _ : X has Name ⦄ ⦃ _ : X has Advertisement ⦄ (x : X) : Set
 ℝ = Pred₀ Run ∋ 𝕎
 module ℝ (𝕣 : ℝ R) where
   open 𝕎 𝕣 public renaming (txout to txout′; sechash to sechash′; κ to κ′)
+
+instance
+  ℝ∙Cfg : (ℝ R) ∙Cfg
+  ℝ∙Cfg {R = R} = ∙cfg= (const $ R ∙cfg)
 
 ℾᵗ = Pred₀ Cfgᵗ ∋ 𝕎
 module ℾᵗ (ℽ : ℾᵗ Γₜ) where
