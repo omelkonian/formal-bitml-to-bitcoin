@@ -58,12 +58,6 @@ pv-weaken-↦ {Γ}{Γ′} txout p pv⊆ pv x∈ =
     (Γ′ , x∈) ∙value
   ∎
 
--- weaken-subst-↦ : ∀ {xs ys : Ids} (txout : Txout Γ) (ids≡ : ids Γ ≡ xs ++ ys) →
---   ∀ {x} (x∈ : x ∈ ys)
---     → weaken-↦ (txout :~ ids≡ ⟪ _↦ TxInput′ ⟫) (∈-++⁺ʳ _) x∈
---     ≡ weaken-↦ txout (⟪ ys ⊆_ ⟫ ids≡ ~: ∈-++⁺ʳ _) x∈
--- weaken-subst-↦ txout ids≡ x∈ rewrite ids≡ = {!refl!}
-
 ValuePreserving↭ : Pred₀ (Γ ↭⦅ ids ⦆ Γ′)
 ValuePreserving↭ {Γ}{Γ′} p =
   ∀ {x} (x∈ : x ∈ ids Γ) → (Γ , x∈) ∙value ≡ (Γ′ , ∈-resp-↭ p x∈) ∙value
@@ -115,44 +109,3 @@ ValuePreserving↝ {Γ}{Γ′} txout↝ = ∀ (txoutΓ : Txout Γ) →
 
 ValuePreservingʳ : Pred₀ (ℝ R)
 ValuePreservingʳ 𝕣 = ValuePreserving {𝕣 ∙cfg} (𝕣 ∙txoutEnd_)
-
--- ValuePreservingʳ : Pred₀ (Txout R)
--- ValuePreservingʳ {R} txout = ∀ {x} (x∈ : x ∈ ids R) → txout x∈ ∙value ≡ (R , x∈) ∙value
-
--- ValuePreservingʳ-∷ : ∀ (Γ→ : Γₜ —[ α ]→ₜ Γₜ′) (eq : Γₜ″ ≈ Γₜ′ × R .end ≈ Γₜ)
---                        (txoutΓ : Txout Γ′) (txoutR : Txout R) →
---   ∙ ValuePreserving txoutΓ
---   ∙ ValuePreservingʳ txoutR
---     ─────────────────────────────────────────────
---     ValuePreservingʳ (txout∷ Γ→ eq txoutΓ txoutR)
--- ValuePreservingʳ-∷ Γ→ eq pvΓ pvR = ?
-
-TxoutC : Pred₀ Cfg
-TxoutC Γ = ∀ {c v x} → ⟨ c , v ⟩at x ∈ᶜ Γ → TxInput′
-
-ValuePreservingᶜ : Pred₀ (TxoutC Γ)
-ValuePreservingᶜ {Γ} txoutC = ∀ {c v x} (c∈ : ⟨ c , v ⟩at x ∈ᶜ Γ) → txoutC c∈ ∙value ≡ v
-
-ValuePreserving⇒ : ∀ (txout : Txout Γ) →
-  ValuePreserving {Γ} txout
-  ──────────────────────────────────────
-  ValuePreservingᶜ {Γ} (txout ∘ c∈⇒x∈ Γ)
-ValuePreserving⇒ {Γ} txout pv {c}{v}{x} c∈ =
-  begin
-    txout (c∈⇒x∈ Γ c∈) ∙value
-  ≡⟨ pv _ ⟩
-    (Γ , c∈⇒x∈ Γ c∈) ∙value
-  ≡⟨ c∈⇒x∈∙value {Γ = Γ} c∈ ⟩
-    v
-  ∎
-
-ValuePreservingʳᶜ : Pred₀ (ℝ R)
-ValuePreservingʳᶜ {R} 𝕣 = ValuePreservingᶜ {R ∙cfg} (𝕣 ∙txoutC_)
-
-{-
--- ValuePreservingʳ⇒ : ∀ (𝕣 :  R) (txout : Txout (𝕣 ∙cfg)) →
---   𝕣 ∙cfg ≡ Γ
---   ValuePreserving {𝕣 ∙cfg} txout
---   ──────────────────────────────
---   ValuePreservingʳ 𝕣
--}
