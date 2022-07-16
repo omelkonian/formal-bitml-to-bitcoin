@@ -1,9 +1,10 @@
-{-# OPTIONS --allow-unsolved-metas #-}
+-- {-# OPTIONS --allow-unsolved-metas #-}
 open import Prelude.Init
 open import Prelude.Lists
 open import Prelude.DecEq
 open import Prelude.Traces
 open import Prelude.Membership
+open import Prelude.Ord
 
 open import Bitcoin
 
@@ -34,7 +35,12 @@ module _ (A∈ : A ∈ S.Hon) (Rᶜ : C.Run) where
       case l of λ where
         (A →∗∶ m)  → {!!}
         (submit T) → {!!}
-        (delay δ)  → {!!}
+        (delay 0)  → Rˢ
+        (delay δ@(suc _))  →
+          let Γₜ@(Γ at t) = Rˢ .end
+              Γₜ′ = Γ at (t + δ)
+          in Γₜ′ ∷ Rˢ
+          ⊣ (delay⦅ δ ⦆ , Γₜ , Γₜ′ , [Delay] (s≤s z≤n) , (refl , ↭-refl) , (refl , ↭-refl))
         (A →O∶ m)  → {!!}
         (O→ A ∶ m) → {!!}
 
@@ -47,7 +53,8 @@ module _ (A∈ : A ∈ S.Hon) (Rᶜ : C.Run) where
           Rᶜ∗ : C.Run
           Rᶜ∗ = Rᶜ -- ∗
 
-          -- (1) parse the (stripped) run Rᶜ∗, so to obtain a corresponding sumbolic (stripped) run Rˢ∗
+          -- (1) parse the (stripped) run Rᶜ∗, so to obtain a corresponding
+          -- symbolic (stripped) run Rˢ∗
           Rˢ∗ : S.Run
           Rˢ∗ = parseRun Rᶜ∗
 

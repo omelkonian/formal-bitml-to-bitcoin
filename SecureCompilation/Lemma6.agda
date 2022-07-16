@@ -1,4 +1,5 @@
-{-# OPTIONS --allow-unsolved-metas --allow-incomplete-matches #-}
+-- {-# OPTIONS --allow-unsolved-metas --allow-incomplete-matches #-}
+-- {-# OPTIONS -v tc:10 #-}
 -- {-# OPTIONS --auto-inline #-}
 open import Prelude.Init
 open import Prelude.Lists
@@ -32,14 +33,17 @@ open import SymbolicModel Participant Honest as S
   hiding (d; α; Γ; Γ′; Γ″; Γₜ; Γₜ′; t; t′)
 open import ComputationalModel Participant Honest finPart keypairs as C
   hiding (∣_∣; `; t; t′)
-open import SecureCompilation.Compiler Participant Honest η
+open import SecureCompilation.Args      Participant Honest
+open import SecureCompilation.Compiler  Participant Honest η
+open import SecureCompilation.Helpers   Participant Honest finPart keypairs η
 open import SecureCompilation.Coherence Participant Honest finPart keypairs η
 
 txout-preserves-value : ∀ {𝕣∗ : ℝ∗ Rˢ} →
   ∙ 𝕣∗ ~′ Rᶜ
     ─────────────────────────────────
     ValuePreservingʳ (ℝ∗⇒ℝ 𝕣∗)
-txout-preserves-value (step₁ {Rˢ = Rˢ}{𝕣∗}{λˢ = (α , Γ at t , _ at t′ , Γ→Γ′ , _ , R≈) , _} Rˢ~Rᶜ coh)
+txout-preserves-value
+  (step₁ {Rˢ = Rˢ}{𝕣∗}{λˢ = (α , Γ at t , _ at t′ , Γ→Γ′ , _ , R≈) , _} Rˢ~Rᶜ coh)
   with coh
 ... | [L] [1] {⟨G⟩C = ⟨G⟩C} _ ∃Γ≈ _ _ _
   = value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ)
@@ -57,33 +61,20 @@ txout-preserves-value (step₁ {Rˢ = Rˢ}{𝕣∗}{λˢ = (α , Γ at t , _ at 
       in z
 
     open H₂ (ℝ∗⇒ℝ 𝕣∗) t α t _ R≈ A A ⟨G⟩C _Δ sechash⁺ k⃗ Γ→Γ′ ∃Γ≈
--- T0D0: Typechecking case [6] hangs: figure out the correct level of abstraction.
--- ... | [L] [6] {c = c} {Γ₀ = Γ₀} {c′ = c′} {y′ = y′}
+-- -- T0D0: Typechecking case [6] hangs: figure out the correct level of abstraction.
+-- ... | [L] [6] {c = c} {Γ₀ = Γ₀} {p = p}{c′ = c′} {y′ = y′}
 --               {ds = ds}{ss}{i} {v = v}{y}
 --               t≡ d≡ R≈ ∃Γ≈ fresh-y′ p⟦Δ⟧≡ As≡∅
---   = value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ)
---   where
---     open ∣SELECT c i
---     _Δ  = || map (uncurry₃ _∶_♯_) ss
---     Γ₂  = _Δ ∣ Γ₀
-
---     open H₆ (ℝ∗⇒ℝ 𝕣∗) t α t′ c v y ds Γ₂ c′ y′ R≈ Γ→Γ′ ∃Γ≈ using (module H₆′; Liftᶜ)
-
---     open H₆′ (
---       let
---         ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = Rˢ} {Γ = Γ} R≈ (here refl)
---         ⟨ G ⟩ C″ = ⟨G⟩C″
-
---         d∈ : d ∈ subtermsᵃ′ ⟨G⟩C″
---         d∈ = c⊆ (L.Mem.∈-lookup i)
-
---         T : ∃Tx
---         T = let _ , ∀d∗ = COMPILE (Liftᶜ anc)
---                 _ , Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
---             in -, -, Tᵈ
---       in
---         T at 0F
---       )
+-- ... | [L] [6] ⋯ = ?
+  -- value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ)
+  -- where open H₆ (CArgs⇒Args₆ ⋯)
+  -- = value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ)
+  -- where _Δ  = || map (uncurry₃ _∶_♯_) ss
+  --       Γ₂  = _Δ ∣ Γ₀
+  --       open H₆ (ℝ∗⇒ℝ 𝕣∗) t α t′ (Args₆∶ c v y ds ss Γ₂ c′ y′ i p R≈ Γ→Γ′ ∃Γ≈ d≡)
+... | [R] [17] {y = y} {Γ₀ = Γ₀} {ds = ds} R≈ ∃Γ≈ T ⊆ins ¬coh
+  = value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ)
+  where open H₁₇ (ℝ∗⇒ℝ 𝕣∗) t α t′ ds Γ₀ y R≈ Γ→Γ′ ∃Γ≈
 ... | [L] [18] _ ∃Γ≈
   = value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ)
   where open H₁₈ (ℝ∗⇒ℝ 𝕣∗) t α t′ Γ R≈ Γ→Γ′ ∃Γ≈

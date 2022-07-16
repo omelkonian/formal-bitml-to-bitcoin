@@ -28,6 +28,13 @@ open import SymbolicModel.Mappings Participant Honest
 
 open ≡-Reasoning
 
+-- T0D0: identify a middle-point in the abstraction, where
+-- we talk about value-preserving ???.
+--   * 1. value preservation in each contract execution step
+--   * 2. value preservation in Bitcoin ledgers
+--   * 3. their correspondence
+-- NB: this is *not* value-preservation as in the UTxO sense
+
 ValuePreserving : Pred₀ (Txout Γ)
 ValuePreserving {Γ} txout = ∀ {x} (x∈ : x ∈ ids Γ) → txout x∈ ∙value ≡ (Γ , x∈) ∙value
 
