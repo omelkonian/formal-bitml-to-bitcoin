@@ -49,6 +49,8 @@ data Label : Set where
   -- receive hash from oracle
   O→_∶_ : Participant → Message → Label
 
+unquoteDecl DecEq-Label = DERIVE DecEq [ quote Label , DecEq-Label ]
+
 Run    = List Label
 Labels = List Label
 
