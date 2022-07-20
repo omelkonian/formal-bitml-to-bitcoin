@@ -47,8 +47,6 @@ open import ComputationalModel Participant Honest finPart keypairs as C
   using (_∙value; K̂)
 open import SecureCompilation.Compiler Participant Honest η
   using (∃Tx¹; ∃Txᶜ; bitml-compiler)
-open import SecureCompilation.Args Participant Honest
-  using (Args₆)
 
 -- Convenient wrapper for calling the BitML compiler.
 COMPILE : 𝔾 ad → ∃Tx¹ × (subtermsᵃ′ ad ↦′ ∃Txᶜ ∘ removeTopDecorations)
@@ -68,157 +66,10 @@ COMPILE {ad = ad} (vad , txout₀ , sechash₀ , κ₀) =
 -- ∙ for typechecking performance, `abstract` all exported definitions (if possible...)
 -- ∙ all definitions should be private, except the following:
 --   ∘ λˢ : the next symbolic move, along with updated mappings for the resulting state/configuration
---   ∘ Liftᶜ : provides mappings for invoking the compiler (only needed in some cases)
---   ∘ value-preserving⇒ : proof that each mapping transofrmation preserves value assignments
-
-module H₆ (⋯ : Args₆) where
-  open Args₆ ⋯
-  private
-    ∃T : ∃Tx¹
-    ∃T =
-      let
-        ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
-        ⟨ G ⟩ C″ = ⟨G⟩C″
-        d∈ : d ∈ subtermsᵃ′ ⟨G⟩C″
-        d∈ = c⊆ (L.Mem.∈-lookup i)
-        _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
-      in
-        ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
-
-    tx : TxInput′
-    tx = (-, -, ∃T .proj₂) at 0F
-  abstract
-    T : ∃Tx
-    T = -, -, ∃T .proj₂
-  private
-    postulate val≡ : tx ∙value ≡ v + sum vs
-
-    open ≡-Reasoning
-
-    secrets≡ : Γ′ ≡⦅ namesˡ ⦆ Γ
-    secrets≡ =
-      begin
-        namesˡ Γ′
-      ≡⟨ mapMaybe∘collectFromBase-++ isInj₁ (⟨ c′ , v + sum vs ⟩at y′) Γ₀ ⟩
-        namesˡ (⟨ c′ , v + sum vs ⟩at y′) ++ namesˡ Γ₀
-      ≡⟨⟩
-        namesˡ Γ₀
-      ≡˘⟨ L.++-identityˡ _ ⟩
-        [] ++ namesˡ Γ₀
-      ≡˘⟨ cong (_++ namesˡ Γ₀) (go ds) ⟩
-        namesˡ (⟨ c′ , v ⟩at y ∣ Γ₁) ++ namesˡ Γ₀
-      ≡˘⟨ mapMaybe∘collectFromBase-++ isInj₁ (⟨ c′ , v ⟩at y ∣ Γ₁) Γ₀ ⟩
-        namesˡ Γ
-      ∎ where
-        go : ∀ (ds : List (Participant × Value × Id)) →
-          Null $ namesˡ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
-        go [] = refl
-        go (_ ∷ []) = refl
-        go (_ ∷ xs@(_ ∷ _)) = go xs
-
-    ads≡ : Γ′ ≡⦅ advertisements ⦆ Γ
-    ads≡ =
-      begin
-        advertisements Γ′
-      ≡⟨⟩
-        advertisements Γ₀
-      ≡˘⟨ cong (_++ advertisements Γ₀) (go ds) ⟩
-        advertisements Γ₁ ++ advertisements Γ₀
-      ≡⟨ sym $ collectFromBase-++ Γ₁ Γ₀ ⟩
-        advertisements Γ
-      ∎ where
-        go : ∀ (ds : List (Participant × Value × Id)) →
-          Null $ advertisements (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
-        go [] = refl
-        go (_ ∷ []) = refl
-        go (_ ∷ xs@(_ ∷ _)) = go xs
-
-    sechash↝ :  Γ →⦅ Sechash ⦆ Γ′
-    sechash↝ = lift Γ —⟨ namesˡ ⟩— Γ′ ⊣ secrets≡
-
-    κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
-    κ↝ = lift Γ —⟨ advertisements ⟩— Γ′ ⊣ ads≡
-
-    p⊆ : Γ₀ ⊆⦅ ids ⦆ Γ
-    p⊆ = there ∘ ∈-ids-++⁺ʳ Γ₁ Γ₀
-
-    txout↝ : Γ →⦅ Txout ⦆ Γ′
-    txout↝ txout′ = cons-↦ y′ tx $ weaken-↦ txout′ p⊆
-
-    Γ″ = ∃Γ≈ .proj₁; Γ≈ = ∃Γ≈ .proj₂
-    Γₜ Γₜ′ Γₜ″ : Cfgᵗ; Γₜ  = Γ at t; Γₜ′ = Γ′ at t′; Γₜ″ = Γ″ at t′
-  -- abstract
-  λˢ : 𝕃 R Γₜ″
-  λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
-  private
-    𝕒  = λˢ .proj₁
-    R′ = Γₜ″ ∷ R ⊣ 𝕒
-
-    R≈′ : R′ ≈⋯ Γ′ at t′
-    R≈′ = refl , Γ≈
-
-    𝕣′ : ℝ R′
-    𝕣′ = ℝ-step 𝕣 λˢ
-  abstract
-    value-preserving⇒ :
-      ValuePreservingʳ 𝕣
-      ───────────────────
-      ValuePreservingʳ 𝕣′
-    value-preserving⇒ pv-txout = pv-txout′
-      where
-      txoutΓ : Txout Γ
-      txoutΓ = Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_)
-
-      pv-txoutΓ : ValuePreserving {Γ} txoutΓ
-      pv-txoutΓ = ValuePreserving-Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_) pv-txout
-
-      txoutΓ₀ : Txout Γ₀
-      txoutΓ₀ = weaken-↦ txoutΓ p⊆
-
-      pv-txoutΓ₀ : ValuePreserving {Γ₀} txoutΓ₀
-      pv-txoutΓ₀ x∈ =
-        begin
-          txoutΓ₀ x∈ ∙value
-        ≡⟨⟩
-          weaken-↦ txoutΓ p⊆ x∈ ∙value
-        ≡⟨ pv-weaken-↦ {Γ}{Γ₀} txoutΓ p⊆ pv⊆ pv-txoutΓ x∈ ⟩
-          (Γ₀ , x∈) ∙value
-        ∎ where open ≡-Reasoning
-                pv⊆ : ValuePreserving⊆ {Γ₀}{Γ} p⊆
-                pv⊆ x∈ =
-                  begin
-                    (Γ₀ , x∈) ∙value
-                  ≡˘⟨ ∈-ids-++⁺ʳ∙value {Γ′ = Γ₀}{Γ₁} x∈ ⟩
-                    (Γ₁ ∣ Γ₀ , ∈-ids-++⁺ʳ Γ₁ Γ₀ x∈) ∙value
-                  ≡⟨⟩
-                    (Γ , there (∈-ids-++⁺ʳ Γ₁ Γ₀ x∈)) ∙value
-                  ≡⟨⟩
-                    (Γ , p⊆ x∈) ∙value
-                  ∎
-
-      txoutΓ′ : Txout Γ′
-      txoutΓ′ = txout↝ txoutΓ
-
-      pv-txoutΓ′ : ValuePreserving {Γ′} txoutΓ′
-      pv-txoutΓ′ = pv-cons-↦ val≡ pv-txoutΓ₀
-
-      txoutΓ″ : Txout Γ″
-      txoutΓ″ = Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′
-
-      pv-txoutΓ″ : ValuePreserving {Γ″} txoutΓ″
-      pv-txoutΓ″ = ValuePreserving-Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′ pv-txoutΓ′
-
-      pv-txout′ : ValuePreservingʳ 𝕣′
-      pv-txout′ x∈ =
-        begin
-          (𝕣′ ∙txoutEnd x∈) ∙value
-        ≡⟨ cong _∙value
-              $ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′ _ ⟩
-          (txoutΓ″ x∈) ∙value
-        ≡⟨ pv-txoutΓ″ _ ⟩
-          (Γ″ , x∈) ∙value
-        ∎
-
+--   ∘ T : (optional) compiled transaction needed for computational move λᶜ
+--   ∘ pubK : (optional) public key to sign the transaction
+--   ∘ value-preserving⇒ : (T0D0) proof that each mapping transformation preserves value assignments
+-- NB: the above should be exported in an `abstract` block to aid typechecking
 
 module _ {R} (𝕣 : ℝ R) t α t′ where
   open ℝ 𝕣
@@ -444,16 +295,20 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
               (Γ″ , x∈) ∙value
             ∎
 
-{-
   -- [3]
   module _ ad Γ₀ A x where
     private
       Γ  = ` ad ∣ Γ₀
       Γ′ = Γ ∣ A auth[ x ▷ˢ ad ]
-    module H₃ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₃ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
+              (committedA : nub-participants ad ⊆ committedParticipants ad Γ) where
+      private
+        𝕘 : 𝔾 ad
+        𝕘 = LIFT₀ 𝕣 t Γ R≈ ad (here refl) committedA
       abstract
-        Liftᶜ : nub-participants ad ⊆ committedParticipants ad Γ → 𝔾 ad
-        Liftᶜ = LIFT₀ 𝕣 t Γ R≈ ad (here refl)
+        T : ∃Tx
+        T = let (_ , Tᵢₙᵢₜ) , _ = COMPILE 𝕘
+            in -, -, Tᵢₙᵢₜ
       private
         names≡ : Γ′ ≡⦅ names ⦆ Γ
         names≡ rewrite collectFromBase-++ {X = Name} Γ (A auth[ x ▷ˢ ad ]) = L.++-identityʳ _
@@ -502,115 +357,144 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         committedA {p} p∈ = ∈-collect-++⁺ʳ (Γ₁ ∣ Γ₂) Γ₃ ⦃ ∣committedParticipants∣.go ad ⦄ p∈′
           where p∈′ : p ∈ committedParticipants ad Γ₃
                 p∈′ rewrite committedPartG≡ {ad} partG = p∈
+      private
+        𝕘 : 𝔾 ad
+        𝕘 = LIFT₀ 𝕣 t Γ R≈ ad (here refl) committedA
+
+        $T : ∃Tx
+        $T = let (_ , Tᵢₙᵢₜ) , _ = COMPILE 𝕘
+             in -, -, Tᵢₙᵢₜ
+
+        tx : TxInput′
+        tx = $T at 0F
       abstract
-        Liftᶜ : 𝔾 ad
-        Liftᶜ = LIFT₀ 𝕣 t Γ R≈ ad (here refl) committedA
+        T : ∃Tx
+        T = $T
+      private
+        h₀ : ∀ ps → Null $ namesʳ (|| map (_auth[ ♯▷ ad ]) ps)
+        h₀ [] = refl
+        h₀ (_ ∷ []) = refl
+        h₀ (_ ∷ ps@(_ ∷ _)) = h₀ ps
 
-      module H₄′ (tx : TxInput′) where
-        private
-          h₀ : ∀ ps → Null $ namesʳ (|| map (_auth[ ♯▷ ad ]) ps)
-          h₀ [] = refl
-          h₀ (_ ∷ []) = refl
-          h₀ (_ ∷ ps@(_ ∷ _)) = h₀ ps
+        h₀′ : ∀ (ds : List DepositRef) →
+          namesʳ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ] }) ds) ≡ map (proj₂ ∘ proj₂) ds
+        h₀′ [] = refl
+        h₀′ (_ ∷ []) = refl
+        h₀′ ((Aᵢ , vᵢ , xᵢ) ∷ ds@(_ ∷ _)) =
+          begin
+            namesʳ ((⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ]) ∣ Δ)
+          ≡⟨ mapMaybe∘collectFromBase-++ isInj₂ (⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ ad ]) Δ ⟩
+            namesʳ (⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ]) ++ namesʳ Δ
+          ≡⟨ cong (_++ namesʳ Δ) (mapMaybe∘collectFromBase-++ isInj₂ (⟨ Aᵢ has vᵢ ⟩at xᵢ) (Aᵢ auth[ xᵢ ▷ˢ ad ])) ⟩
+            (xᵢ ∷ namesʳ (Aᵢ auth[ xᵢ ▷ˢ ad ])) ++ namesʳ Δ
+          ≡⟨ cong (λ x → (xᵢ ∷ x) ++ namesʳ Δ) (L.++-identityʳ _) ⟩
+            xᵢ ∷ namesʳ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ] }) ds)
+          ≡⟨ cong (xᵢ ∷_) (h₀′ ds) ⟩
+            xᵢ ∷ map (proj₂ ∘ proj₂) ds
+          ∎ where open ≡-Reasoning
+                  Δ = || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ] }) ds
 
-          h₀′ : ∀ (ds : List DepositRef) →
-            namesʳ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ] }) ds) ≡ map (proj₂ ∘ proj₂) ds
-          h₀′ [] = refl
-          h₀′ (_ ∷ []) = refl
-          h₀′ ((Aᵢ , vᵢ , xᵢ) ∷ ds@(_ ∷ _)) =
-            begin
-              namesʳ ((⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ]) ∣ Δ)
-            ≡⟨ mapMaybe∘collectFromBase-++ isInj₂ (⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ ad ]) Δ ⟩
-              namesʳ (⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ]) ++ namesʳ Δ
-            ≡⟨ cong (_++ namesʳ Δ) (mapMaybe∘collectFromBase-++ isInj₂ (⟨ Aᵢ has vᵢ ⟩at xᵢ) (Aᵢ auth[ xᵢ ▷ˢ ad ])) ⟩
-              (xᵢ ∷ namesʳ (Aᵢ auth[ xᵢ ▷ˢ ad ])) ++ namesʳ Δ
-            ≡⟨ cong (λ x → (xᵢ ∷ x) ++ namesʳ Δ) (L.++-identityʳ _) ⟩
-              xᵢ ∷ namesʳ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ] }) ds)
-            ≡⟨ cong (xᵢ ∷_) (h₀′ ds) ⟩
-              xᵢ ∷ map (proj₂ ∘ proj₂) ds
-            ∎ where open ≡-Reasoning
-                    Δ = || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ] }) ds
+        h₁ : ∀ (xs : List DepositRef) →
+          Null $ namesˡ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ] }) xs)
+        h₁ [] = refl
+        h₁ (_ ∷ []) = refl
+        h₁ (_ ∷ xs@(_ ∷ _)) = h₁ xs
 
-          h₁ : ∀ (xs : List DepositRef) →
-            Null $ namesˡ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ] }) xs)
-          h₁ [] = refl
-          h₁ (_ ∷ []) = refl
-          h₁ (_ ∷ xs@(_ ∷ _)) = h₁ xs
+        h₂ : ∀ xs → Null $ namesˡ (|| map (_auth[ ♯▷ ad ]) xs)
+        h₂ [] = refl
+        h₂ (_ ∷ []) = refl
+        h₂ (_ ∷ xs@(_ ∷ _)) = h₂ xs
 
-          h₂ : ∀ xs → Null $ namesˡ (|| map (_auth[ ♯▷ ad ]) xs)
-          h₂ [] = refl
-          h₂ (_ ∷ []) = refl
-          h₂ (_ ∷ xs@(_ ∷ _)) = h₂ xs
+        h₁′ : ∀ (xs : List DepositRef) →
+          Null $ advertisements (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ] }) xs)
+        h₁′ [] = refl
+        h₁′ (_ ∷ []) = refl
+        h₁′ (_ ∷ xs@(_ ∷ _)) = h₁′ xs
 
-          h₁′ : ∀ (xs : List DepositRef) →
-            Null $ advertisements (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ] }) xs)
-          h₁′ [] = refl
-          h₁′ (_ ∷ []) = refl
-          h₁′ (_ ∷ xs@(_ ∷ _)) = h₁′ xs
+        ids≡ : namesʳ Γ ≡ namesʳ Γ₀ ++ map (proj₂ ∘ proj₂) ds
+        ids≡ =
+          begin
+            namesʳ Γ
+          ≡⟨ mapMaybe∘collectFromBase-++ isInj₂ (Γ₁ ∣ Γ₂) Γ₃ ⟩
+            namesʳ (Γ₁ ∣ Γ₂) ++ namesʳ Γ₃
+          ≡⟨ cong (namesʳ (Γ₁ ∣ Γ₂) ++_) (h₀ partG) ⟩
+            namesʳ (Γ₁ ∣ Γ₂) ++ []
+          ≡⟨ L.++-identityʳ _ ⟩
+            namesʳ (Γ₁ ∣ Γ₂)
+          ≡⟨ mapMaybe∘collectFromBase-++ isInj₂ Γ₁ Γ₂ ⟩
+            namesʳ Γ₁ ++ namesʳ Γ₂
+          ≡⟨ cong (_++ namesʳ Γ₂) (mapMaybe∘collectFromBase-++ isInj₂ (` ad) Γ₀) ⟩
+            namesʳ Γ₀ ++ namesʳ Γ₂
+          ≡⟨ cong (namesʳ Γ₀ ++_) (h₀′ ds) ⟩
+            namesʳ Γ₀ ++ map (proj₂ ∘ proj₂) ds
+          ∎ where open ≡-Reasoning
 
-          ids≡ : namesʳ Γ ≡ namesʳ Γ₀ ++ map (proj₂ ∘ proj₂) ds
-          ids≡ =
-            begin
-              namesʳ Γ
-            ≡⟨ mapMaybe∘collectFromBase-++ isInj₂ (Γ₁ ∣ Γ₂) Γ₃ ⟩
-              namesʳ (Γ₁ ∣ Γ₂) ++ namesʳ Γ₃
-            ≡⟨ cong (namesʳ (Γ₁ ∣ Γ₂) ++_) (h₀ partG) ⟩
-              namesʳ (Γ₁ ∣ Γ₂) ++ []
-            ≡⟨ L.++-identityʳ _ ⟩
-              namesʳ (Γ₁ ∣ Γ₂)
-            ≡⟨ mapMaybe∘collectFromBase-++ isInj₂ Γ₁ Γ₂ ⟩
-              namesʳ Γ₁ ++ namesʳ Γ₂
-            ≡⟨ cong (_++ namesʳ Γ₂) (mapMaybe∘collectFromBase-++ isInj₂ (` ad) Γ₀) ⟩
-              namesʳ Γ₀ ++ namesʳ Γ₂
-            ≡⟨ cong (namesʳ Γ₀ ++_) (h₀′ ds) ⟩
-              namesʳ Γ₀ ++ map (proj₂ ∘ proj₂) ds
-            ∎ where open ≡-Reasoning
+        secrets≡ : Γ′ ≡⦅ namesˡ ⦆ Γ
+        secrets≡ = sym $
+          begin namesˡ Γ                      ≡⟨⟩
+                namesˡ (Γ₁ ∣ Γ₂ ∣ Γ₃)         ≡⟨ mapMaybe∘collectFromBase-++ isInj₁ (Γ₁ ∣ Γ₂) Γ₃ ⟩
+                namesˡ (Γ₁ ∣ Γ₂) ++ namesˡ Γ₃ ≡⟨ cong (namesˡ (Γ₁ ∣ Γ₂)  ++_) (h₂ partG) ⟩
+                namesˡ (Γ₁ ∣ Γ₂) ++ []        ≡⟨ L.++-identityʳ _ ⟩
+                namesˡ (Γ₁ ∣ Γ₂)              ≡⟨ mapMaybe∘collectFromBase-++ isInj₁ Γ₁ Γ₂ ⟩
+                namesˡ Γ₁ ++ namesˡ Γ₂        ≡⟨ cong (namesˡ Γ₁ ++_) (h₁ ds) ⟩
+                namesˡ Γ₁ ++ []               ≡⟨ L.++-identityʳ _ ⟩
+                namesˡ Γ₁                     ≡⟨⟩
+                namesˡ Γ′                     ∎ where open ≡-Reasoning
 
-          secrets≡ : Γ′ ≡⦅ namesˡ ⦆ Γ
-          secrets≡ = sym $
-            begin namesˡ Γ                      ≡⟨⟩
-                  namesˡ (Γ₁ ∣ Γ₂ ∣ Γ₃)         ≡⟨ mapMaybe∘collectFromBase-++ isInj₁ (Γ₁ ∣ Γ₂) Γ₃ ⟩
-                  namesˡ (Γ₁ ∣ Γ₂) ++ namesˡ Γ₃ ≡⟨ cong (namesˡ (Γ₁ ∣ Γ₂)  ++_) (h₂ partG) ⟩
-                  namesˡ (Γ₁ ∣ Γ₂) ++ []        ≡⟨ L.++-identityʳ _ ⟩
-                  namesˡ (Γ₁ ∣ Γ₂)              ≡⟨ mapMaybe∘collectFromBase-++ isInj₁ Γ₁ Γ₂ ⟩
-                  namesˡ Γ₁ ++ namesˡ Γ₂        ≡⟨ cong (namesˡ Γ₁ ++_) (h₁ ds) ⟩
-                  namesˡ Γ₁ ++ []               ≡⟨ L.++-identityʳ _ ⟩
-                  namesˡ Γ₁                     ≡⟨⟩
-                  namesˡ Γ′                     ∎ where open ≡-Reasoning
+        ads⊆′ : Γ′ ⊆⦅ advertisements ⦆ Γ
+        ads⊆′ = begin advertisements Γ′ ≡⟨⟩
+                      advertisements Γ₀ ⊆⟨ ∈-collect-++⁺ˡ (Γ₁ ∣ Γ₂) Γ₃ ∘ ∈-collect-++⁺ˡ Γ₁ Γ₂ ⟩
+                      advertisements Γ  ∎ where open ⊆-Reasoning Advertisement
 
-          ads⊆′ : Γ′ ⊆⦅ advertisements ⦆ Γ
-          ads⊆′ = begin advertisements Γ′ ≡⟨⟩
-                        advertisements Γ₀ ⊆⟨ ∈-collect-++⁺ˡ (Γ₁ ∣ Γ₂) Γ₃ ∘ ∈-collect-++⁺ˡ Γ₁ Γ₂ ⟩
-                        advertisements Γ  ∎ where open ⊆-Reasoning Advertisement
+        sechash↝ :  Γ →⦅ Sechash ⦆ Γ′
+        sechash↝ = lift Γ —⟨ namesˡ ⟩— Γ′ ⊣ secrets≡
 
-          sechash↝ :  Γ →⦅ Sechash ⦆ Γ′
-          sechash↝ = lift Γ —⟨ namesˡ ⟩— Γ′ ⊣ secrets≡
+        κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
+        κ↝ κ′ = weaken-↦ κ′ ads⊆′
 
-          κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
-          κ↝ κ′ = weaken-↦ κ′ ads⊆′
-
-          txout↝ : Γ →⦅ Txout ⦆ Γ′
-          txout↝ txout′ rewrite ids≡ = cons-↦ z tx $ weaken-↦ txout′ ∈-++⁺ˡ
-        abstract
-          λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-          λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
+        txout↝ : Γ →⦅ Txout ⦆ Γ′
+        txout↝ txout′ rewrite ids≡ = cons-↦ z tx $ weaken-↦ txout′ ∈-++⁺ˡ
+      abstract
+        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
 
   -- [5]
-  module _ c v x Γ₀ A i where
+  module _ c v x Γ₀ A (i : Index c) where
+    open ∣SELECT c i
     private
       Γ  = ⟨ c , v ⟩at x ∣ Γ₀
-      Γ′ = ⟨ c , v ⟩at x ∣ A auth[ x ▷ (c ‼ i) ] ∣ Γ₀
-    module H₅ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      abstract
-        Liftᶜ : ∃[ R ∋ʳ Ancestor⦅ ad ↝ c ⦆ ] → 𝔾 ad
-        Liftᶜ = LIFTᶜ 𝕣
+      Γ′ = ⟨ c , v ⟩at x ∣ A auth[ x ▷ d ] ∣ Γ₀
+    module H₅ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
+              (D≡A:D′ : A ∈ authDecorations d) where
+      private
+        T×pubK : ∃Tx × ℤ
+        T×pubK =
+          let
+            -- (ii) {G}C is the ancestor of ⟨C, v⟩ₓ in Rˢ
+            ⟨G⟩C , vad , ad∈ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
+            ⟨ G ⟩ C = ⟨G⟩C; partG = G ∙partG
 
+            d∈ : d ∈ subtermsᵃ′ ⟨G⟩C
+            d∈ = c⊆ (L.Mem.∈-lookup i)
+
+            A∈ : A ∈ partG
+            A∈ = ∈-nub⁺ $ subterms′-part⊆ᵃ vad d∈ $ auth⊆part {d = d} D≡A:D′
+
+            _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
+            _ , Tᵈ = ∀d∗ d∈
+          in (-, -, Tᵈ) , (κ′ ad∈ d∈ {A} A∈ .pub)
+      abstract
+        T : ∃Tx
+        T = T×pubK .proj₁
+
+        pubK : ℤ
+        pubK = T×pubK .proj₂
+      abstract
+        -- (iv) txout = txout′, sechash = sechash′, κ = κ′
         λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
         λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
--}
 
   -- [6]
-{-
   module _ c v y (ds : List (Participant × Value × Id)) (ss : List (Participant × Secret × ℕ))
            Γ₀  c′ y′  (i : Index c) p where
     private
@@ -624,155 +508,153 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
     module H₆ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
       (d≡ : d ≡⋯∶ put xs &reveal as if p ⇒ c′)
       where
-      -- abstract
-      --   Liftᶜ : ∀ {ad} → ∃[ R ∋ʳ Ancestor⦅ ad ↝ c ⦆ ] → 𝔾 ad
-      --   Liftᶜ = LIFTᶜ 𝕣
-      -- module H₆′ (tx : TxInput′) where
-    private
-      ∃T : ∃Tx¹
-      ∃T = let ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
-               ⟨ G ⟩ C″ = ⟨G⟩C″
-               d∈ : d ∈ subtermsᵃ′ ⟨G⟩C″
-               d∈ = c⊆ (L.Mem.∈-lookup i)
-               _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
-           in ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
+      private
+        ∃T : ∃Tx¹
+        ∃T = let ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
+                 ⟨ G ⟩ C″ = ⟨G⟩C″
+                 d∈ : d ∈ subtermsᵃ′ ⟨G⟩C″
+                 d∈ = c⊆ (L.Mem.∈-lookup i)
+                 _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
+            in ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
 
-      tx : TxInput′
-      tx = (-, -, ∃T .proj₂) at 0F
-    abstract
-      T : ∃Tx
-      T = -, -, ∃T .proj₂
-    private
-      postulate val≡ : tx ∙value ≡ v + sum vs
+        $T : ∃Tx
+        $T = -, -, ∃T .proj₂
 
-      open ≡-Reasoning
+        tx : TxInput′
+        tx = $T at 0F
+      abstract
+        T : ∃Tx
+        T = $T
+      private
+        postulate val≡ : tx ∙value ≡ v + sum vs
 
-      secrets≡ : Γ′ ≡⦅ namesˡ ⦆ Γ
-      secrets≡ =
-        begin
-          namesˡ Γ′
-        ≡⟨ mapMaybe∘collectFromBase-++ isInj₁ (⟨ c′ , v + sum vs ⟩at y′) Γ₀ ⟩
-          namesˡ (⟨ c′ , v + sum vs ⟩at y′) ++ namesˡ Γ₀
-        ≡⟨⟩
-          namesˡ Γ₀
-        ≡˘⟨ L.++-identityˡ _ ⟩
-          [] ++ namesˡ Γ₀
-        ≡˘⟨ cong (_++ namesˡ Γ₀) (go ds) ⟩
-          namesˡ (⟨ c′ , v ⟩at y ∣ Γ₁) ++ namesˡ Γ₀
-        ≡˘⟨ mapMaybe∘collectFromBase-++ isInj₁ (⟨ c′ , v ⟩at y ∣ Γ₁) Γ₀ ⟩
-          namesˡ Γ
-        ∎ where
-          go : ∀ (ds : List (Participant × Value × Id)) →
-            Null $ namesˡ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
-          go [] = refl
-          go (_ ∷ []) = refl
-          go (_ ∷ xs@(_ ∷ _)) = go xs
+        open ≡-Reasoning
 
-      ads≡ : Γ′ ≡⦅ advertisements ⦆ Γ
-      ads≡ =
-        begin
-          advertisements Γ′
-        ≡⟨⟩
-          advertisements Γ₀
-        ≡˘⟨ cong (_++ advertisements Γ₀) (go ds) ⟩
-          advertisements Γ₁ ++ advertisements Γ₀
-        ≡⟨ sym $ collectFromBase-++ Γ₁ Γ₀ ⟩
-          advertisements Γ
-        ∎ where
-          go : ∀ (ds : List (Participant × Value × Id)) →
-            Null $ advertisements (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
-          go [] = refl
-          go (_ ∷ []) = refl
-          go (_ ∷ xs@(_ ∷ _)) = go xs
-
-      sechash↝ :  Γ →⦅ Sechash ⦆ Γ′
-      sechash↝ = lift Γ —⟨ namesˡ ⟩— Γ′ ⊣ secrets≡
-
-      κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
-      κ↝ = lift Γ —⟨ advertisements ⟩— Γ′ ⊣ ads≡
-
-      p⊆ : Γ₀ ⊆⦅ ids ⦆ Γ
-      p⊆ = there ∘ ∈-ids-++⁺ʳ Γ₁ Γ₀
-
-      txout↝ : Γ →⦅ Txout ⦆ Γ′
-      txout↝ txout′ = cons-↦ y′ tx $ weaken-↦ txout′ p⊆
-
-      Γ″ = ∃Γ≈ .proj₁; Γ≈ = ∃Γ≈ .proj₂
-      Γₜ Γₜ′ Γₜ″ : Cfgᵗ; Γₜ  = Γ at t; Γₜ′ = Γ′ at t′; Γₜ″ = Γ″ at t′
-    -- abstract
-    λˢ : 𝕃 R Γₜ″
-    λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
-    private
-      𝕒  = λˢ .proj₁
-      R′ = Γₜ″ ∷ R ⊣ 𝕒
-
-      R≈′ : R′ ≈⋯ Γ′ at t′
-      R≈′ = refl , Γ≈
-
-      𝕣′ : ℝ R′
-      𝕣′ = ℝ-step 𝕣 λˢ
-    abstract
-      value-preserving⇒ :
-        ValuePreservingʳ 𝕣
-        ───────────────────
-        ValuePreservingʳ 𝕣′
-      value-preserving⇒ pv-txout = pv-txout′
-        where
-        txoutΓ : Txout Γ
-        txoutΓ = Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_)
-
-        pv-txoutΓ : ValuePreserving {Γ} txoutΓ
-        pv-txoutΓ = ValuePreserving-Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_) pv-txout
-
-        txoutΓ₀ : Txout Γ₀
-        txoutΓ₀ = weaken-↦ txoutΓ p⊆
-
-        pv-txoutΓ₀ : ValuePreserving {Γ₀} txoutΓ₀
-        pv-txoutΓ₀ x∈ =
+        secrets≡ : Γ′ ≡⦅ namesˡ ⦆ Γ
+        secrets≡ =
           begin
-            txoutΓ₀ x∈ ∙value
+            namesˡ Γ′
+          ≡⟨ mapMaybe∘collectFromBase-++ isInj₁ (⟨ c′ , v + sum vs ⟩at y′) Γ₀ ⟩
+            namesˡ (⟨ c′ , v + sum vs ⟩at y′) ++ namesˡ Γ₀
           ≡⟨⟩
-            weaken-↦ txoutΓ p⊆ x∈ ∙value
-          ≡⟨ pv-weaken-↦ {Γ}{Γ₀} txoutΓ p⊆ pv⊆ pv-txoutΓ x∈ ⟩
-            (Γ₀ , x∈) ∙value
-          ∎ where open ≡-Reasoning
-                  pv⊆ : ValuePreserving⊆ {Γ₀}{Γ} p⊆
-                  pv⊆ x∈ =
-                    begin
-                      (Γ₀ , x∈) ∙value
-                    ≡˘⟨ ∈-ids-++⁺ʳ∙value {Γ′ = Γ₀}{Γ₁} x∈ ⟩
-                      (Γ₁ ∣ Γ₀ , ∈-ids-++⁺ʳ Γ₁ Γ₀ x∈) ∙value
-                    ≡⟨⟩
-                      (Γ , there (∈-ids-++⁺ʳ Γ₁ Γ₀ x∈)) ∙value
-                    ≡⟨⟩
-                      (Γ , p⊆ x∈) ∙value
-                    ∎
+            namesˡ Γ₀
+          ≡˘⟨ L.++-identityˡ _ ⟩
+            [] ++ namesˡ Γ₀
+          ≡˘⟨ cong (_++ namesˡ Γ₀) (go ds) ⟩
+            namesˡ (⟨ c′ , v ⟩at y ∣ Γ₁) ++ namesˡ Γ₀
+          ≡˘⟨ mapMaybe∘collectFromBase-++ isInj₁ (⟨ c′ , v ⟩at y ∣ Γ₁) Γ₀ ⟩
+            namesˡ Γ
+          ∎ where
+            go : ∀ (ds : List (Participant × Value × Id)) →
+              Null $ namesˡ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
+            go [] = refl
+            go (_ ∷ []) = refl
+            go (_ ∷ xs@(_ ∷ _)) = go xs
 
-        txoutΓ′ : Txout Γ′
-        txoutΓ′ = txout↝ txoutΓ
-
-        pv-txoutΓ′ : ValuePreserving {Γ′} txoutΓ′
-        pv-txoutΓ′ = pv-cons-↦ val≡ pv-txoutΓ₀
-
-        txoutΓ″ : Txout Γ″
-        txoutΓ″ = Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′
-
-        pv-txoutΓ″ : ValuePreserving {Γ″} txoutΓ″
-        pv-txoutΓ″ = ValuePreserving-Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′ pv-txoutΓ′
-
-        pv-txout′ : ValuePreservingʳ 𝕣′
-        pv-txout′ x∈ =
+        ads≡ : Γ′ ≡⦅ advertisements ⦆ Γ
+        ads≡ =
           begin
-            (𝕣′ ∙txoutEnd x∈) ∙value
-          ≡⟨ cong _∙value
-                $ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′ _ ⟩
-            (txoutΓ″ x∈) ∙value
-          ≡⟨ pv-txoutΓ″ _ ⟩
-            (Γ″ , x∈) ∙value
-          ∎
+            advertisements Γ′
+          ≡⟨⟩
+            advertisements Γ₀
+          ≡˘⟨ cong (_++ advertisements Γ₀) (go ds) ⟩
+            advertisements Γ₁ ++ advertisements Γ₀
+          ≡⟨ sym $ collectFromBase-++ Γ₁ Γ₀ ⟩
+            advertisements Γ
+          ∎ where
+            go : ∀ (ds : List (Participant × Value × Id)) →
+              Null $ advertisements (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
+            go [] = refl
+            go (_ ∷ []) = refl
+            go (_ ∷ xs@(_ ∷ _)) = go xs
 
--}
-{-
+        sechash↝ :  Γ →⦅ Sechash ⦆ Γ′
+        sechash↝ = lift Γ —⟨ namesˡ ⟩— Γ′ ⊣ secrets≡
+
+        κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
+        κ↝ = lift Γ —⟨ advertisements ⟩— Γ′ ⊣ ads≡
+
+        p⊆ : Γ₀ ⊆⦅ ids ⦆ Γ
+        p⊆ = there ∘ ∈-ids-++⁺ʳ Γ₁ Γ₀
+
+        -- (v) extend txout′ with {y′↦(T,0)}, sechash = sechash′, κ = κ′
+        txout↝ : Γ →⦅ Txout ⦆ Γ′
+        txout↝ txout′ = cons-↦ y′ tx $ weaken-↦ txout′ p⊆
+
+        Γ″ = ∃Γ≈ .proj₁; Γ≈ = ∃Γ≈ .proj₂
+        Γₜ Γₜ′ Γₜ″ : Cfgᵗ; Γₜ  = Γ at t; Γₜ′ = Γ′ at t′; Γₜ″ = Γ″ at t′
+      -- abstract
+      λˢ : 𝕃 R Γₜ″
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
+      private
+        𝕒  = λˢ .proj₁
+        R′ = Γₜ″ ∷ R ⊣ 𝕒
+
+        R≈′ : R′ ≈⋯ Γ′ at t′
+        R≈′ = refl , Γ≈
+
+        𝕣′ : ℝ R′
+        𝕣′ = ℝ-step 𝕣 λˢ
+      abstract
+        value-preserving⇒ :
+          ValuePreservingʳ 𝕣
+          ───────────────────
+          ValuePreservingʳ 𝕣′
+        value-preserving⇒ pv-txout = pv-txout′
+          where
+          txoutΓ : Txout Γ
+          txoutΓ = Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_)
+
+          pv-txoutΓ : ValuePreserving {Γ} txoutΓ
+          pv-txoutΓ = ValuePreserving-Txout≈ {R ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_) pv-txout
+
+          txoutΓ₀ : Txout Γ₀
+          txoutΓ₀ = weaken-↦ txoutΓ p⊆
+
+          pv-txoutΓ₀ : ValuePreserving {Γ₀} txoutΓ₀
+          pv-txoutΓ₀ x∈ =
+            begin
+              txoutΓ₀ x∈ ∙value
+            ≡⟨⟩
+              weaken-↦ txoutΓ p⊆ x∈ ∙value
+            ≡⟨ pv-weaken-↦ {Γ}{Γ₀} txoutΓ p⊆ pv⊆ pv-txoutΓ x∈ ⟩
+              (Γ₀ , x∈) ∙value
+            ∎ where open ≡-Reasoning
+                    pv⊆ : ValuePreserving⊆ {Γ₀}{Γ} p⊆
+                    pv⊆ x∈ =
+                      begin
+                        (Γ₀ , x∈) ∙value
+                      ≡˘⟨ ∈-ids-++⁺ʳ∙value {Γ′ = Γ₀}{Γ₁} x∈ ⟩
+                        (Γ₁ ∣ Γ₀ , ∈-ids-++⁺ʳ Γ₁ Γ₀ x∈) ∙value
+                      ≡⟨⟩
+                        (Γ , there (∈-ids-++⁺ʳ Γ₁ Γ₀ x∈)) ∙value
+                      ≡⟨⟩
+                        (Γ , p⊆ x∈) ∙value
+                      ∎
+
+          txoutΓ′ : Txout Γ′
+          txoutΓ′ = txout↝ txoutΓ
+
+          pv-txoutΓ′ : ValuePreserving {Γ′} txoutΓ′
+          pv-txoutΓ′ = pv-cons-↦ val≡ pv-txoutΓ₀
+
+          txoutΓ″ : Txout Γ″
+          txoutΓ″ = Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′
+
+          pv-txoutΓ″ : ValuePreserving {Γ″} txoutΓ″
+          pv-txoutΓ″ = ValuePreserving-Txout≈ {Γ′}{Γ″} (↭-sym Γ≈) txoutΓ′ pv-txoutΓ′
+
+          pv-txout′ : ValuePreservingʳ 𝕣′
+          pv-txout′ x∈ =
+            begin
+              (𝕣′ ∙txoutEnd x∈) ∙value
+            ≡⟨ cong _∙value
+                  $ txout∷∘namesʳ⦅end⦆⊆ {R = R} Γ→Γ′ (R≈′ , R≈) txoutΓ′ txout′ _ ⟩
+              (txoutΓ″ x∈) ∙value
+            ≡⟨ pv-txoutΓ″ _ ⟩
+              (Γ″ , x∈) ∙value
+            ∎
+
   -- [7]
   module _ A a n Γ₀ where
     private
@@ -784,100 +666,167 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
 
   -- [8]
-  module _ c v y Γ₀  (vcis : List (Value × Contracts × Id)) where
+  module _ c v y Γ₀ (i : Index c) (vcis : List (Value × Contracts × Id)) where
+    open ∣SELECT c i
     private
       Γ  = ⟨ c , v ⟩at y ∣ Γ₀
-      xs = proj₂ $ proj₂ $ unzip₃ vcis
+      vs = unzip₃ vcis .proj₁
+      cs = unzip₃ vcis .proj₂ .proj₁
+      xs = unzip₃ vcis .proj₂ .proj₂
       Γ₁ = || map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis
       Γ′ = Γ₁ ∣ Γ₀
-    module H₈ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₈ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
+              (d≡ : d ≡⋯∶ split (zip vs cs)) where
+      private
+        $T : ∃Tx
+        $T =
+          let
+            -- (ii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
+            ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
+
+            d∈ : d ∈ subtermsᵃ′ ⟨G⟩C′
+            d∈ = c⊆ (L.Mem.∈-lookup i)
+
+            -- (iii) submit transaction T
+            --       where ∙ (T′,o) = txout′(y)
+            --             ∙ T is the first transaction in Bpar(cs,d,T′,o,partG,t)
+            --       i.e. the one corresponding to subterm `d∗ = split (zip vs cs)`
+            _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
+            i , Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
+
+            open ≡-Reasoning
+            vs≡ , cs≡ , xs≡ = length-unzip₃ vcis
+
+            l≡ : length xs ≡ length (zip vs cs)
+            l≡ = sym
+              $ begin length (zip vs cs)    ≡⟨ L.length-zipWith _,_ vs cs ⟩
+                      length vs ⊓ length cs ≡⟨ Nat.m≥n⇒m⊓n≡n $ Nat.≤-reflexive $ trans cs≡ (sym vs≡) ⟩
+                      length cs             ≡⟨ cs≡ ⟩
+                      length vcis           ≡⟨ sym xs≡ ⟩
+                      length xs             ∎
+
+            Tᵈ′ : Tx i (length xs)
+            Tᵈ′ = ⟪ Tx i ⟫ l≡ ~: Tᵈ
+          in
+            -, -, Tᵈ′
+
+        -- (iv) extend txout′ with {xᵢ ↦ (T,i)}, sechash = sechash′, κ = κ′
+        txout⁺ : xs ↦ TxInput′
+        txout⁺ x∈ = $T at L.Any.index x∈
       abstract
-        Liftᶜ : ∀ {ad} → ∃[ R ∋ʳ Ancestor⦅ ad ↝ c ⦆ ] → 𝔾 ad
-        Liftᶜ = LIFTᶜ 𝕣
-      module H₈′ (txout⁺ : xs ↦ TxInput′) where
-        private
-          hʳ : ∀ (vcis : List (Value × Contracts × Id)) →
-            namesʳ (|| map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis) ≡ (proj₂ $ proj₂ $ unzip₃ vcis)
-          hʳ [] = refl
-          hʳ (_ ∷ []) = refl
-          hʳ (_ ∷ xs@(_ ∷ _)) = cong (_ ∷_) (hʳ xs)
+        T : ∃Tx
+        T = $T
+      private
+        hʳ : ∀ (vcis : List (Value × Contracts × Id)) →
+          namesʳ (|| map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis) ≡ (proj₂ $ proj₂ $ unzip₃ vcis)
+        hʳ [] = refl
+        hʳ (_ ∷ []) = refl
+        hʳ (_ ∷ xs@(_ ∷ _)) = cong (_ ∷_) (hʳ xs)
 
-          hˡ : ∀ (vcis : List (Value × Contracts × Id)) →
-            Null $ namesˡ (|| map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis)
-          hˡ [] = refl
-          hˡ (_ ∷ []) = refl
-          hˡ (_ ∷ xs@(_ ∷ _)) = hˡ xs
+        hˡ : ∀ (vcis : List (Value × Contracts × Id)) →
+          Null $ namesˡ (|| map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis)
+        hˡ [] = refl
+        hˡ (_ ∷ []) = refl
+        hˡ (_ ∷ xs@(_ ∷ _)) = hˡ xs
 
-          hᵃ : ∀ (vcis : List (Value × Contracts × Id)) →
-            Null $ advertisements (|| map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis)
-          hᵃ [] = refl
-          hᵃ (_ ∷ []) = refl
-          hᵃ (_ ∷ xs@(_ ∷ _)) = hᵃ xs
-          ids≡ : namesʳ Γ ≡ y ∷ namesʳ Γ₀
-          ids≡ = mapMaybe∘collectFromBase-++ isInj₂ (⟨ c , v ⟩at y) Γ₀
+        hᵃ : ∀ (vcis : List (Value × Contracts × Id)) →
+          Null $ advertisements (|| map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis)
+        hᵃ [] = refl
+        hᵃ (_ ∷ []) = refl
+        hᵃ (_ ∷ xs@(_ ∷ _)) = hᵃ xs
 
-          ids≡ : namesʳ Γ′ ≡ xs ++ namesʳ Γ₀
-          ids≡ =
-            begin
-              namesʳ Γ′
-            ≡⟨ mapMaybe∘collectFromBase-++ isInj₂ Γ₁ Γ₀ ⟩
-              namesʳ Γ₁ ++ namesʳ Γ₀
-            ≡⟨ cong (_++ namesʳ Γ₀) (hʳ vcis) ⟩
-              xs ++ namesʳ Γ₀
-            ∎ where open ≡-Reasoning
+        ids≡ : namesʳ Γ ≡ y ∷ namesʳ Γ₀
+        ids≡ = mapMaybe∘collectFromBase-++ isInj₂ (⟨ c , v ⟩at y) Γ₀
 
-          secrets≡ : Γ′ ≡⦅ namesˡ ⦆ Γ
-          secrets≡ =
-            begin
-              namesˡ Γ′
-            ≡⟨ mapMaybe∘collectFromBase-++ isInj₁ Γ₁ Γ₀ ⟩
-              namesˡ Γ₁ ++ namesˡ Γ₀
-            ≡⟨ cong (_++ namesˡ Γ₀) (hˡ vcis) ⟩
-              namesˡ Γ₀
-            ≡⟨⟩
-              namesˡ Γ
-            ∎ where open ≡-Reasoning
+        ids≡′ : namesʳ Γ′ ≡ xs ++ namesʳ Γ₀
+        ids≡′ =
+          begin
+            namesʳ Γ′
+          ≡⟨ mapMaybe∘collectFromBase-++ isInj₂ Γ₁ Γ₀ ⟩
+            namesʳ Γ₁ ++ namesʳ Γ₀
+          ≡⟨ cong (_++ namesʳ Γ₀) (hʳ vcis) ⟩
+            xs ++ namesʳ Γ₀
+          ∎ where open ≡-Reasoning
 
-          ads≡ : Γ′ ≡⦅ advertisements ⦆ Γ
-          ads≡ =
-            begin
-              advertisements Γ′
-            ≡⟨ collectFromBase-++ Γ₁ Γ₀ ⟩
-              advertisements Γ₁ ++ advertisements Γ₀
-            ≡⟨ cong (_++ advertisements Γ₀) (hᵃ vcis) ⟩
-              advertisements Γ₀
-            ≡⟨⟩
-              advertisements Γ
-            ∎ where open ≡-Reasoning
+        secrets≡ : Γ′ ≡⦅ namesˡ ⦆ Γ
+        secrets≡ =
+          begin
+            namesˡ Γ′
+          ≡⟨ mapMaybe∘collectFromBase-++ isInj₁ Γ₁ Γ₀ ⟩
+            namesˡ Γ₁ ++ namesˡ Γ₀
+          ≡⟨ cong (_++ namesˡ Γ₀) (hˡ vcis) ⟩
+            namesˡ Γ₀
+          ≡⟨⟩
+            namesˡ Γ
+          ∎ where open ≡-Reasoning
 
-          txout↝ : Γ →⦅ Txout ⦆ Γ′
-          txout↝ txout′ rewrite ids≡ = extend-↦ (↭-reflexive ids≡) txout⁺ (weaken-↦ txout′ there)
+        ads≡ : Γ′ ≡⦅ advertisements ⦆ Γ
+        ads≡ =
+          begin
+            advertisements Γ′
+          ≡⟨ collectFromBase-++ Γ₁ Γ₀ ⟩
+            advertisements Γ₁ ++ advertisements Γ₀
+          ≡⟨ cong (_++ advertisements Γ₀) (hᵃ vcis) ⟩
+            advertisements Γ₀
+          ≡⟨⟩
+            advertisements Γ
+          ∎ where open ≡-Reasoning
 
-          sechash↝ : Γ →⦅ Sechash ⦆ Γ′
-          sechash↝ = lift Γ —⟨ namesˡ ⟩— Γ′ ⊣ secrets≡
+        txout↝ : Γ →⦅ Txout ⦆ Γ′
+        txout↝ txout′ rewrite ids≡ = extend-↦ (↭-reflexive ids≡′) txout⁺ (weaken-↦ txout′ there)
 
-          κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
-          κ↝ = lift Γ —⟨ advertisements ⟩— Γ′ ⊣ ads≡
-        abstract
-          λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-          λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
+        sechash↝ : Γ →⦅ Sechash ⦆ Γ′
+        sechash↝ = lift Γ —⟨ namesˡ ⟩— Γ′ ⊣ secrets≡
+
+        κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
+        κ↝ = lift Γ —⟨ advertisements ⟩— Γ′ ⊣ ads≡
+      abstract
+        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
 
   -- [9]
-  module _ c v y Γ₀ A x where
+  module _ c v y Γ₀ A x (i : Index c) where
+    open ∣SELECT c i
     private
       Γ  = ⟨ c , v ⟩at y ∣ Γ₀
       Γ′ = ⟨ A has v ⟩at x ∣ Γ₀
-    module H₉ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
+    module H₉ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
+              (d≡ : d ≡⋯∶ withdraw A) where
+      private
+        $T : ∃Tx
+        $T =
+          let
+            -- (ii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
+            ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
+            ⟨ G ⟩ C′ = ⟨G⟩C′
+
+            d∈ : d ∈ subtermsᵃ′ ⟨G⟩C′
+            d∈ = c⊆ (L.Mem.∈-lookup i)
+
+            --   ∙ T′ at o = txout′(x)
+            --   ∙ T is the first transaction of Bd(d,d,T′,o,v,partG,0)
+            -- i.e.
+            -- (iii) submit transaction T
+            --       where ∙ (T′,o) = txout′(y)
+            --             ∙ T is the first transaction in Bd(d,d,T′,o,v,partG,0)
+            --       i.e. the one corresponding to subterm `d∗ = withdraw A`
+            _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
+            _ , Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
+          in
+            -, -, Tᵈ
+
+        tx : TxInput′
+        tx = $T at 0F
       abstract
-        Liftᶜ : ∀ {ad} → ∃[ R ∋ʳ Ancestor⦅ ad ↝ c ⦆ ] → 𝔾 ad
-        Liftᶜ = LIFTᶜ 𝕣
-      module H₉′ (tx : TxInput′) where
-        private
-          txout↝ : Γ →⦅ Txout ⦆ Γ′
-          txout↝  txout′ = cons-↦ x tx $ weaken-↦ txout′ there
-        abstract
-          λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-          λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id
+        T : ∃Tx
+        T = $T
+      private
+        -- (iv) extend txout′ with {x ↦ (T,0)}, sechash = sechash′, κ = κ′
+        txout↝ : Γ →⦅ Txout ⦆ Γ′
+        txout↝  txout′ = cons-↦ x tx $ weaken-↦ txout′ there
+      abstract
+        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id
 
   -- [10]
   module _ A v x v′ x′ Γ₀ where
@@ -902,16 +851,16 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         -- Γ″  = ∃Γ≈ .proj₁
         -- Γₜ″ = Γ″ at t′
 
-      -- -- abstract
-      λˢ : 𝕃 R Γₜ″
+      -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′) -- Γₜ″
       λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id
 
-      private
-        𝕒  = λˢ .proj₁
-        R′ = Γₜ″ ∷ R ⊣ 𝕒
+      -- private
+      --   𝕒  = λˢ .proj₁
+      --   R′ = Γₜ″ ∷ R ⊣ 𝕒
 
-        𝕣′ : ℝ R′
-        𝕣′ = ℝ-step 𝕣 λˢ
+      --   𝕣′ : ℝ R′
+      --   𝕣′ = ℝ-step 𝕣 λˢ
 
       -- module _ {c v x} where
       --   private
@@ -1029,7 +978,6 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       abstract
         λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
         λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
--}
 
   -- [17]
   module _ (ds : List (Participant × Value × Id)) Γ₀ y where

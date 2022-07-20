@@ -63,19 +63,6 @@ v -redeemableWith- k = Ctx 1 , record {value = v;  validator = ƛ (versig [ k ] 
 SIGᵐ : KeyPair → Message → Message
 SIGᵐ k = map (SIG k)
 
--- Convenient wrapper for calling the BitML compiler.
-{-
-COMPILE : 𝔾 ad → ∃Tx¹ × (subtermsᵃ′ ad ↦′ ∃Txᶜ ∘ removeTopDecorations)
-COMPILE {ad = ad} (vad , txout₀ , sechash₀ , κ₀) =
-  let
-    K : 𝕂 (ad .G)
-    K {p} _ = K̂ p
-
-    T , ∀d = bitml-compiler {ad = ad} vad sechash₀ txout₀ K κ₀
-  in
-    T , (∀d ∘ h-subᶜ {ds = ad .C})
--}
-
 -- * Inductive case 1
 data _~₁₁_ : ℝ∗ Rˢ → C.Run → Set where
 
@@ -193,7 +180,7 @@ data _~₁₁_ : ℝ∗ Rˢ → C.Run → Set where
     ∙ Disjoint h̅ (codom sechash′)
       ────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ)
-{-
+
   -- ** Stipulation: authorizing deposits
   [3] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
         let ⟨ G ⟩ C = ⟨G⟩C ; partG = G ∙partG in
@@ -215,12 +202,7 @@ data _~₁₁_ : ℝ∗ Rˢ → C.Run → Set where
         Γ→Γ′ = [Action] ([C-AuthInit] committedA A∈per) refl
 
         -- (iv) txout = txout′, sechash = sechash′, κ = κ′
-        open H₃ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ A x R≈ Γ→Γ′ ∃Γ≈ using (λˢ; Liftᶜ)
-
-        -- invoke compiler
-        T : ∃Tx
-        T = let (_ , Tᵢₙᵢₜ) , _ = COMPILE (Liftᶜ committedA)
-            in -, -, Tᵢₙᵢₜ
+        open H₃ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ A x R≈ Γ→Γ′ ∃Γ≈ committedA using (λˢ; T)
 
         -- (i) broadcast Tᵢₙᵢₜ , signed with A's private key
         m = [ SIG (K̂ A) T ]
@@ -264,18 +246,11 @@ data _~₁₁_ : ℝ∗ Rˢ → C.Run → Set where
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] ([C-Init] fresh-z) refl
 
-        open H₄ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ toSpend v z R≈ Γ→Γ′ ∃Γ≈ using (module H₄′; Liftᶜ)
-
-        -- invoke compiler
-        T : ∃Tx
-        T = let (_ , Tᵢₙᵢₜ) , _ = COMPILE Liftᶜ
-            in -, -, Tᵢₙᵢₜ
+        -- (iii) sechash = sechash′, κ = κ′, txout extends txout′ with (z ↦ Tᵢₙᵢₜ)
+        open H₄ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ toSpend v z R≈ Γ→Γ′ ∃Γ≈ using (λˢ; T)
 
         -- (ii) append Tᵢₙᵢₜ to the blockchain
         λᶜ = submit T
-
-        -- (iii) sechash = sechash′, κ = κ′, txout extends txout′ with (z ↦ Tᵢₙᵢₜ)
-        open H₄′ (T at 0F)
       in
       --——————————————————————————————————————————————————————————————————————
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ)
@@ -302,39 +277,14 @@ data _~₁₁_ : ℝ∗ Rˢ → C.Run → Set where
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] ([C-AuthControl] D≡A:D′) refl
 
-        -- (iv) txout = txout′, sechash = sechash′, κ = κ′
-        open H₅ {Rˢ} 𝕣 t α t′ c v x Γ₀ A i R≈ Γ→Γ′ ∃Γ≈ using (λˢ; Liftᶜ)
+        open H₅ {Rˢ} 𝕣 t α t′ c v x Γ₀ A i R≈ Γ→Γ′ ∃Γ≈ D≡A:D′ using (λˢ; T; pubK)
 
-        -- (ii) {G}C is the ancestor of ⟨C, v⟩ₓ in Rˢ
-        ⟨G⟩C , vad , ad∈ , c⊆ , anc = ANCESTOR {R = Rˢ} {Γ = Γ} R≈ (here refl)
-        ⟨ G ⟩ C = ⟨G⟩C; partG = G ∙partG
-
-        d∈ : d ∈ subtermsᵃ′ ⟨G⟩C
-        d∈ = c⊆ (L.Mem.∈-lookup i)
-
-        A∈ : A ∈ partG
-        A∈ = ∈-nub⁺ $ subterms′-part⊆ᵃ vad d∈ $ auth⊆part {d = d} D≡A:D′
-
-        T : ∃Tx
-        T = let _ , ∀d∗ = COMPILE (Liftᶜ anc)
-                _ , Tᵈ = ∀d∗ d∈
-            in -, -, Tᵈ
-
-        λᶜ = B →∗∶ [ SIGᵖ (κ′ ad∈ d∈ {A} A∈ .pub) T ]
+        λᶜ = B →∗∶ [ SIGᵖ pubK T ]
       in
       --——————————————————————————————————————————————————————————————————————
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ)
--}
-  -- ** Contract actions: put
-  [6] : (⋯ : CArgs₆) →
-    let
-      open CArgs₆ ⋯
-      open H₆ (CArgs⇒Args₆ ⋯) using (λˢ; T)
-      λᶜ = submit T
-    in
-      (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ)
 
-{-
+  -- ** Contract actions: put
   [6] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
         ∀ {ds : List (Participant × S.Value × Id)} {ss : List (Participant × Secret × ℕ)} →
         ∀ {i : Index c} → let open ∣SELECT c i; As , ts = decorations d in
@@ -379,37 +329,13 @@ data _~₁₁_ : ℝ∗ Rˢ → C.Run → Set where
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Timeout] As≡∅ ∀≤t put→ refl
 
-      {-
-        open H₆ {Rˢ} 𝕣 t α t′ c v y ds Γ₂ c′ y′ R≈ Γ→Γ′ ∃Γ≈ using (module H₆′; Liftᶜ)
-
-        -- (iii) {G}C″ is the ancestor of ⟨D+C, v⟩y in Rˢ
-        ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = Rˢ} {Γ = Γ} R≈ (here refl)
-        ⟨ G ⟩ C″ = ⟨G⟩C″
-
-        d∈ : d ∈ subtermsᵃ′ ⟨G⟩C″
-        d∈ = c⊆ (L.Mem.∈-lookup i)
-
-        -- (iv) submit transaction T
-        --      where ∙ (T′,o) = txout′(y)
-        --            ∙ T is the first transaction in Bc(c′,d,T′,o,v′,x⃗,partG,t)
-        --      i.e. the one corresponding to subterm `d∗ = put xs &reveal as if p → c′`
-        T : ∃Tx
-        T = let _ , ∀d∗ = COMPILE (Liftᶜ anc)
-                _ , Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
-            in -, -, Tᵈ
-      -}
-        open H₆ {Rˢ} 𝕣 t α t′ (Args₆∶ c v y ds ss Γ₂ c′ y′ i p R≈ Γ→Γ′ ∃Γ≈ d≡) using (λˢ; T)
+        open H₆ {Rˢ} 𝕣 t α t′ c v y ds ss Γ₂ c′ y′ i p R≈ Γ→Γ′ ∃Γ≈ d≡ using (λˢ; T)
 
         λᶜ = submit T
-
-        -- (v) extend txout′ with {y′↦(T,0)}, sechash = sechash′, κ = κ′
-        -- open H₆′ (T at 0F) using (λˢ)
       in
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ)
--}
 
-{-
   -- ** Contract actions: authorize reveal
   [7] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
         ∀ {a} → -- [T0D0] fixed in Agda-HEAD, see issue #5683
@@ -507,46 +433,9 @@ data _~₁₁_ : ℝ∗ Rˢ → C.Run → Set where
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Timeout] As≡∅ ∀≤t split→ refl
 
-        open H₈ {Rˢ} 𝕣 t α t′ c v y Γ₀ vcis R≈ Γ→Γ′ ∃Γ≈ using (module H₈′; Liftᶜ)
-
-        -- (iii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
-        ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = Rˢ} {Γ = Γ} R≈ (here refl)
-        ⟨ G ⟩ C′ = ⟨G⟩C′
-
-        d∈ : d ∈ subtermsᵃ′ ⟨G⟩C′
-        d∈ = c⊆ (L.Mem.∈-lookup i)
-
-        -- (iii) submit transaction T
-        --       where ∙ (T′,o) = txout′(y)
-        --             ∙ T is the first transaction in Bpar(cs,d,T′,o,partG,t)
-        --       i.e. the one corresponding to subterm `d∗ = split (zip vs cs)`
-        T =
-          let
-            _ , ∀d∗ = COMPILE (Liftᶜ anc)
-            i , Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
-
-            open ≡-Reasoning renaming (_∎ to _∎∎)
-            vs≡ , cs≡ , xs≡ = length-unzip₃ vcis
-
-            l≡ : length xs ≡ length (zip vs cs)
-            l≡ = sym
-               $ begin length (zip vs cs)    ≡⟨ L.length-zipWith _,_ vs cs ⟩
-                       length vs ⊓ length cs ≡⟨ Nat.m≥n⇒m⊓n≡n $ Nat.≤-reflexive $ trans cs≡ (sym vs≡) ⟩
-                       length cs             ≡⟨ cs≡ ⟩
-                       length vcis           ≡⟨ sym xs≡ ⟩
-                       length xs             ∎∎
-
-            Tᵈ′ : Tx i (length xs)
-            Tᵈ′ = ⟪ Tx i ⟫ l≡ ~: Tᵈ
-          in -, -, Tᵈ′
+        open H₈ {Rˢ} 𝕣 t α t′ c v y Γ₀ i vcis R≈ Γ→Γ′ ∃Γ≈ d≡ using (λˢ; T)
 
         λᶜ = submit T
-
-        -- (iv) extend txout′ with {xᵢ ↦ (T,i)}, sechash = sechash′, κ = κ′
-        txout⁺ : xs ↦ TxInput′
-        txout⁺ x∈ = T at (L.Any.index x∈)
-
-        open H₈′ txout⁺ using (λˢ)
       in
       --——————————————————————————————————————————————————————————————————————
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ)
@@ -573,32 +462,13 @@ data _~₁₁_ : ℝ∗ Rˢ → C.Run → Set where
       (∀≤t : All (_≤ t) ts)
     → let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
-        Γ→Γ′ = [Timeout] As≡∅ ∀≤t (⟪ (λ ◆ → ⟨ [ ◆ ] , v ⟩at y ∣ Γ₀ —[ α ]→ Γ′) ⟫ d≡ ~: [C-Withdraw] fresh-x) refl
+        Γ→Γ′ = [Timeout] As≡∅ ∀≤t
+          (⟪ (λ ◆ → ⟨ [ ◆ ] , v ⟩at y ∣ Γ₀ —[ α ]→ Γ′) ⟫ d≡ ~: [C-Withdraw] fresh-x)
+          refl
 
-        open H₉ {Rˢ} 𝕣 t α t′ c v y Γ₀ A x R≈ Γ→Γ′ ∃Γ≈ using (module H₉′; Liftᶜ)
-
-        -- (ii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
-        ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = Rˢ} {Γ = Γ} R≈ (here refl)
-        ⟨ G ⟩ C′ = ⟨G⟩C′
-
-        d∈ : d ∈ subtermsᵃ′ ⟨G⟩C′
-        d∈ = c⊆ (L.Mem.∈-lookup i)
-
-        --   ∙ T′ at o = txout′(x)
-        --   ∙ T is the first transaction of Bd(d,d,T′,o,v,partG,0)
-        -- i.e.
-        -- (iii) submit transaction T
-        --       where ∙ (T′,o) = txout′(y)
-        --             ∙ T is the first transaction in Bd(d,d,T′,o,v,partG,0)
-        --       i.e. the one corresponding to subterm `d∗ = withdraw A`
-        T = let _ , ∀d∗ = COMPILE (Liftᶜ anc)
-                _ , Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
-            in -, -, Tᵈ
+        open H₉ {Rˢ} 𝕣 t α t′ c v y Γ₀ A x i R≈ Γ→Γ′ ∃Γ≈ d≡ using (λˢ; T)
 
         λᶜ = submit T
-
-        -- (iv) extend txout′ with {x ↦ (T,0)}, sechash = sechash′, κ = κ′
-        open H₉′ (T at 0F) using (λˢ)
       in
       --——————————————————————————————————————————————————————————————————————
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ)
@@ -839,7 +709,7 @@ data _~₁₁_ : ℝ∗ Rˢ → C.Run → Set where
       in
       --——————————————————————————————————————————————————————————————————————
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ)
--}
+
   -- ** After
   [18] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
 
@@ -865,7 +735,7 @@ _≁₁₁_ : ℝ∗ Rˢ → C.Run → Set
 _≁₁₁_ = ¬_ ∘₂ _~₁₁_
 
 data _~₁₂_ : ℝ∗ Rˢ → C.Run → Set where
-{-
+
   -- ** Deposits: authorize destroy
   [16] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
          ∀ {ds : List (Participant × S.Value × Id)} {j : Index ds}
@@ -916,7 +786,6 @@ data _~₁₂_ : ℝ∗ Rˢ → C.Run → Set where
         → (Γₜ′ ∷ 𝕣∗ ⊣ λˢ′ ✓) ≁₁₁ (λᶜ ∷ Rᶜ))
       --——————————————————————————————————————————————————————————————————————
     → (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₂ (λᶜ ∷ Rᶜ)
--}
 
   -- ** Deposits: destroy
   [17] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
@@ -1048,15 +917,10 @@ private
   ... | step₁ _ p with p
   ... | [L] [1]  R≈ ∃Γ≈ vad hon d⊆ = tt
   ... | [L] [2]  R≈ ∃Γ≈ as≡ All∉ Hon⇒ ∃B h≡ h∈O unique-h h♯sechash = tt
-{-
   ... | [L] [3]  R≈ ∃Γ≈ committedA A∈per ∃B = tt
   ... | [L] [4]  R≈ ∃Γ≈ fresh-z = tt
   ... | [L] [5]  d≡ R≈ ∃Γ≈ = tt
--}
-  ... | [L] [6] ⋯ = tt
-    where open CArgs₆ ⋯ -- t≡ d≡ R≈ ∃Γ≈ fresh-y′ p⟦Δ⟧≡ As≡∅
-          open H₆ (CArgs⇒Args₆ ⋯)
-{-
+  ... | [L] [6]  t≡ d≡ R≈ ∃Γ≈ fresh-y′ p⟦Δ⟧≡ As≡∅ = tt
   ... | [L] [7]  R≈ ∃Γ≈ fresh-ys ∃B ∃α a∈ ∃λ first-λᶜ = tt
   ... | [L] [8]  t≡ d≡ R≈ fresh-xs As≡∅ ∃Γ≈ = tt
   ... | [L] [9]  d≡ R≈ ∃Γ≈ frsg-x As≡∅ ∀≤t = tt
@@ -1067,6 +931,5 @@ private
   ... | [L] [14] R≈ ∃Γ≈ ∃λ first-λᶜ = tt
   ... | [L] [15] R≈ ∃Γ≈ fresh-y = tt
   ... | [R] [16] R≈ ∃Γ≈ fresh-y T ⊆ins T∈ first-λᶜ ¬coh = tt
--}
   ... | [R] [17] R≈ ∃Γ≈ T ⊆ins ¬coh = tt
   ... | [L] [18] δ>0 ∃Γ≈ = tt
