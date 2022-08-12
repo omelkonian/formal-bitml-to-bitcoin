@@ -18,6 +18,7 @@ open import SymbolicModel.Run         Participant Honest
   hiding ({-variables-} Γₜ; Γₜ′; Γₜ″; R′)
 open import SymbolicModel.Collections Participant Honest
 open import SymbolicModel.Mappings    Participant Honest
+open import SymbolicModel.Accessors   Participant Honest
 
 -- [BUG] See issue #5464
 _≈ᶜ_ = _≈_ ⦃ Setoid-Cfg ⦄
@@ -38,10 +39,25 @@ data ℝ∗ : Run → Set where
       ───────────────────────
       ℝ∗ (Γₜ ∷ R ⊣ λˢ .proj₁)
 
+_∷_⊣≡_✓ :
+  ∀ Γₜ →
+  ∙ ℝ∗ R
+  → (λˢ : 𝕃≡ R Γₜ) →
+    ────────────────────────
+    ℝ∗ (Γₜ ∷ R ⊣≡ λˢ .proj₁)
+_∷_⊣≡_✓ {R} Γₜ 𝕣 𝕝≡ = Γₜ ∷ 𝕣 ⊣ 𝕃≡⇒𝕃 {R} 𝕝≡ ✓
+
 ℝ∗⇒ℝ : ℝ∗ ⊆¹ ℝ
 ℝ∗⇒ℝ {R} = λ where
   (ℽ ∎⊣ init ✓)  → ℝ-base {init = init} ℽ
   (_ ∷ 𝕣 ⊣ λˢ ✓) → ℝ-step (ℝ∗⇒ℝ 𝕣) λˢ
+
+ℝ∗⇒ℾᵗ : ℝ∗ R → ℾᵗ (R .end)
+ℝ∗⇒ℾᵗ (ℽ ∎⊣ _ ✓) = ℽ
+ℝ∗⇒ℾᵗ (_∷_⊣_✓ {R} _ _ λˢ) = 𝕃⇒ℾᵗ {R} λˢ
+
+ℝ∗⇒ℾ : ℝ∗ R → ℾ (R ∙cfg)
+ℝ∗⇒ℾ = ℾᵗ⇒ℾ ∘ ℝ∗⇒ℾᵗ
 
 -- lifting mappings from last configuration to enclosing runs
 -- i.e. Γ →⦅ Txout ⟩ Γ′ ———→ R ⇒⟨ Txout ⦆ R′

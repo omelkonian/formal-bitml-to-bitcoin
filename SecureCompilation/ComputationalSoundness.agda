@@ -28,7 +28,7 @@ module _ Adv (Adv∉ : Adv ∉ S.Hon) where
   open S.AdvM Adv Adv∉ renaming (_-conforms-to-_ to _~ˢ_; AdversaryStrategy to AdvStrategyˢ)
   open C.AdvM Adv Adv∉ renaming (_-conforms-to-_ to _~ᶜ_; AdversaryStrategy to AdvStrategyᶜ)
 
-  module _ (Σˢ : S.HonestStrategies) (Σᶜₐ : AdvStrategyᶜ) (Rᶜ : C.Run) where
+  module _ (Σˢ : S.HonestStrategies) (Σᶜₐ : AdvStrategyᶜ) (Rᶜ : CRun) where
     Σˢₐ : AdvStrategyˢ
     Σˢₐ = {!!}
 

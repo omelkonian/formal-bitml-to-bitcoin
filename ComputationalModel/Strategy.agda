@@ -9,6 +9,7 @@ open import Prelude.DecEq
 open import Prelude.Bifunctor
 open import Prelude.Ord
 open import Prelude.Validity
+open import Prelude.ToList
 
 open import Bitcoin
 
@@ -56,7 +57,7 @@ Labels = List Label
 
 variable
   m m′ : Message
-  R R′ R″ Rᶜ : Run
+  R R′ R″ : Run
   λᶜ : Label
 
 strip : Participant → Run → Run
@@ -100,7 +101,25 @@ Initial R = ∃[ T₀ ] (Coinbase T₀ × (R ≡ (submit T₀ ∷ initialBroadca
 -- A run is valid, when it has an initial run as a prefix.
 instance
   Valid-Run : Validable Run
-  Valid-Run .Valid R = ∃[ R₀ ] (Initial R₀ × Prefix _≡_ R₀ R)
+  Valid-Run .Valid R = ∃[ R₀ ] (Initial R₀ × Suffix≡ R₀ R)
+
+data CRun : Set where
+  _∎⊣_✓ : ∀ R → Initial R → CRun
+  _∷_✓ : Label → CRun → CRun
+
+variable Rᶜ Rᶜ′ : CRun
+
+instance
+  ToList-CRun : ToList CRun Label
+  ToList-CRun .toList = λ where
+    (R ∎⊣ _ ✓) → R
+    (l ∷ R ✓)  → l ∷ toList R
+
+Valid-CRun : (R : CRun) → Valid (toList R)
+Valid-CRun = λ where
+  (R ∎⊣ init ✓) → R , init , suffix-refl R
+  (l ∷ R ✓)     → let R₀ , init , R⋯ = Valid-CRun R
+                  in  R₀ , init , there R⋯
 
 oracleMessages : Run → Labels
 oracleMessages = mapMaybe go
@@ -133,6 +152,9 @@ oracleInteractions r = go r []
       { (just (m , ws′)) → (A , proj₂ m , m′) ∷ go ls ws′
       ; nothing          → go ls ws }
     ... | _         = go ls ws
+
+oracleInteractionsᶜ : CRun → List OracleInteraction
+oracleInteractionsᶜ = oracleInteractions ∘ toList
 
 ----------------------------------
 -- Computational strategies.

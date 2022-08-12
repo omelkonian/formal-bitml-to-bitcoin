@@ -29,7 +29,7 @@ open import ComputationalModel.Strategy Participant Honest finPart keypairs as C
 open import SecureCompilation.Coherence Participant Honest finPart keypairs η
 
 
-destruct-Rᶜ : ∀ {Rᶜ₀ Rᶜ : C.Run} {λᶜ}
+destruct-Rᶜ : ∀ {Rᶜ₀ Rᶜ : CRun} {λᶜ}
   → Rᶜ₀ ≡ (Rᶜ L.∷ʳ λᶜ)
   → ∃ λ Rᶜ′ → ∃ λ λᶜ′ →
       (Rᶜ′ ≡ Rᶜ) × (λᶜ′ ≡ λᶜ) × (Rᶜ₀ ≡ Rᶜ′ L.∷ʳ λᶜ′)
