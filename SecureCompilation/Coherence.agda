@@ -48,15 +48,6 @@ private variable
   ⟨G⟩C ⟨G⟩C′ ⟨G⟩C″ : Ad
   𝕣  : ℝ Rˢ
 
-postulate
-  encode : Txout Rˢ → Ad → Message
-  -- ^ encode {G}C as a bitstring, representing each x in it as txout(x)
-
-  SIGᵖ : ∀ {A : Set} → ℤ {- public key -} → A → ℤ
-
-  ∣_∣ᶻ : ℤ → ℕ
-  ∣_∣ᵐ : Message → ℕ
-
 _-redeemableWith-_ : S.Value → KeyPair → ∃TxOutput
 v -redeemableWith- k = Ctx 1 , record {value = v;  validator = ƛ (versig [ k ] [ # 0 ])}
 
@@ -170,11 +161,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
     ∙ All (λ hᵢ → ∣ hᵢ ∣ᶻ ≡ η) h̅
 
       -- (iii) each hᵢ is obtained by querying the oracle, otherwise we have a dishonestly chosen secret
-    ∙ All (λ{ (_ , just Nᵢ , hᵢ)
-            → ∃ λ B → ∃ λ mᵢ → ((B , mᵢ , [ hᵢ ]) ∈ oracleInteractionsᶜ Rᶜ) × (∣ mᵢ ∣ᵐ ≡ η + Nᵢ)
-            ; (_ , nothing , hᵢ)
-            → [ hᵢ ] ∉ map (proj₂ ∘ proj₂) (filter ((η ≤?_) ∘ ∣_∣ᵐ ∘ proj₁ ∘ proj₂) (oracleInteractionsᶜ Rᶜ))
-            }) Δ×h̅
+    ∙ CheckOracleInteractions Rᶜ Δ×h̅
 
       -- (iv) no hash is reused
     ∙ Unique h̅
@@ -922,7 +909,7 @@ private
   ... | [L] [4]  R≈ ∃Γ≈ fresh-z = tt
   ... | [L] [5]  d≡ R≈ ∃Γ≈ = tt
   ... | [L] [6]  t≡ d≡ R≈ ∃Γ≈ fresh-y′ p⟦Δ⟧≡ As≡∅ = tt
-  ... | [L] [7]  R≈ ∃Γ≈ fresh-ys ∃B ∃α a∈ ∃λ first-λᶜ = tt
+  ... | [L] [7]  m≤ R≈ ∃Γ≈ ∃B ∃α a∈ ∃λ first-λᶜ = tt
   ... | [L] [8]  t≡ d≡ R≈ fresh-xs As≡∅ ∃Γ≈ = tt
   ... | [L] [9]  d≡ R≈ ∃Γ≈ frsg-x As≡∅ ∀≤t = tt
   ... | [L] [10] R≈ ∃Γ≈ ∃λ first-λᶜ = tt

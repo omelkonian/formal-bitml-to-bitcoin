@@ -21,6 +21,7 @@ open import Prelude.Setoid
 open import Prelude.Coercions
 open import Prelude.InferenceRules
 open import Prelude.Irrelevance
+open import Prelude.Ord
 
 open import Bitcoin.Crypto
 open import Bitcoin.Tx
@@ -44,9 +45,26 @@ open import SymbolicModel Participant Honest as S
          ; Γ₀; Γ; Γ′; Γ″; Γₜ; Γₜ′; Γₜ″; R; R′; Δ; d; v
          )
 open import ComputationalModel Participant Honest finPart keypairs as C
-  using (_∙value; K̂)
+  using (_∙value; K̂; CRun; oracleInteractionsᶜ; Message)
 open import SecureCompilation.Compiler Participant Honest η
   using (∃Tx¹; ∃Txᶜ; bitml-compiler)
+
+postulate
+  encode : Txout Rˢ → Ad → Message
+  -- ^ encode {G}C as a bitstring, representing each x in it as txout(x)
+
+  SIGᵖ : ∀ {A : Set} → ℤ {- public key -} → A → ℤ
+
+  ∣_∣ᶻ : ℤ → ℕ
+  ∣_∣ᵐ : Message → ℕ
+
+CheckOracleInteractions : CRun → List (Secret × Maybe ℕ × ℤ) → Set
+CheckOracleInteractions Rᶜ = let os = oracleInteractionsᶜ Rᶜ in
+  All λ where
+    (_ , just Nᵢ , hᵢ) →
+      ∃ λ B → ∃ λ mᵢ → ((B , mᵢ , [ hᵢ ]) L.Mem.∈ os) × (∣ mᵢ ∣ᵐ ≡ η + Nᵢ)
+    (_ , nothing , hᵢ) →
+      [ hᵢ ] ∉ map (proj₂ ∘ proj₂) (filter ((η ≤?_) ∘ ∣_∣ᵐ ∘ proj₁ ∘ proj₂) os)
 
 -- Convenient wrapper for calling the BitML compiler.
 COMPILE : 𝔾 ad → ∃Tx¹ × (subtermsᵃ′ ad ↦′ ∃Txᶜ ∘ removeTopDecorations)
