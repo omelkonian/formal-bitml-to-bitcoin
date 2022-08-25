@@ -7,6 +7,7 @@ open import Prelude.Collections
 open import Prelude.Validity
 open import Prelude.Traces
 open import Prelude.InferenceRules
+open import Prelude.Decidable
 
 module SymbolicModel.Helpers
   (Participant : Set)
@@ -38,6 +39,9 @@ data ℝ∗ : Run → Set where
     → (λˢ : 𝕃 R Γₜ) →
       ───────────────────────
       ℝ∗ (Γₜ ∷ R ⊣ λˢ .proj₁)
+
+ℝ∗-∅ˢ : ℝ∗ ∅ˢ
+ℝ∗-∅ˢ = ℾᵗ-∅ᵗ ∎⊣ auto ✓
 
 _∷_⊣≡_✓ :
   ∀ Γₜ →

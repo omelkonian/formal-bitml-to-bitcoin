@@ -28,7 +28,7 @@ instance
   Cfgᵗ∙Cfg = ∙cfg= cfg
 
   Run∙Cfg : Run ∙Cfg
-  Run∙Cfg = ∙cfg= (_∙cfg ∘ end)
+  Run∙Cfg = ∙cfg= (cfg ∘ end)
 
 instance
   Ids∙Value : (∃ λ (Γ : Cfg) → (x ∈ ids Γ)) ∙Value

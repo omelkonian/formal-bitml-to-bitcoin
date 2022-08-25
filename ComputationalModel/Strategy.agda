@@ -10,6 +10,7 @@ open import Prelude.Bifunctor
 open import Prelude.Ord
 open import Prelude.Validity
 open import Prelude.ToList
+open import Prelude.InferenceRules
 
 open import Bitcoin
 
@@ -109,6 +110,11 @@ data CRun : Set where
 
 variable Rᶜ Rᶜ′ : CRun
 
+Initialᶜ : Pred₀ CRun
+Initialᶜ = λ where
+  (_ ∎⊣ _ ✓) → ⊤
+  (_ ∷ _ ✓)  → ⊥
+
 instance
   ToList-CRun : ToList CRun Label
   ToList-CRun .toList = λ where
@@ -120,6 +126,8 @@ Valid-CRun = λ where
   (R ∎⊣ init ✓) → R , init , suffix-refl R
   (l ∷ R ✓)     → let R₀ , init , R⋯ = Valid-CRun R
                   in  R₀ , init , there R⋯
+
+postulate stripᶜ : Participant → CRun → CRun
 
 oracleMessages : Run → Labels
 oracleMessages = mapMaybe go
@@ -156,6 +164,34 @@ oracleInteractions r = go r []
 oracleInteractionsᶜ : CRun → List OracleInteraction
 oracleInteractionsᶜ = oracleInteractions ∘ toList
 
+∃[_∋?_] : ∀ (λs : Labels) C → Dec (∃ λ B → (B →∗∶ C) ∈ λs)
+∃[ [] ∋? C ] = no λ where (_ , ())
+∃[ (submit _ ∷ λs) ∋? C ]
+  with ∃[ λs ∋? C ]
+... | yes (b , b∈) = yes (b , there b∈)
+... | no ∄b = no  λ where (b , there b∈) → ∄b (b , b∈)
+∃[ ((A →O∶ m) ∷ λs) ∋? C ]
+  with ∃[ λs ∋? C ]
+... | yes (b , b∈) = yes (b , there b∈)
+... | no ∄b = no  λ where (b , there b∈) → ∄b (b , b∈)
+∃[ ((O→ A ∶ m) ∷ λs) ∋? C ]
+  with ∃[ λs ∋? C ]
+... | yes (b , b∈) = yes (b , there b∈)
+... | no ∄b = no  λ where (b , there b∈) → ∄b (b , b∈)
+∃[ (delay _ ∷ λs) ∋? C ]
+  with ∃[ λs ∋? C ]
+... | yes (b , b∈) = yes (b , there b∈)
+... | no ∄b = no  λ where (b , there b∈) → ∄b (b , b∈)
+∃[ ((B →∗∶ m) ∷ λs) ∋? C ]
+  with m ≟ C
+... | yes refl = yes (B , here refl)
+... | no C≢
+  with ∃[ λs ∋? C ]
+... | yes (b , b∈) = yes (b , there b∈)
+... | no ∄b = no λ where
+  (b , here refl) → C≢ refl
+  (b , there b∈)  → ∄b (b , b∈)
+
 ----------------------------------
 -- Computational strategies.
 
@@ -170,7 +206,7 @@ R ▷ʳ ∃tx =
   × V.All.All (λ w → ∃[ B ] (B →∗∶ V.toList (proj₂ w) ∈ R)) (wit tx)
 
 record ParticipantStrategy (A : Participant) : Set where
-  field Σ : Run → Labels
+  field Σ : CRun → Labels
 open ParticipantStrategy public
 
 instance
@@ -179,7 +215,7 @@ instance
       -- participant is honest
       A ∈ Hon
       -- only valid computational labels
-    × (∀ {R α} → let R∗ = strip A R in
+    × (∀ {R α} → let R∗ = stripᶜ A R in
           α ∈ Σ R∗
         → ( -- (1) message from A
             ∃[ m ]
@@ -188,20 +224,20 @@ instance
             -- (2) new transaction
           ⊎ ∃[ tx ]
               ( (α ≡ submit tx)
-              × (R∗ ▷ʳ tx) )
+              × (toList R∗ ▷ʳ tx) )
             -- (3) delay
           ⊎ ∃[ δ ] (α ≡ delay δ)
           ))
       -- persistence
     × (∀ {R α}
         → let
-            R∗ = strip A R
+            R∗ = stripᶜ A R
             Λ  = Σ R∗
-            R′ = α ∷ R∗
+            R′ = α ∷ R∗ ✓
             Λ′ = Σ R′
           in
           α ∈ Λ
-        → ConsistentBlockchain (𝔹 R′)
+        → ConsistentBlockchain (𝔹 $ toList R′)
         → (∀ {α′} → α′ ∈ Λ → α′ ≢ α → α′ ∈ Λ′)
         -- → (∀ {tx} → submit tx ∈ Λ → 𝔹 R′ → submit tx ∈ Λ′)
         -- × (∀ {m} → (A →∗∶ m) ∈ Λ → (A →∗∶ m) ≢ α → (A →∗∶ m) ∈ Λ′)
@@ -214,19 +250,18 @@ HonestStrategies = ∀ {A} → A ∈ Hon → ParticipantStrategy A
 HonestMoves : Set
 HonestMoves = List (Participant × Labels)
 
-variable
-  moves : HonestMoves
+variable moves : HonestMoves
 
 module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
 
   record AdversaryStrategy : Set where
     field
-      Σₐ : Run → HonestMoves → Label
+      Σₐ : CRun → HonestMoves → Label
 
       valid :
         ∀ {R moves} →
           let
-            R∗ = strip Adv R
+            R∗ = stripᶜ Adv R
             α  = Σₐ R∗ moves -- T0D0 should the honest moves be stripped?
           in
           ( -- (1) impersonate another participant
@@ -236,7 +271,7 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
             -- (2) consistently update the blockchain
           ⊎ ∃[ tx ]
               ( (α ≡ submit tx)
-              × (R∗ ▷ʳ tx) )
+              × (toList R∗ ▷ʳ tx) )
             -- (3) delay, if all honest participants agree
           ⊎ ∃[ δ ]
               ( (α ≡ delay δ)
@@ -252,59 +287,64 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
   variable
     SS : Strategies
 
-  runHonestAll : Run → HonestStrategies → HonestMoves
-  runHonestAll R S = mapWith∈ Hon (λ {A} A∈ → A , Σ (S A∈) (strip A R))
+  runHonestAll : CRun → HonestStrategies → HonestMoves
+  runHonestAll R S = mapWith∈ Hon (λ {A} A∈ → A , Σ (S A∈) (stripᶜ A R))
 
-  runAdversary : Strategies → Run → Label
-  runAdversary (S† , S) R = Σₐ S† (strip Adv R) (runHonestAll R S)
+  runAdversary : Strategies → CRun → Label
+  runAdversary (S† , S) R = Σₐ S† (stripᶜ Adv R) (runHonestAll R S)
 
   infix -1 _-pre-conforms-to-_
-  data _-pre-conforms-to-_ : Run → Strategies → Set where
+  data _-pre-conforms-to-_ : CRun → Strategies → Set where
 
-    base : Initial R
-           ----------------------
-         → R -pre-conforms-to- SS
+    base : ∀ {R} →
+      Initialᶜ R
+      ────────────────────────
+      R -pre-conforms-to- SS
 
-    step :
+    step : ∀ {R} →
       let
         (S† , S) = SS
         moves = runHonestAll R S
         Λ = map proj₂ moves
-        α = Σₐ S† (strip Adv R) moves
+        α = Σₐ S† (stripᶜ Adv R) moves
       in
-        R -pre-conforms-to- SS
-      → oracleMessages [ α ] ≡ []
-      → concatMap oracleMessages Λ ≡ []
-        -------------------------------
-      → α ∷ R -pre-conforms-to- SS
+      ∙ R -pre-conforms-to- SS
+      ∙ oracleMessages [ α ] ≡ []
+      ∙ concatMap oracleMessages Λ ≡ []
+        ───────────────────────────────
+        α ∷ R ✓ -pre-conforms-to- SS
 
-    oracle-adv : ∀ {m hm : Message} →
+    oracle-adv : ∀ {R} {m hm : Message} →
       let
         (S† , S) = SS
         moves = runHonestAll R S
         Λ = map proj₂ moves
-        α = Σₐ S† (strip Adv R) moves
+        α = Σₐ S† (stripᶜ Adv R) moves
       in
         R -pre-conforms-to- SS
       → α ≡ Adv →O∶ m
       → concatMap oracleMessages Λ ≡ []
-      → (∀ {hm′} → (Adv →O∶ m , O→ Adv ∶ hm′ ) ∈ oracleRequests Adv R
-                 → hm ≡ hm′)
-        -------------------------------------------------------------
-      → (Adv →O∶ m) ∷ (O→ Adv ∶ hm) ∷ R -pre-conforms-to- SS
+      → (∀ {hm′} →
+          (Adv →O∶ m , O→ Adv ∶ hm′ ) ∈ oracleRequests Adv (toList R)
+          ──────────
+          hm ≡ hm′)
+        ──────────────────────────────────────────────────────────────
+        (Adv →O∶ m) ∷ (O→ Adv ∶ hm) ∷ R ✓ ✓ -pre-conforms-to- SS
 
-    oracle-hon : ∀ {A} {A∈ : A ∈ Hon} {m hm : Message} →
+    oracle-hon : ∀ {R} {A} {A∈ : A ∈ Hon} {m hm : Message} →
       let
         (_ , S) = SS
-        Λ = Σ (S A∈) (strip A R)
+        Λ = Σ (S A∈) (stripᶜ A R)
       in
-        R -pre-conforms-to- SS
-      → L.head (oracleMessages Λ) ≡ just (Adv →O∶ m)
-      → (∀ {hm′} → (A →O∶ m , O→ A ∶ hm′ ) ∈ oracleRequests A R
-                 → hm ≡ hm′)
-        -------------------------------------------------------
-      → (A →O∶ m) ∷ (O→ A ∶ hm) ∷ R -pre-conforms-to- SS
+      ∙ R -pre-conforms-to- SS
+      ∙ L.head (oracleMessages Λ) ≡ just (Adv →O∶ m)
+      ∙ (∀ {hm′} →
+           (A →O∶ m , O→ A ∶ hm′ ) ∈ oracleRequests A (toList R)
+           ──────────
+           hm ≡ hm′)
+        ───────────────────────────────────────────────────────
+        (A →O∶ m) ∷ (O→ A ∶ hm) ∷ R ✓ ✓ -pre-conforms-to- SS
 
   infix -1 _-conforms-to-_
-  _-conforms-to-_ : Run → Strategies → Set
-  R -conforms-to- SS = ∃[ R′ ] (Prefix _≡_ R R′ × (R′ -pre-conforms-to- SS))
+  _-conforms-to-_ : CRun → Strategies → Set
+  R -conforms-to- SS = ∃[ R′ ] (Prefix≡ (toList R) (toList R′) × (R′ -pre-conforms-to- SS))

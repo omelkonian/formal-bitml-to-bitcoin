@@ -55,9 +55,15 @@ instance
 module ℾᵗ (ℽ : ℾᵗ Γₜ) where
   open 𝕎 ℽ public renaming (txout to txoutΓ; sechash to sechashΓ; κ to κΓ)
 
+ℾᵗ-∅ᵗ : ℾᵗ ∅ᵗ
+ℾᵗ-∅ᵗ = record {txout = λ (); sechash = λ (); κ = λ ()}
+
 ℾ = Pred₀ Cfg ∋ 𝕎
 module ℾ (ℽ : ℾ Γ) where
   open 𝕎 ℽ public renaming (txout to txoutΓ; sechash to sechashΓ; κ to κΓ)
+
+ℾ-∅ : ℾ ∅ᶜ
+ℾ-∅ = record {txout = λ (); sechash = λ (); κ = λ ()}
 
 𝔾 : Pred₀ Ad
 𝔾 ad = Valid ad × Txout (ad .G) × Sechash (ad .G) × 𝕂²′ ad

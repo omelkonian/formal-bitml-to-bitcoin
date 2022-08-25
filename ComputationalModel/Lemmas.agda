@@ -8,6 +8,8 @@ open import Prelude.Lists
 open import Prelude.DecEq
 open import Prelude.Ord
 open import Prelude.Membership
+open import Prelude.ToList
+open import Prelude.InferenceRules
 
 open import Bitcoin.Crypto using (KeyPair)
 
@@ -28,14 +30,14 @@ open import ComputationalModel.Strategy Participant Honest finPart keypairs
 module _ (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
   open AdvM Adv Adv∉
 
-  MaximalRun : Strategies → Run → Set
+  MaximalRun : Strategies → CRun → Set
   MaximalRun SS R = (R -conforms-to- SS)
                   × (¬ ∃ λ R′ → (R′ -conforms-to- SS)
-                              × (length R′ > length R))
+                              × (length (toList R′) > length (toList R)))
 
-  unique-maximal-run :
-      MaximalRun SS R
-    → MaximalRun SS R′
-      ----------------
-    → R ≡ R′
+  unique-maximal-run : ∀ {R R′} →
+    ∙ MaximalRun SS R
+    ∙ MaximalRun SS R′
+      ────────────────
+      R ≡ R′
   unique-maximal-run = {!!}

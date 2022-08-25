@@ -28,12 +28,13 @@ module _ Adv (Adv∉ : Adv ∉ S.Hon) where
   open S.AdvM Adv Adv∉ renaming (_-conforms-to-_ to _~ˢ_; AdversaryStrategy to AdvStrategyˢ)
   open C.AdvM Adv Adv∉ renaming (_-conforms-to-_ to _~ᶜ_; AdversaryStrategy to AdvStrategyᶜ)
 
-  module _ (Σˢ : S.HonestStrategies) (Σᶜₐ : AdvStrategyᶜ) (Rᶜ : CRun) where
+  module _ (Σˢ : S.HonestStrategies) (Σᶜₐ : AdvStrategyᶜ) where
+    -- [T0D0] missing translation for adversarial strategy
     Σˢₐ : AdvStrategyˢ
     Σˢₐ = {!!}
 
     Σᶜ : C.HonestStrategies
-    Σᶜ A∈ = ℵ A∈ Rᶜ (Σˢ A∈)
+    Σᶜ A∈ = ℵ A∈ (Σˢ A∈)
 
     soundness :
 
@@ -42,3 +43,4 @@ module _ Adv (Adv∉ : Adv ∉ S.Hon) where
         ∃ λ (Rˢ : S.Run) → (Rˢ ~ˢ Σˢₐ , Σˢ) × (Rˢ ~ Rᶜ)
 
     soundness = {!!}
+    -- [T0D0] overcome non-constructive formulation of proof for `soundness`
