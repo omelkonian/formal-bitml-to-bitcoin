@@ -50,10 +50,10 @@ open import SecureCompilation.Backtranslation.Parsing
   Participant Honest finPart keypairs η
   using (parseRun)
 
-module _ (A∈ : A ∈ S.Hon) where
+module _ {A} (A∈ : A ∈ S.Hon) where
 
   open import SecureCompilation.Backtranslation.Unparsing
-    Participant Honest finPart keypairs η Α
+    Participant Honest finPart keypairs η A
     using (unparseMoves)
 
   ℵ : 𝕍 (S.ParticipantStrategy A) → 𝕍 (C.ParticipantStrategy A)

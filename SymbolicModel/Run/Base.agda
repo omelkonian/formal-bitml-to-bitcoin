@@ -74,8 +74,8 @@ _⟨_⟩←——_⊣_ : ∀ Γₜ {x Γₜ′}
 _⟨_⟩←——_ : ∀ y {x y′}
   → x —[ α ]→ₜ y′
   → (R : Run)
-  → {True $ y ≈? y′}
-  → {True $ R .end ≈? x}
+  → {auto∶ y ≈ y′}
+  → {auto∶ R .end ≈ x}
     --———————————————
   → Run
 (Γₜ ⟨ Γ← ⟩←—— R) {p₁} {p₂} = Γₜ ⟨ Γ← ⟩←—— R ⊣ toWitness p₁ , toWitness p₂

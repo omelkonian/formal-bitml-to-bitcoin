@@ -20,7 +20,6 @@ open import Prelude.General
 open import Prelude.Lists
 open import Prelude.DecLists
 open L.Mem
--- open import Prelude.Membership
 open import Prelude.DecEq
 open import Prelude.Sets
 open import Prelude.Collections
@@ -29,9 +28,6 @@ open import Prelude.Validity
 
 -- Bitcoin
 open import Bitcoin hiding (Value; Time)
--- open import Bitcoin.Crypto
--- open import Bitcoin.Script
--- open import Bitcoin.Tx
 
 module SecureCompilation.Compiler
 
@@ -77,7 +73,6 @@ Txᶜ i c = Tx i (outputLen c)
 ∃Txᶜ c = ∃ λ i → Txᶜ i c
 
 ∃∃Txᶜ = ∃ ∃Txᶜ
-
 
 bitml-compiler : let ⟨ g ⟩ ds = ad in
     -- the input contract & precondition (only compile valid advertisements)
@@ -193,9 +188,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (record {names-⊆ = names⊆; names-put
       where
         cs⊆ : C₀ ⊆ subterms′ CS₀
         cs⊆ = subterms⊆ᶜˢ {ds = C₀}
-
-    Tᵢₙᵢₜ♯ : ℤ
-    Tᵢₙᵢₜ♯ = Tᵢₙᵢₜ ♯
+    Tᵢₙᵢₜ♯ = (∃Tx ∋ -, -, Tᵢₙᵢₜ .proj₂) ♯
 
     infix 0 _&_&_&_&_&_&_&_&_&_&_
     record State (c : ℂ) : Set where
@@ -239,7 +232,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (record {names-⊆ = names⊆; names-put
         = f (C d) ≺-after (T,o & v & (P , P⊆) & t ⊔ t′ & p⊆ & s⊆ & ∃s & sechash & txout & part & val)
     -- Bc
     ... | c′@(put zs &reveal as if p ⇒ cs) = λ where
-      (here refl) → Tc
+      (here refl) → -, Tc
       (there x∈)  → f (CS cs) ≺-put
         ((Tc♯ at 0) & v & (partG , ⊆-refl) & 0
         & p⊆ & s⊆ & tt
@@ -269,25 +262,25 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (record {names-⊆ = names⊆; names-put
         wits rewrite sym (length-mapWith∈ (setoid _) zs {K⋆})
                    = V.fromList (mapWith∈ zs K⋆)
 
-        Tc : ∃Tx¹
-        Tc = suc k , sig⋆ (mapWith∈ P (K² Dₚ∈ ∘ P⊆) V.∷ wits) record
+        Tc : Tx (suc k) 1
+        Tc = sig⋆ (mapWith∈ P (K² Dₚ∈ ∘ P⊆) V.∷ wits) record
           { inputs  = T,o V.∷ ins
           ; wit     = wit⊥
           ; relLock = V.replicate 0
           ; outputs = V.[ _ , record { value = v; validator = ƛ proj₂ (⋁ (mapWith∈ cs (Bout ∘ cs⊆))) } ]
           ; absLock = t }
-        Tc♯ = Tc ♯
+        Tc♯ = (∃Tx ∋ -, -, Tc) ♯
     -- Bpar
     ... | c′@(split vcs) = λ where
-      (here refl) → Tc
+      (here refl) → -, Tc
       (there x∈)  → f (VCS vcs) ≺-split
         ((Tc♯ at 0) & v & (partG , ⊆-refl) & 0
         & p⊆ & s⊆ & tt
         & sechash & txout & part & val)
         x∈
        where
-        Tc : ∃Txᶜ c′
-        Tc = -, sig⋆ V.[ mapWith∈ P (K² Dₚ∈ ∘ P⊆) ] record
+        Tc : Txᶜ 1 c′
+        Tc = sig⋆ V.[ mapWith∈ P (K² Dₚ∈ ∘ P⊆) ] record
           { inputs  = V.[ T,o ]
           ; wit     = wit⊥
           ; relLock = V.replicate 0
@@ -296,7 +289,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (record {names-⊆ = names⊆; names-put
               in -, record { value = vᵢ ; validator = ƛ proj₂ (⋁ eᵢ) }
             }
           ; absLock = t }
-        Tc♯ = Tc ♯
+        Tc♯ = (∃Tx ∋ -, -, Tc) ♯
 
     go (CS x)  f st = ↦-∈  λ {d}  d∈  → f (C d)   (≺-∈ d∈)   (↓ st d∈)
       where

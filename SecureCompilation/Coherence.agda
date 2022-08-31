@@ -1,3 +1,4 @@
+{-# OPTIONS --no-forcing #-}
 open import Prelude.Init hiding (T)
 open L.Mem
 open import Prelude.Lists
@@ -37,7 +38,7 @@ open import SymbolicModel Participant Honest as S
   hiding (_∎; begin_; d; Γₜ″)
 
 open import ComputationalModel Participant Honest finPart keypairs as C
-  hiding (Hon; Initial; Σ
+  hiding (Hon; Σ
          ; t; t′; `; ∣_∣; n)
 
 -- open import SecureCompilation.Args     Participant Honest
@@ -104,7 +105,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         C = encode {Rˢ} txout′ ⟨G⟩C
 
         Δ : List (Secret × Maybe ℕ)
-        Δ = map (λ{ (s , mn , _) → s , mn }) Δ×h̅
+        Δ = map drop₃ Δ×h̅
 
         (as , ms) = unzip Δ
 
@@ -142,7 +143,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         sechash⁺ : as ↦ ℤ
         sechash⁺ a∈ =
           let _ , a×m∈ , _    = ∈-unzip⁻ˡ Δ a∈
-              (_ , _ , z) , _ = ∈-map⁻ (λ{ (s , mn , _) → s , mn }) a×m∈
+              (_ , _ , z) , _ = ∈-map⁻ drop₃ a×m∈
           in z
 
         open H₂ {Rˢ} 𝕣 t α t′ Γ R≈ A A ⟨G⟩C Δ sechash⁺ k⃗ Γ→Γ′ ∃Γ≈ using (λˢ)
@@ -344,7 +345,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         C = encode {Rˢ = Rˢ} txout′ ⟨G⟩C
 
         Δ : List (Secret × Maybe ℕ)
-        Δ = map (λ{ (s , mn , _) → s , mn }) Δ×h̅
+        Δ = map drop₃ Δ×h̅
 
         h̅ : Message
         h̅ = map (proj₂ ∘ proj₂) Δ×h̅
@@ -860,7 +861,7 @@ data _~′_ : ℝ∗ Rˢ → CRun → Set where
       -- (i) Rˢ = Γ₀ ∣ 0, with Γ₀ initial
     ∀ (init : Initial Γₜ₀) →
       -- (ii) Rᶜ = T₀ ⋯ initial
-    ∀ (cinit : C.Initial (toList Rᶜ)) →
+    ∀ (cinit : Initial Rᶜ) →
       -- (iii) generation of public keys, we do not consider that here
       -- (iv) ⟨A,v⟩ₓ ∈ Γ₀ ⇒ txout{ x ↦ (v$ spendable with K̂(A)(rₐ)) ∈ T₀ }
     ∙ (∀ {A v x} (d∈ : ⟨ A has v ⟩at x ∈ᶜ Γ₀) →

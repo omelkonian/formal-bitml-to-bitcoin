@@ -1,3 +1,4 @@
+{-# OPTIONS --no-forcing #-}
 ----------------------------------------------------------------------------
 -- Example contract compilations.
 ----------------------------------------------------------------------------
@@ -246,7 +247,6 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
   _ = outTxs ≡ (Tᵢₙᵢₜ , T′ , T′ᵃ , T′ᵇ)
     ∋ refl
 
-
   open import SymbolicModel.Run.Base Participant Honest as S
     hiding (Rˢ; Rˢ′)
   open import SymbolicModel.Helpers Participant Honest
@@ -275,39 +275,247 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
 
   open BML
 
+  -- instance
+  --   Dec-Initial-Cfg : ∀ {Γ : Cfg} → Initial Γ ⁇
+  --   Dec-Initial-Cfg {Γ} .dec = go Γ
+  --     where
+  --       go : ∀ Γ → Dec (Initial Γ)
+  --       go ∅ᶜ                = yes tt
+  --       go (⟨ _ has _ ⟩at _) = yes tt
+  --       go (l ∣ r)           = Initial? l ×-dec Initial? r
+  --       go (⟨ _ , _ ⟩at _)   = no λ ()
+  --       go (l ∣ r)           = Initial? l ×-dec Initial? r
+  --       go _                 = no {!λ ()!}
+
+  --   Dec-Initial-Cfgᵗ : ∀ {Γₜ : Cfgᵗ} → Initial Γₜ ⁇
+  --   Dec-Initial-Cfgᵗ {Γ at t} .dec = Initial? Γ ×-dec (t ≟ 0)
+
   infix 0 ∎_⊣_,_~_⊣_⊣_
   ∎_⊣_,_~_⊣_⊣_ :
     ∀ Γₜ₀ (init : Initial Γₜ₀) (ℽ₀ : ℾᵗ Γₜ₀) →
-    ∀ Rᶜ (cinit : Initial Rᶜ) →
+    ∀ (rᶜ : C.Run) (cinit : Initial rᶜ) →
     let open ℾᵗ ℽ₀; Γ₀ = Γₜ₀ .cfg in
     (∀ {A v x} (d∈ : ⟨ A has v ⟩at x ∈ᶜ Γ₀) →
         let ∃T₀ , _ = cinit; _ , o , T₀ = ∃T₀ in
         ∃ λ oᵢ → (txoutΓ (deposit∈Γ⇒namesʳ {Γ = Γ₀} d∈) ≡ ∃T₀ at oᵢ)
               × (T₀ ‼ᵒ oᵢ ≡ v -redeemableWith- Kᵖʳⁱᵛ A))
-    → (Γₜ₀ ∎⊣ init) ~ Rᶜ
-  ∎  Γₜ ⊣ init , ℽ₀
-    ~ Rᶜ ⊣ cinit
-    ⊣ txout≈
-    = ℽ₀ ∎⊣ init ✓
-    , base init cinit txout≈
+    → (Γₜ₀ ∎⊣ init) ~ (rᶜ ∎⊣ cinit ✓)
+  ∎ Γₜ ⊣ init , ℽ₀ ~ Rᶜ ⊣ cinit ⊣ txout≈ =
+    -, base {ℽ = ℽ₀} init cinit txout≈
 
-  infixl -1 _—→ᴸ_⊣_~_⊣_
+  infixl -1 _—→ᴸ_⊣_~_⊣_ _—→ᴿ_⊣_~_⊣_ _—→ᵋ_⊣_
   _—→ᴸ_⊣_~_⊣_ :
     ∀ {Rˢ Rᶜ} (Rˢ~Rᶜ : Rˢ ~ Rᶜ) →
     ∀ Γₜ (λˢ : 𝕃 Rˢ Γₜ) λᶜ →
     (Γₜ ∷ Rˢ~Rᶜ .proj₁ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓) →
     (Γₜ ∷ Rˢ ⊣ λˢ .proj₁) ~ (λᶜ ∷ Rᶜ ✓)
-  (𝕣∗ , coh)
-    —→ᴸ Γₜ ⊣ λˢ
-      ~ λᶜ
-      ⊣ p
-    = Γₜ ∷ 𝕣∗ ⊣ λˢ ✓
-    , step₁ coh ([L] p)
+  (𝕣∗ , coh) —→ᴸ Γₜ ⊣ λˢ ~ λᶜ ⊣ p =
+    Γₜ ∷ 𝕣∗ ⊣ λˢ ✓ , step₁ {λˢ = λˢ} coh ([L] p)
 
-  Γ₀  = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y
+  _—→ᴿ_⊣_~_⊣_ :
+    ∀ {Rˢ Rᶜ} (Rˢ~Rᶜ : Rˢ ~ Rᶜ) →
+    ∀ Γₜ (λˢ : 𝕃 Rˢ Γₜ) λᶜ →
+    (Γₜ ∷ Rˢ~Rᶜ .proj₁ ⊣ λˢ ✓) ~₁₂ (λᶜ ∷ Rᶜ ✓) →
+    (Γₜ ∷ Rˢ ⊣ λˢ .proj₁) ~ (λᶜ ∷ Rᶜ ✓)
+  (𝕣∗ , coh) —→ᴿ Γₜ ⊣ λˢ ~ λᶜ ⊣ p =
+    Γₜ ∷ 𝕣∗ ⊣ λˢ ✓ , step₁ coh ([R] p)
 
-  -- coh : M₁.Rˢ ~ M₁.Rᶜ
-  -- coh =
+  _—→ᵋ_⊣_ :
+    ∀ {Rˢ Rᶜ} (Rˢ~Rᶜ : Rˢ ~ Rᶜ) →
+    ∀ λᶜ →
+    Rˢ~Rᶜ .proj₁ ~₂ Rᶜ ∷ʳ λᶜ →
+    Rˢ ~ (λᶜ ∷ Rᶜ ✓)
+  (𝕣∗ , coh) —→ᵋ λᶜ ⊣ p
+    = 𝕣∗ , step₂ coh p
+
+  Γ₀ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y
+  Γₙ = ⟨ A has 1 ⟩at x₃ ∣ A ∶ a ♯ N
+
+  tc-run : S.Run
+  tc-run = record {start = Γ₀ at0; init = auto; end = Γₙ at0; trace = -, tc-stepsₜ}
+
+  postulate
+    encodeStr : String → Message
+    decodeStr : Message → Maybe String
+
+  h : ℤ
+  h = a ♯
+  ℽ₀ : ℾᵗ (Γ₀ at0)
+  ℽ₀ = [txout: (λ where 𝟘 → Tᵃ; 𝟙 → Tᵇ) ∣sechash: (λ ()) ∣κ: (λ ()) ]
+
+  rᶜ : C.Run
+  rᶜ = submit (-, -, T₀)
+      ∷ (A →∗∶ (Kᵖ A ∷ K̂ᵖ A ∷ []))
+      ∷ (B →∗∶ (Kᵖ B ∷ K̂ᵖ B ∷ []))
+      ∷ []
+
+  cinit : Initial rᶜ
+  cinit = -, (λ where 𝟘 → 𝟘; 𝟙 → 𝟙) , refl
+
+{-
+  coh₀ : _ ~ _
+  coh₀ =
+    ∎ Γ₀ at0 ⊣ auto , ℽ₀
+    ~ rᶜ     ⊣ cinit
+    ⊣ λ where 𝟘 → 0F , refl , refl; 𝟙 → 1F , refl , refl
+
+  coh₁ : _ ~ _
+  coh₁ =
+    ∎ Γ₀ at0 ⊣ auto , ℽ₀
+    ~ rᶜ     ⊣ cinit
+    ⊣ (λ where 𝟘 → 0F , refl , refl; 𝟙 → 1F , refl , refl)
+
+    —→ᴸ (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y) at 0 ⊣ ((advertise⦅ tc ⦆ , _) , _)
+      ~ (A →∗∶ _)
+      ⊣ [1] auto (_ , auto) auto auto (toWitness {Q = _ ⊆? _} tt)
+
+  coh₁′ : _ ~ _
+  coh₁′ =
+    ∎ Γ₀ at0 ⊣ auto , ℽ₀
+    ~ rᶜ     ⊣ cinit
+    ⊣ (λ where 𝟘 → 0F , refl , refl; 𝟙 → 1F , refl , refl)
+
+    —→ᴸ (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y) at 0 ⊣ ((advertise⦅ tc ⦆ , _) , _)
+      ~ (A →∗∶ _)
+      ⊣ [1] auto (_ , auto) auto auto (toWitness {Q = _ ⊆? _} tt)
+
+    —→ᵋ (A →O∶ encodeStr a)
+    ⊣ [2] (inj₁ refl)
+-}
+  coh₁″ : _ ~ _
+  coh₁″ =
+    ∎   Γ₀ at0 ⊣ auto , ℽ₀
+      ~ rᶜ     ⊣ cinit
+      ⊣ (λ where 𝟘 → 0F , refl , refl; 𝟙 → 1F , refl , refl)
+
+    —→ᴸ (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y) at 0 ⊣ ((advertise⦅ tc ⦆ , _) , _)
+      ~ (A →∗∶ _)
+      ⊣ [1] {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y}
+            auto (_ , auto) auto auto (toWitness {Q = _ ⊆? _} tt)
+
+    —→ᵋ (A →O∶ encodeStr a)
+      ⊣ [2] (inj₁ refl)
+
+    —→ᵋ (O→ A ∶ [ h ])
+      ⊣ [2] (inj₂ refl)
+
+  coh₂ : _ ~ _
+  coh₂ =
+    ∎   Γ₀ at0 ⊣ auto , ℽ₀
+      ~ rᶜ     ⊣ cinit
+      ⊣ (λ where 𝟘 → 0F , refl , refl; 𝟙 → 1F , refl , refl)
+
+    —→ᴸ (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y) at 0 ⊣ ((advertise⦅ tc ⦆ , _) , _)
+      ~ (A →∗∶ _)
+      ⊣ [1] {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y}
+            auto (_ , auto) auto auto (toWitness {Q = _ ⊆? _} tt)
+
+    —→ᵋ (A →O∶ encodeStr a)
+      ⊣ [2] (inj₁ refl)
+
+    —→ᵋ (O→ A ∶ [ h ])
+      ⊣ [2] (inj₂ refl)
+
+    —→ᴸ (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩ ∣ A auth[ ♯▷ tc ]) at 0
+        ⊣ ((auth-commit⦅ A , tc , [ a , just N ] ⦆ , _) , _)
+      ~ (A →∗∶ _)
+      ⊣ {!!}
+      -- ⊣ [2] {k⃗ = K²} auto (_ , auto) auto auto auto
+      --       {!!} ({!!} ∷ []) ((A , encodeStr a , 𝟘 , {!!}) ∷ [])
+      --       auto (λ where (𝟘 , ()))
+
+{-
+  coh′ :
+    (
+      (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩ ∣ A auth[ ♯▷ tc ]
+            ∣ B auth[ ♯▷ tc ] ∣ A auth[ x ▷ˢ tc ] ∣ B auth[ y ▷ˢ tc ]) at 0
+    ⟨ Act {t = 0}
+    $ C-AuthInit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩
+                    ∣ A auth[ ♯▷ tc ] ∣ B auth[ ♯▷ tc ] ∣ A auth[ x ▷ˢ tc ]} {v = 0}
+    ⟩←——
+      (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩ ∣ A auth[ ♯▷ tc ]
+            ∣ B auth[ ♯▷ tc ] ∣ A auth[ x ▷ˢ tc ]) at 0
+    ⟨ Act {t = 0}
+    $ C-AuthInit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩
+                    ∣ A auth[ ♯▷ tc ] ∣ B auth[ ♯▷ tc ]} {v = 1}
+    ⟩←——
+      (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩
+            ∣ A auth[ ♯▷ tc ] ∣ B auth[ ♯▷ tc ]) at 0
+    ⟨ Act {t = 0}
+    $ C-AuthCommit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩
+                      ∣ A auth[ ♯▷ tc ]} {secrets = []}
+    ⟩←——
+      (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩ ∣ A auth[ ♯▷ tc ]) at 0
+    ⟨ Act {t = 0}
+    $ C-AuthCommit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y} {secrets = [ a , just N ]}
+    ⟩←——
+      (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y) at 0
+    ⟨ Act {t = 0}
+    $ C-Advertise {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y}
+    ⟩←——
+      Γ₀ at0
+    ∎⊣ auto
+    )
+    ~
+    ( (B →∗∶ _)
+    ∷ (A →∗∶ _)
+    ∷ (O→ A ∶ _)
+    ∷ (A →O∶ _)
+    ∷ (A →∗∶ _)
+    ∷ ( submit (-, -, T₀)
+      ∷ (A →∗∶ (Kᵖ A ∷ K̂ᵖ A ∷ []))
+      ∷ (B →∗∶ (Kᵖ B ∷ K̂ᵖ B ∷ []))
+      ∷ []
+      ) ∎⊣ (-, (λ where 𝟘 → 𝟘; 𝟙 → 𝟙) , refl)
+    ✓ ✓ ✓ ✓ ✓ ✓
+    )
+  coh′ =
+    -, (step₁
+        (step₁
+          (step₁
+            (step₁
+              (step₂
+                (step₂
+                  (base {ℽ = ℽ₀} auto (-, (λ where 𝟘 → 𝟘; 𝟙 → 𝟙) , refl)
+                    λ where 𝟘 → 0F , refl , refl; 𝟙 → 1F , refl , refl)
+                  ([2] (inj₁ refl)))
+                ([2] (inj₂ refl)))
+              ([L] [2] {k⃗ = K²} auto (_ , auto) auto auto auto ?
+                        (? ∷ []) ((A , encodeStr a , 𝟘 , {!!}) ∷ []) auto (λ where (𝟘 , ()))))
+            ([L] [2] {k⃗ = K²} auto (_ , auto) auto auto auto ? [] [] auto λ ()))
+          ([L] [3] auto (_ , auto) ? 𝟘 ?))
+        ([L] [3] auto (_ , auto) ? auto ?))
+-}
+
+{-
+  coh : ∃ (tc-run ~_)
+  coh = -, -,
+    step₁
+      (step₁
+        (step₁
+          (step₁
+            (step₁
+              (step₁
+                (step₁
+                  (step₁
+                    (step₂
+                      (step₂
+                        (base {ℽ = ℽ₀} auto cinit
+                          λ where 𝟘 → 0F , refl , refl; 𝟙 → 1F , refl , refl)
+                        ([2] (inj₁ refl)))
+                      ([2] (inj₂ refl)))
+                    ([L] [2] {k⃗ = K²} auto (_ , auto) auto auto auto ?
+                             (? ∷ []) ((A , encodeStr a , 𝟘 , {!!}) ∷ []) auto (λ where (𝟘 , ()))))
+                  ([L] [2] {k⃗ = K²} auto (_ , auto) auto auto auto ? [] [] auto λ ()))
+                ([L] [3] auto (_ , auto) ? 𝟘 ?))
+              ([L] [3] auto (_ , auto) ? auto ?))
+            ([L] [4] auto (_ , auto) auto))
+          ([L] [7] ? auto (_ , auto) (A , ?) ? ? ? ?))
+        ([L] [6] refl refl auto (_ , auto) auto ? refl))
+      ([L] [9] refl auto (_ , auto) auto refl [])
+-}
+
+{-
   --   (let open M₀ in
   --   ∎ Γₜ ⊣ auto , ℽ₀
   --   ~ Rᶜ ⊣ cinit
@@ -316,12 +524,6 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
   --   —→ᴸ M₁.Γₜ ⊣ M₁.λˢ
   --     ~ (A →∗∶ encode {M₀.Rˢ} M₁.txout′ tc)
   --     ⊣ [1] auto (M₁.Γ , auto) auto auto M₁.d⊆
-
-  -- postulate
-  --   encodeAd : Ad → Message
-
-  -- ℂ : Message
-  -- ℂ = encodeAd tc
 
   -- coh : (
   --         ((` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y) at0)
@@ -343,16 +545,12 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
   --   where
   --     d⊆ : tc ⊆⦅ deposits ⦆ Γ₀
   --     d⊆ = toWitness {Q = _ ⊆? _} tt
+-}
 
+{-
   module M₀ where
     Γₜ = Γ₀ at0
     Rˢ = Γₜ ∎⊣ auto
-
-    ℽ₀ : ℾᵗ Γₜ
-    ℽ₀ = [txout: (λ where 𝟘 → Tᵃ; 𝟙 → Tᵇ) ∣sechash: (λ ()) ∣κ: (λ ()) ]
-
-    𝕣∗ : ℝ∗ Rˢ
-    𝕣∗ = _∎⊣_✓ {Γₜ = Γₜ} ℽ₀ auto
 
     rᶜ : C.Run
     rᶜ = submit (-, -, T₀)
@@ -367,11 +565,12 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     Rᶜ = rᶜ ∎⊣ cinit ✓
 
     coh : Rˢ ~ Rᶜ
-    coh = 𝕣∗ , base auto cinit λ where 𝟘 → 0F , refl , refl; 𝟙 → 1F , refl , refl
-    -- coh =
-    --   ∎ Γ₀ at0 ⊣ auto , ℽ₀
-    --   ~ Rᶜ ⊣ cinit
-    --   ⊣ (λ where 𝟘 → 0F , refl , refl; 𝟙 → 1F , refl , refl)
+    coh = -, base {ℽ = ℽ₀} auto cinit
+      λ where 𝟘 → 0F , refl , refl; 𝟙 → 1F , refl , refl
+      where
+        ℽ₀ : ℾᵗ Γₜ
+        ℽ₀ = [txout: (λ where 𝟘 → Tᵃ; 𝟙 → Tᵇ) ∣sechash: (λ ()) ∣κ: (λ ()) ]
+    𝕣∗ = coh .proj₁
 
   module M₁ where
     open M₀ using () renaming (Rˢ to Rˢ′; 𝕣∗ to 𝕣∗′; Rᶜ to Rᶜ′; coh to coh′)
@@ -381,67 +580,40 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     α  = advertise⦅ tc ⦆
     Γ  = ` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y
     Γₜ = Γ at0
+    Rˢ = Γₜ ⟨ Act {t = 0} $ C-Advertise {ad = tc} {Γ = Γ₀} ⟩←—— Rˢ′
 
-    Γ→ : _ —[ α ]→ₜ _
-    Γ→ = Act {t = 0} $ C-Advertise {ad = tc} {Γ = Γ₀}
-
-    Rˢ = Γₜ ⟨ Γ→ ⟩←—— Rˢ′
-
-    open H₁ 𝕣 0 α 0 Γ₀ auto tc Γ→ (Γ , auto) public using (λˢ)
-
-    _C : Message
     _C = encode {Rˢ′} txout′ tc
-
     λᶜ = A →∗∶ _C
-
-    𝕣∗ : ℝ∗ Rˢ
-    𝕣∗ = Γₜ ∷ 𝕣∗′ ⊣ λˢ ✓
-
-    Rᶜ : CRun
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
 
-    -- d⊆ : tc ⊆⦅ deposits ⦆ Γ₀
-    -- d⊆ = toWitness {Q = _ ⊆? _} tt
-
     coh : Rˢ ~ Rᶜ
-    coh = 𝕣∗ , step₁ (coh′ .proj₂) ([L] [1] auto (Γ , auto) auto auto d⊆)
+    coh = -, step₁ (coh′ .proj₂) ([L] [1] auto (Γ , auto) auto auto d⊆)
       where
         d⊆ : tc ⊆⦅ deposits ⦆ Γ₀
         d⊆ = toWitness {Q = _ ⊆? _} tt
-    -- coh =
-    --     M₀.coh
-    --   —→ᴸ Γₜ ⊣ λˢ
-    --     ~ (A →∗∶ encode {M₀.Rˢ} txout′ tc)
-    --     ⊣ [1] auto (Γ , auto) auto auto d⊆
-
-  h : ℤ
-  h = a ♯
-
-  postulate
-    encodeStr : String → Message
-    decodeStr : Message → Maybe String
+    𝕣∗ = coh .proj₁
 
   module M₁′ where
     open M₁ using () renaming (Rˢ to Rˢ′; 𝕣∗ to 𝕣∗′; Rᶜ to Rᶜ′; coh to coh′)
+    Rˢ = Rˢ′
     λᶜ = A →O∶ encodeStr a
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
-    Rˢ = Rˢ′
-    𝕣∗ = 𝕣∗′
 
     coh : Rˢ ~ Rᶜ
-    coh = let 𝕣∗ , coh₁ = coh′
-          in  𝕣∗ , step₂ coh₁ ([2] (inj₁ refl))
+    coh = let _ , coh₁ = coh′
+          in -, step₂ coh₁ ([2] (inj₁ refl))
+    𝕣∗ = coh .proj₁
 
   module M₁″ where
     open M₁′ using () renaming (Rˢ to Rˢ′; 𝕣∗ to 𝕣∗′; Rᶜ to Rᶜ′; coh to coh′)
+    Rˢ = Rˢ′
     λᶜ = O→ A ∶ [ h ]
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
-    Rˢ = Rˢ′
-    𝕣∗ = 𝕣∗′
 
     coh : Rˢ ~ Rᶜ
-    coh = let 𝕣∗ , coh₁ = M₁′.coh
-          in  𝕣∗ , step₂ coh₁ ([2] (inj₂ refl))
+    coh = let _ , coh₁ = M₁′.coh
+          in -, step₂ coh₁ ([2] (inj₂ refl))
+    𝕣∗ = coh .proj₁
 
   module M₂ where
     open M₁″ using () renaming (Rˢ to Rˢ′; 𝕣∗ to 𝕣∗′; Rᶜ to Rᶜ′; coh to coh′)
@@ -451,61 +623,33 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     α  = auth-commit⦅ A , tc , [ a , just N ] ⦆
     Γ  = ` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩ ∣ A auth[ ♯▷ tc ]
     Γₜ = Γ at0
-
     Γ→ : _ —[ α ]→ₜ _
     Γ→ = Act {t = 0}
        $ C-AuthCommit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y} {secrets = [ a , just N ]}
-
-    Rˢ : S.Run
     Rˢ = Γₜ ⟨ Γ→ ⟩←—— Rˢ′
 
-    Δ×h̅ : List (Secret × Maybe ℕ × ℤ)
-    Δ×h̅ = [ a , just N , h ]
+    _C = encode {Rˢ′} txout′ tc
+    postulate C≡ : _C ≡ M₁._C
 
-    Δ : List (Secret × Maybe ℕ)
-    Δ = map drop₃ Δ×h̅
-
-    as : List Secret
-    as = unzip Δ .proj₁
-
-    sechash⁺ : as ↦ ℤ
-    -- sechash⁺ = λ where
-    --   {- a -} 𝟘 → h
-    sechash⁺ {a} a∈ =
-      let _ , a×m∈ , _    = ∈-unzip⁻ˡ Δ a∈
-          (_ , _ , z) , _ = ∈-map⁻ drop₃ a×m∈
-      in z
+    h̅ : List ℤ
+    h̅ = [ h ]
 
     k⃗ : 𝕂²′ tc
     k⃗ = K²
 
-    open H₂ 𝕣 0 α 0 _ auto A A tc Δ sechash⁺ k⃗ Γ→ (Γ , auto) public using (λˢ)
-
-    𝕣∗ : ℝ∗ Rˢ
-    𝕣∗ = Γₜ ∷ 𝕣∗′ ⊣ λˢ ✓
-
-    _C : Message
-    _C = encode {Rˢ′} txout′ tc
-
-    postulate C≡ : _C ≡ M₁._C
-
-    h̅ : List ℤ
-    h̅ = map (proj₂ ∘ proj₂) Δ×h̅ -- [ a ]
-
     k̅ : List ℤ
     k̅ = concatMap (map pub ∘ codom) (codom k⃗)
+    -- ≈ pub <$> [Kᵈ² A, Kᵈ² B, Kʷᵃ A, Kʷᵃ B, Kᵈ² A, Kᵈ² B]
 
     C,h̅,k̅ : Message
     C,h̅,k̅ = _C ◇ h̅ ◇ k̅
 
-    λᶜ : C.Label
     λᶜ = A →∗∶ SIGᵐ (Kᵖᵘᵇ A) C,h̅,k̅
-
-    Rᶜ : CRun
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
 
     coh : Rˢ ~ Rᶜ
-    coh = 𝕣∗ , step₁ (coh′ .proj₂) ([L] [2] auto (_ , auto) auto auto auto ∃B h≡ h∈O auto h♯sechash)
+    coh = -, step₁ (coh′ .proj₂)
+      ([L] [2] {k⃗ = k⃗} auto (_ , auto) auto auto auto ∃B h≡ h∈O auto h♯sechash)
       where
         ∃B : ∃ λ B → (B →∗∶ _C) ∈ toList Rᶜ′
         ∃B rewrite C≡ = A , 𝟚
@@ -513,11 +657,12 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
         h≡ : All (λ hᵢ → ∣ hᵢ ∣ᶻ ≡ η) h̅
         h≡ = {!!} ∷ []
 
-        h∈O : CheckOracleInteractions Rᶜ′ Δ×h̅
-        h∈O = {!!}
+        h∈O : CheckOracleInteractions Rᶜ′ _
+        h∈O = (A , encodeStr a , 𝟘 , {!!}) ∷ []
 
         h♯sechash : Disjoint h̅ (codom sechash′)
         h♯sechash (𝟘 , ())
+    𝕣∗ = coh .proj₁
 
   module M₃ where
     open M₂ using () renaming (Rˢ to Rˢ′; 𝕣∗ to 𝕣∗′; Rᶜ to Rᶜ′; coh to coh′)
@@ -528,46 +673,20 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     Γ  = ` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩
        ∣ A auth[ ♯▷ tc ] ∣ B auth[ ♯▷ tc ]
     Γₜ = Γ at0
-
     Γ→ : _ —[ α ]→ₜ _
     Γ→ = Act {t = 0}
        $ C-AuthCommit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩ ∣ A auth[ ♯▷ tc ]}
                       {secrets = []}
-
-    Rˢ : S.Run
     Rˢ = Γₜ ⟨ Γ→ ⟩←—— Rˢ′
 
-    Δ×h̅ : List (Secret × Maybe ℕ × ℤ)
-    Δ×h̅ = []
-
-    Δ : List (Secret × Maybe ℕ)
-    Δ = map drop₃ Δ×h̅
-
-    as : List Secret
-    as = unzip Δ .proj₁
-
-    sechash⁺ : as ↦ ℤ
-    -- sechash⁺ ()
-    sechash⁺ {a} a∈ =
-      let _ , a×m∈ , _    = ∈-unzip⁻ˡ Δ a∈
-          (_ , _ , z) , _ = ∈-map⁻ drop₃ a×m∈
-      in z
-
-    k⃗ : 𝕂²′ tc
-    k⃗ = K²
-
-    open H₂ 𝕣 0 α 0 _ auto B B tc Δ sechash⁺ k⃗ Γ→ (Γ , auto) public using (λˢ)
-
-    𝕣∗ : ℝ∗ Rˢ
-    𝕣∗ = Γₜ ∷ 𝕣∗′ ⊣ λˢ ✓
-
-    _C : Message
     _C = encode {Rˢ′} txout′ tc
-
     postulate C≡ : _C ≡ M₂._C
 
     h̅ : List ℤ
-    h̅ = map (proj₂ ∘ proj₂) Δ×h̅ -- []
+    h̅ = []
+
+    k⃗ : 𝕂²′ tc
+    k⃗ = K²
 
     k̅ : List ℤ
     k̅ = concatMap (map pub ∘ codom) (codom k⃗)
@@ -575,26 +694,16 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     C,h̅,k̅ : Message
     C,h̅,k̅ = _C ◇ h̅ ◇ k̅
 
-    λᶜ : C.Label
     λᶜ = B →∗∶ SIGᵐ (Kᵖᵘᵇ B) C,h̅,k̅
-
-    Rᶜ : CRun
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
 
     coh : Rˢ ~ Rᶜ
-    coh = 𝕣∗ , step₁ (coh′ .proj₂) ([L] [2] auto (_ , auto) auto auto auto ∃B h≡ h∈O auto h♯sechash)
+    coh = -, step₁ (coh′ .proj₂)
+      ([L] [2] {k⃗ = k⃗} auto (_ , auto) auto auto auto ∃B [] [] auto λ ())
       where
         ∃B : ∃ λ B → (B →∗∶ _C) ∈ toList Rᶜ′
         ∃B rewrite trans C≡ M₂.C≡ = A , 𝟛
-
-        h≡ : All (λ hᵢ → ∣ hᵢ ∣ᶻ ≡ η) h̅
-        h≡ = []
-
-        h∈O : CheckOracleInteractions Rᶜ′ Δ×h̅
-        h∈O = []
-
-        h♯sechash : Disjoint h̅ (codom sechash′)
-        h♯sechash = λ ()
+    𝕣∗ = coh .proj₁
 
   module M₄ where
     open M₃ using () renaming (Rˢ to Rˢ′; 𝕣∗ to 𝕣∗′; Rᶜ to Rᶜ′; coh to coh′)
@@ -605,13 +714,10 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     Γ  = ` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩
               ∣ A auth[ ♯▷ tc ] ∣ B auth[ ♯▷ tc ] ∣ A auth[ x ▷ˢ tc ]
     Γₜ = Γ at0
-
     Γ→ : _ —[ α ]→ₜ _
     Γ→ = Act {t = 0}
        $ C-AuthInit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩
                        ∣ A auth[ ♯▷ tc ] ∣ B auth[ ♯▷ tc ]} {v = 1}
-
-    Rˢ : S.Run
     Rˢ = Γₜ ⟨ Γ→ ⟩←—— Rˢ′
 
     committedA : partG ⊆ committedParticipants tc
@@ -622,22 +728,16 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     open H₃ 𝕣 0 α 0 tc (⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩
                        ∣ A auth[ ♯▷ tc ] ∣ B auth[ ♯▷ tc ])
                        A x auto Γ→ (Γ , auto) committedA
-      public using (T)
+      public using (T; λˢ)
 
-    λᶜ : C.Label
     λᶜ = A →∗∶ [ SIG (Kᵖʳⁱᵛ A) T ]
-
-    Rᶜ : CRun
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
 
     coh : Rˢ ~ Rᶜ
-    coh = -, step₁ (coh′ .proj₂) ([L] {![3] ? ? ? ? ?!})
-    -- coh = -, step₁ (coh′ .proj₂) ([L] [3] auto (Γ , auto) committedA auto ∃B)
-    --   where
-    --     ∃B : ∃ λ B → (B →∗∶ [ T ♯ ]) ∈ toList Rᶜ′
-    --     ∃B = ?
-
-    𝕣∗ : ℝ∗ Rˢ
+    coh = -, step₁ (coh′ .proj₂) ([L] [3] auto (Γ , auto) committedA 𝟘 ∃B)
+      where
+        ∃B : ∃ λ B → (B →∗∶ [ T ♯ ]) ∈ toList Rᶜ′
+        ∃B = {!!}
     𝕣∗ = coh .proj₁
 
   module M₅ where
@@ -649,13 +749,10 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     Γ  = ` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩
               ∣ A auth[ ♯▷ tc ] ∣ B auth[ ♯▷ tc ] ∣ A auth[ x ▷ˢ tc ] ∣ B auth[ y ▷ˢ tc ]
     Γₜ = Γ at0
-
     Γ→ : _ —[ α ]→ₜ _
     Γ→ = Act {t = 0}
        $ C-AuthInit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩
                        ∣ A auth[ ♯▷ tc ] ∣ B auth[ ♯▷ tc ] ∣ A auth[ x ▷ˢ tc ]} {v = 0}
-
-    Rˢ : S.Run
     Rˢ = Γₜ ⟨ Γ→ ⟩←—— Rˢ′
 
     committedA : partG ⊆ committedParticipants tc
@@ -668,22 +765,18 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
                        B y auto Γ→ (Γ , auto) committedA
       public using (T)
 
-    λᶜ : C.Label
-    λᶜ = A →∗∶ [ SIG (Kᵖʳⁱᵛ B) T ]
-
-    Rᶜ : CRun
+    λᶜ = B →∗∶ [ SIG (Kᵖʳⁱᵛ B) T ]
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
 
     coh : Rˢ ~ Rᶜ
-    coh = -, step₁ (coh′ .proj₂) ([L] {![3] ? ? ? ? ?!})
-    -- coh = -, step₁ (coh′ .proj₂) ([L] [3] auto (Γ , auto) committedA auto ∃B)
-    --   where
-    --     ∃B : ∃ λ B → (B →∗∶ [ T ♯ ]) ∈ toList Rᶜ′
-    --     ∃B = ?
-
-    𝕣∗ : ℝ∗ Rˢ
+    coh = -, step₁ (coh′ .proj₂) ([L] [3] auto (Γ , auto) committedA auto ∃B)
+      where
+        ∃B : ∃ λ B → (B →∗∶ [ T ♯ ]) ∈ toList Rᶜ′
+        ∃B = {!!}
     𝕣∗ = coh .proj₁
+-}
 
+{-
   module M₆ where
     open M₅ using () renaming (Rˢ to Rˢ′; 𝕣∗ to 𝕣∗′; Rᶜ to Rᶜ′; coh to coh′)
     𝕣 = ℝ∗⇒ℝ 𝕣∗′
@@ -692,12 +785,9 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     α  = init⦅ tc .G , tc .C ⦆
     Γ  = ⟨ tc .C , 1 ⟩at x₁ ∣ ⟨ A ∶ a ♯ just 9 ⟩
     Γₜ = Γ at0
-
     Γ→ : _ —[ α ]→ₜ _
     Γ→ = Act {t = 0}
        $ C-Init {x = x₁} {Γ = ⟨ A ∶ a ♯ just 9 ⟩}
-
-    Rˢ : S.Run
     Rˢ = Γₜ ⟨ Γ→ ⟩←—— Rˢ′
 
     toSpend = persistentDeposits (tc .G)
@@ -705,21 +795,15 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     open H₄ 𝕣 0 α 0 tc (⟨ A ∶ a ♯ just 9 ⟩) toSpend 1 x₁ auto Γ→ (Γ , auto)
       public using (T)
 
-    λᶜ : C.Label
     λᶜ = submit T
-
-    Rᶜ : CRun
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
 
     coh : Rˢ ~ Rᶜ
-    coh = -, step₁ (coh′ .proj₂) {!!} -- ([L] [4] auto (Γ , auto) fresh-x₁)
-      where
-        fresh-x₁ : x₁ ∉ (x ∷ y ∷ [])
-        fresh-x₁ = λ where 𝟘⊥; 𝟙⊥
-
-    𝕣∗ : ℝ∗ Rˢ
+    coh = -, step₁ (coh′ .proj₂) ([L] [4] auto (Γ , auto) auto)
     𝕣∗ = coh .proj₁
+-}
 
+{-
   module M₇ where
     open M₆ using () renaming (Rˢ to Rˢ′; 𝕣∗ to 𝕣∗′; Rᶜ to Rᶜ′; coh to coh′)
     𝕣 = ℝ∗⇒ℝ 𝕣∗′
@@ -728,26 +812,20 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     α  = auth-rev⦅ A , a ⦆
     Γ  = ⟨ tc .C , 1 ⟩at x₁ ∣ A ∶ a ♯ 9
     Γₜ = Γ at0
-
     Γ→ : _ —[ α ]→ₜ _
     Γ→ = Act {t = 0}
        $ [C-AuthRev] {n = 9} {Γ = ⟨ tc .C , 1 ⟩at x₁}
-
     Rˢ : S.Run
     Rˢ = Γₜ ⟨ Γ→ ⟩←—— Rˢ′
 
-    λᶜ : C.Label
     λᶜ = A →∗∶ encodeStr a
-
-    Rᶜ : CRun
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
 
     coh : Rˢ ~ Rᶜ
-    coh = -, step₁ (coh′ .proj₂) ? -- ([L] [7] ? auto (Γ , auto) (A , 𝟘) 𝟜 𝟘 ? ?)
-
-    𝕣∗ : ℝ∗ Rˢ
+    coh = -, step₁ (coh′ .proj₂) ([L] [7] ? auto (Γ , auto) (A , ?) ? ? ? ?)
+    -- coh = -, step₁ (coh′ .proj₂) ([L] [7] ? auto (Γ , auto) (A , 𝟘) 𝟜 𝟘 ? ?)
     𝕣∗ = coh .proj₁
-
+-}
 {-
   module M₈ where
     open M₇ using () renaming (Rˢ to Rˢ′; 𝕣∗ to 𝕣∗′; Rᶜ to Rᶜ′; coh to coh′)
@@ -772,10 +850,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
 
     coh : Rˢ ~ Rᶜ
-    coh = -, step₁ (coh′ .proj₂) ([L] [6] refl refl auto (Γ , auto) fresh-x₂ ? refl)
-      where
-        fresh-x₂ : x₂ ∉ [ x₁ ]
-        fresh-x₂ 𝟘⊥
+    coh = -, step₁ (coh′ .proj₂) ([L] [6] refl refl auto (Γ , auto) auto ? refl)
 
     𝕣∗ : ℝ∗ Rˢ
     𝕣∗ = coh .proj₁
@@ -803,158 +878,8 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
 
     coh : Rˢ ~ Rᶜ
-    coh = -, step₁ (coh′ .proj₂) ([L] [9] refl auto (Γ , auto) fresh-x₃ refl [])
-      where
-        fresh-x₃ : x₃ ∉ [ x₂ ]
-        fresh-x₃ 𝟘⊥
+    coh = -, step₁ (coh′ .proj₂) ([L] [9] refl auto (Γ , auto) auto refl [])
 
     𝕣∗ : ℝ∗ Rˢ
     𝕣∗ = coh .proj₁
--}
-
-  tc-run : S.Run
-  tc-run = record
-    { start = (⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y) at 0
-    ; init  = auto
-    ; end   = (⟨ A has 1 ⟩at x₃ ∣ A ∶ a ♯ N) at 0
-    ; trace = -, tc-stepsₜ
-    }
-
-  -- coh : ∃ (tc-run ~_)
-    -- tc-run ~
-    --  ( submit (-, -, T′ᵃ)
-    --  ∷ submit T′
-    --  ∷ B →∗∶ _
-    --  ∷ A →∗∶ _
-    --  ∷ A →∗∶ _
-    --  ∷ submit (-, -, Tᵢₙᵢₜ)
-    --  ∷ B →∗∶ _
-    --  ∷ A →∗∶ _
-    --  ∷ A →∗∶ _
-    --  ∷ ( submit (-, -, T₀)
-    --    ∷ (A →∗∶ (Kᵖ A ∷ K̂ᵖ A ∷ []))
-    --    ∷ (B →∗∶ (Kᵖ B ∷ K̂ᵖ B ∷ []))
-    --    ∷ []
-    --    ) ∎⊣ (-, (λ where 𝟘 → 𝟘; 𝟙 → 𝟙) , refl)
-    --  ✓ ✓ ✓ ✓ ✓ ✓ ✓ ✓ ✓ ✓)
-  -- coh = -, M₉.coh
-
-{-
-  ⋮
-  --- Initial configuration ---
-  ∙ Tᵃ : TxInput′ {v = 1; sig = A}
-  ∙ Tᵇ : TxInput′ {v = 0; sig = B}
-  ⋮
-  -- advertise⦅ tc ⦆
-  A →∗∶ ♯tc♯
-  -- auth-commit⦅ A , tc , [ a , just N ] ⦆
-  A →∗∶ (♯tc♯ ◇ ♯[h]♯ ◇ ♯[k]♯)ᵃ
-  -- auth-commit⦅ B , tc , [] ⦆
-  B →∗∶ (♯tc♯ ◇ ♯[]♯ ◇ ♯[]♯)ᵇ
-  -- auth-init⦅ A , tc , x ⦆
-  A →∗∶ (Tᵢₙᵢₜ ♯)ᵃ
-  -- auth-init⦅ B , tc , y ⦆
-  B →∗∶ (Tᵢₙᵢₜ ♯)ᵇ
-  -- init⦅ G tc , tc .C ⦆
-  submit Tᵢₙᵢₜ
-  -- auth-rev⦅ A , a ⦆
-  A →∗∶ ♯tc♯ ◇ [h] ◇ [k]
-  -- put⦅ [] , [ a ] , x₁ ⦆
-  submit T′
-  -- withdraw⦅ A , 1 , x₂ ⦆
-  submit T′ᵃ
--}
-
-{- Coherence DSL
-
-tc-steps-coh :
-  Rᶜ₀ ≈
-  (⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y) at 0
-    —[ advertise⦅ tc ⦆                        ~ (A →∗∶ encode tc)
-     ∷ ε                                      ~ (A →O∶ a)
-     ∷ ε                                      ~ (O →A∶ h)
-     ∷ auth-commit⦅ A , tc , [ a , just N ] ⦆ ~ (A →∗∶ C,h,k̅)
-     ∷ auth-commit⦅ B , tc , [] ⦆             ~ (B →∗∶ C,h,k̅)
-     ∷ auth-init⦅ A , tc , x ⦆                ~ (A →∗∶ SIG Kᴬ Tᵢₙᵢₜ)
-     ∷ auth-init⦅ B , tc , y ⦆                ~ (B →∗∶ SIG Kᴬ Tᵢₙᵢₜ)
-     ∷ init⦅ G tc , tc .C ⦆                   ~ submit Tᵢₙᵢₜ
-     ∷ auth-rev⦅ A , a ⦆                      ~ (A →∗∶ a)
-     ∷ put⦅ [] , [ a ] , x₁ ⦆                 ~ submit T′
-     ∷ withdraw⦅ A , 1 , x₂ ⦆                 ~ submit T′ₐ
-     ∷ []
-     ]↠ₜ
-  (⟨ A has 1 ⟩at x₃ ∣ A ∶ a ♯ N) at 0
-tc-steps-coh =
-  begin
-    (⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y) at 0
-    ≈ Rᶜ₀@(A →∗∶ K.. ∷ A →∗∶ K.. ∷ submit T₀)
-    ⊣ base cinit auto ... init ...
-  —→⟨ Act {t = 0}
-    $ C-Advertise {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y}
-    ⟩
-    (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y) at 0
-    ↝ (A →∗∶ encode {...} txout′ tc)
-    ⊣ [L] [1] ....
-  —→ᵋ (A →O∶ a)
-    ⊣ step₂ [2] ...
-  —→ᵋ (O→ A ∶ h)
-    ⊣ step₂ [2] ...
-  —→⟨ Act {t = 0}
-    $ C-AuthCommit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y} {secrets = [ a , just N ]}
-    ⟩
-    (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩
-          ∣ A auth[ ♯▷ tc ]) at 0
-    ↝ (A →∗∶ SIG Kᴬ C,h̅,k̅)
-    ⊣ [L] [2] ...
-  —→⟨ Act {t = 0}
-    $ C-AuthCommit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9
-    ⟩
-                       ∣ A auth[ ♯▷ tc ]} {secrets = []} ⟩
-    (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩
-          ∣ A auth[ ♯▷ tc ] ∣ B auth[ ♯▷ tc ]) at 0
-    ↝ (B →∗∶ SIG Kᴮ C,h̅,k̅)
-    ⊣ [L] [2] ...
-  —→⟨ Act {t = 0}
-    $ C-AuthInit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9
-    ⟩
-                     ∣ A auth[ ♯▷ tc ] ∣ B auth[ ♯▷ tc ]} {v = 1} ⟩
-    (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩ ∣ A auth[ ♯▷ tc ]
-          ∣ B auth[ ♯▷ tc ] ∣ A auth[ x ▷ˢ tc ]) at 0
-    ↝ (A →∗∶ SIG Kᴬ Tᵢₙᵢₜ)
-    ⊣ [L] [3] ...
-  —→⟨ Act {t = 0}
-    $ C-AuthInit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9
-    ⟩
-                       ∣ A auth[ ♯▷ tc ] ∣ B auth[ ♯▷ tc ] ∣ A auth[ x ▷ˢ tc ]}
-                  {v = 0} ⟩
-    (` tc ∣ ⟨ A has 1 ⟩at x ∣ ⟨ B has 0 ⟩at y ∣ ⟨ A ∶ a ♯ just 9 ⟩ ∣ A auth[ ♯▷ tc ]
-          ∣ B auth[ ♯▷ tc ] ∣ A auth[ x ▷ˢ tc ] ∣ B auth[ y ▷ˢ tc ]) at 0
-    ↝ (B →∗∶ SIG Kᴮ Tᵢₙᵢₜ)
-    ⊣ [L] [3] ...
-  —→⟨ Act {t = 0}
-    $ C-Init {x = x₁} {Γ = ⟨ A ∶ a ♯ just 9 ⟩}
-    ⟩
-    (⟨ tc .C , 1 ⟩at x₁ ∣ ⟨ A ∶ a ♯ just 9 ⟩) at 0
-    ↝ submit Tᵢₙᵢₜ
-    ⊣ [L] [4] ...
-  —→⟨ Act {t = 0}
-    $ [C-AuthRev] {n = 9} {Γ = ⟨ tc .C , 1 ⟩at x₁}
-    ⟩
-    (⟨ tc .C , 1 ⟩at x₁ ∣ A ∶ a ♯ 9) at 0
-    ↝ (A →∗∶ a)
-    ⊣ [L] [7] ...
-  —→⟨ Timeout {c = tc .C} {t = 0} {v = 1} {i = 0F}
-    $ C-PutRev {Γ′ = ∅ᶜ} {z = x₂} {ds = []} {ss = [ A , a , 9 ]}
-    ⟩
-    (⟨ [ withdraw A ] , 1 ⟩at x₂ ∣ A ∶ a ♯ 9) at 0
-    ↝ submit T′
-    ⊣ [L] [6] ...
-  —→⟨ Timeout {c = [ withdraw A ]} {t = 0} {v = 1} {i = 0F}
-    $ C-Withdraw {x = x₃} {Γ = A ∶ a ♯ 9}
-    ⟩
-    (⟨ A has 1 ⟩at x₃ ∣ A ∶ a ♯ N) at 0
-    ↝ submit T′ᵃ
-    ⊣ [L] [9] ...
-  ∎
-
 -}

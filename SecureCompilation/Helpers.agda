@@ -350,9 +350,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         κ↝ κ′ rewrite collectFromBase-++ {X = Advertisement} Γ (A auth[ x ▷ˢ ad ])
                     | L.++-identityʳ (advertisements Γ)
                     = κ′
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
+      -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
 
   -- [4]
   module _ ad Γ₀ (ds : List DepositRef) v z where
@@ -472,9 +472,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
 
         txout↝ : Γ →⦅ Txout ⦆ Γ′
         txout↝ txout′ rewrite ids≡ = cons-↦ z tx $ weaken-↦ txout′ ∈-++⁺ˡ
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
+      -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
 
   -- [5]
   module _ c v x Γ₀ A (i : Index c) where
@@ -507,10 +507,10 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
 
         pubK : ℤ
         pubK = T×pubK .proj₂
-      abstract
-        -- (iv) txout = txout′, sechash = sechash′, κ = κ′
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
+      -- abstract
+      -- (iv) txout = txout′, sechash = sechash′, κ = κ′
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
 
   -- [6]
   module _ c v y (ds : List (Participant × Value × Id)) (ss : List (Participant × Secret × ℕ))
@@ -679,9 +679,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       Γ  = ⟨ A ∶ a ♯ just n ⟩ ∣ Γ₀
       Γ′ = A ∶ a ♯ n ∣ Γ₀
     module H₇ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
+      -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
 
   -- [8]
   module _ c v y Γ₀ (i : Index c) (vcis : List (Value × Contracts × Id)) where
@@ -731,9 +731,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         -- (iv) extend txout′ with {xᵢ ↦ (T,i)}, sechash = sechash′, κ = κ′
         txout⁺ : xs ↦ TxInput′
         txout⁺ x∈ = $T at L.Any.index x∈
-      abstract
-        T : ∃Tx
-        T = $T
+      -- abstract
+      T : ∃Tx
+      T = $T
       private
         hʳ : ∀ (vcis : List (Value × Contracts × Id)) →
           namesʳ (|| map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis) ≡ (proj₂ $ proj₂ $ unzip₃ vcis)
@@ -798,9 +798,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
 
         κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
         κ↝ = lift Γ —⟨ advertisements ⟩— Γ′ ⊣ ads≡
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
+      -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
 
   -- [9]
   module _ c v y Γ₀ A x (i : Index c) where
@@ -810,9 +810,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       Γ′ = ⟨ A has v ⟩at x ∣ Γ₀
     module H₉ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
               (d≡ : d ≡⋯∶ withdraw A) where
-      private
-        $T : ∃Tx
-        $T =
+      -- private
+      T : ∃Tx
+      T =
           let
             -- (ii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
             ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
@@ -833,18 +833,18 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
           in
             -, -, Tᵈ
 
-        tx : TxInput′
-        tx = $T at 0F
-      abstract
-        T : ∃Tx
-        T = $T
+      tx : TxInput′
+      tx = T at 0F
+      -- abstract
+      --   T : ∃Tx
+      --   T = $T
       private
         -- (iv) extend txout′ with {x ↦ (T,0)}, sechash = sechash′, κ = κ′
         txout↝ : Γ →⦅ Txout ⦆ Γ′
         txout↝  txout′ = cons-↦ x tx $ weaken-↦ txout′ there
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id
+      -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id
 
   -- [10]
   module _ A v x v′ x′ Γ₀ where
@@ -852,9 +852,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       Γ  = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀
       Γ′ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
     module H₁₀ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
+      -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
 
   -- [11]
   module _ A v x v′ x′ y Γ₀ where
@@ -907,9 +907,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       Γ  = ⟨ A has (v + v′) ⟩at x ∣ Γ₀
       Γ′ = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
     module H₁₂ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
+      -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
 
   -- [13]
   module _ A v v′ x Γ₀ y y′ where
@@ -917,11 +917,11 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       Γ  = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
       Γ′ = ⟨ A has v ⟩at y ∣ ⟨ A has v′ ⟩at y′ ∣ Γ₀
     module H₁₃ (R≈ : R ≈⋯ Γ at t) (tx tx′ : TxInput′) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id
-          where txout↝ : Γ →⦅ Txout ⦆ Γ′
-                txout↝ txout′ = cons-↦ y tx $ cons-↦ y′ tx′ $ weaken-↦ txout′ there
+      -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id
+        where txout↝ : Γ →⦅ Txout ⦆ Γ′
+              txout↝ txout′ = cons-↦ y tx $ cons-↦ y′ tx′ $ weaken-↦ txout′ there
 
   -- [14]
   module _ A v x Γ₀ B′ where
@@ -929,9 +929,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       Γ  = ⟨ A has v ⟩at x ∣ Γ₀
       Γ′ = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
     module H₁₄ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
+      -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
 
   -- [15]
   module _ A v x B′ Γ₀ y where
@@ -939,11 +939,11 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       Γ  = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
       Γ′ = ⟨ B′ has v ⟩at y ∣ Γ₀
     module H₁₅ (R≈ : R ≈⋯ Γ at t) (tx : TxInput′) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id
-          where txout↝ : Γ →⦅ Txout ⦆ Γ′
-                txout↝ txout′ = cons-↦ y tx $ weaken-↦ txout′ there
+      -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id
+        where txout↝ : Γ →⦅ Txout ⦆ Γ′
+              txout↝ txout′ = cons-↦ y tx $ weaken-↦ txout′ there
 
   -- [16]
   module _ (ds : List (Participant × Value × Id)) Γ₀ (j : Index ds) A y where
@@ -993,9 +993,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
 
         κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
         κ↝ = lift Γ —⟨ advertisements ⟩— Γ′ ⊣ ads≡
-      abstract
-        λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
-        λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
+      -- abstract
+      λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
+      λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
 
   -- [17]
   module _ (ds : List (Participant × Value × Id)) Γ₀ y where

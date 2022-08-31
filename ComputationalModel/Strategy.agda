@@ -11,6 +11,8 @@ open import Prelude.Ord
 open import Prelude.Validity
 open import Prelude.ToList
 open import Prelude.InferenceRules
+open import Prelude.Traces
+open import Prelude.Decidable
 
 open import Bitcoin
 
@@ -83,10 +85,36 @@ strip A = mapMaybe go
 ... | _         = 𝔹 ls
 
 -- For each participant, the coinbase transaction contains an output redeemable with his/her private key.
-Coinbase : ∃Tx → Set
+Coinbase : Pred₀ ∃Tx
 Coinbase (_ , _ , tx) =
   ∀ {A} → A ∈ allParticipants →
-    (Ctx 1 , (ƛ (versig [ K̂ A ] [ # 0 ]))) ∈ map ({-map₂-} λ{ (x , y) → x , validator y }) (V.toList (outputs tx))
+    (Ctx 1 , (ƛ (versig [ K̂ A ] [ # 0 ])))
+    ∈ map (map₂′ validator) (V.toList (outputs tx))
+
+open import Prelude.Enumerable
+
+Finite⇒Enumerable : ∀ {A : Set ℓ} → Finite A → Enumerable A
+Finite⇒Enumerable fin = λ where
+  .witness → finList fin
+  .finite  → λ x →
+    let _ , record {f⁻¹ = fromFin; f = toFin; inverse = _ , inv} = fin
+     in subst (_∈ finList fin) (inv x)
+      $ L.Mem.∈-map⁺ fromFin (L.Mem.∈-allFin $ toFin x)
+
+instance
+  Enum-Part : Enumerable Participant
+  Enum-Part = Finite⇒Enumerable finPart
+
+  Dec-Coinbase : Coinbase ⁇¹
+  Dec-Coinbase {x = i , o , tx} .dec
+    with all? (λ A → (Ctx 1 , (ƛ (versig [ K̂ A ] [ # 0 ])))
+                   ∈? map (map₂′ validator) (V.toList (outputs tx)))
+              allParticipants
+  ... | no ¬∀  = no  (¬∀ ∘ L.All.tabulate)
+  ... | yes ∀✓ = yes (L.All.lookup ∀✓)
+
+Coinbase? : Decidable¹ Coinbase
+Coinbase? ∃tx = dec ⦃ Dec-Coinbase {x = ∃tx} ⦄
 
 -- Initially, all participants broadcast both their public keys.
 initialBroadcasts : Labels
@@ -95,31 +123,48 @@ initialBroadcasts = map go allParticipants
     go : Participant → Label
     go A = A →∗∶ (Kᵖ A ∷ K̂ᵖ A ∷ [])
 
--- An initial run begins with a coinbase transaction and all appropriate initial broadcasts.
-Initial : Run → Set
-Initial R = ∃[ T₀ ] (Coinbase T₀ × (R ≡ (submit T₀ ∷ initialBroadcasts)))
-
--- A run is valid, when it has an initial run as a prefix.
 instance
+  -- An initial run begins with a coinbase transaction and
+  -- all appropriate initial broadcasts.
+  Initial-Run : HasInitial Run
+  Initial-Run .Initial R =
+    ∃[ T₀ ] (Coinbase T₀ × (R ≡ (submit T₀ ∷ initialBroadcasts)))
+
+  Dec-Initial-Run : ∀ {R : Run} → Initial R ⁇
+  Dec-Initial-Run {[]} .dec = no λ where (_ , ())
+  Dec-Initial-Run {(_ →∗∶ _) ∷ _} .dec = no λ where (_ , ())
+  Dec-Initial-Run {delay _ ∷ _} .dec = no λ where (_ , ())
+  Dec-Initial-Run {(_ →O∶ _) ∷ _} .dec = no λ where (_ , ())
+  Dec-Initial-Run {(O→ _ ∶ _) ∷ _} .dec = no λ where (_ , ())
+  Dec-Initial-Run {submit T₀ ∷ R} .dec
+    with Coinbase? T₀
+  ... | no ¬p = no λ where (.T₀ , p , refl) → ¬p p
+  ... | yes p
+    with R ≟ initialBroadcasts
+  ... | no ¬p = no λ where (_ , _ , refl) → ¬p refl
+  ... | yes p′ = yes (T₀ , p , cong (submit T₀ ∷_) p′)
+
+  -- A run is valid, when it has an initial run as a prefix.
   Valid-Run : Validable Run
   Valid-Run .Valid R = ∃[ R₀ ] (Initial R₀ × Suffix≡ R₀ R)
 
 data CRun : Set where
-  _∎⊣_✓ : ∀ R → Initial R → CRun
+  _∎⊣_✓ : ∀ (R : Run) → Initial R → CRun
   _∷_✓ : Label → CRun → CRun
 
 variable Rᶜ Rᶜ′ : CRun
-
-Initialᶜ : Pred₀ CRun
-Initialᶜ = λ where
-  (_ ∎⊣ _ ✓) → ⊤
-  (_ ∷ _ ✓)  → ⊥
 
 instance
   ToList-CRun : ToList CRun Label
   ToList-CRun .toList = λ where
     (R ∎⊣ _ ✓) → R
     (l ∷ R ✓)  → l ∷ toList R
+
+  Initial-CRun : HasInitial CRun
+  Initial-CRun .Initial = Initial ∘ toList
+  -- Initial-CRun .Initial = λ where
+  --   (_ ∎⊣ _ ✓) → ⊤
+  --   (_ ∷ _ ✓)  → ⊥
 
 Valid-CRun : (R : CRun) → Valid (toList R)
 Valid-CRun = λ where
@@ -149,7 +194,7 @@ oracleRequests A (_ ∷ R) = oracleRequests A R
 oracleRequests _ []      = []
 
 oracleInteractions : Run → List OracleInteraction
-oracleInteractions r = go r []
+oracleInteractions r = go (L.reverse r) []
   where
     go : Run → List OracleQuery → List OracleInteraction
     go []       ws = []
@@ -297,7 +342,7 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
   data _-pre-conforms-to-_ : CRun → Strategies → Set where
 
     base : ∀ {R} →
-      Initialᶜ R
+      Initial R
       ────────────────────────
       R -pre-conforms-to- SS
 

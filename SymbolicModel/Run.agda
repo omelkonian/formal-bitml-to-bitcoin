@@ -15,3 +15,5 @@ open import BitML Participant Honest public
   hiding (∣_∣; `; _∙)
 open import SymbolicModel.Run.Base Participant Honest public
 open import SymbolicModel.Run.Properties Participant Honest public
+
+open import SymbolicModel.Run.Example
