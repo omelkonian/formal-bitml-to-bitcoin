@@ -6,6 +6,7 @@ open import Prelude.Collections
 open import Prelude.Setoid
 open import Prelude.Traces
 open import Prelude.General
+open import Prelude.InferenceRules
 
 open import Bitcoin using (TxInput′)
 
@@ -204,8 +205,13 @@ Last∈-end∈allCfgsᵗ R = go (R ∙trace′)
     ∣κ:       𝕂⊆ κ′
     ]
 
-ℍ[C-Advertise]⇒TxoutG : ℍ[C-Advertise]⦅ Γ ↝ Γ′ ⦆⦅ ad ⦆ → Txout Γ → Txout (ad .G)
-ℍ[C-Advertise]⇒TxoutG {Γ = Γ} {ad = ad} (_ , _ , _ , d⊆) txout = weaken-↦ txout (deposits⊆⇒namesʳ⊆ {ad}{Γ} d⊆)
+ℍ[C-Advertise]⇒TxoutG :
+  ∙ ℍ[C-Advertise]⦅ Γ ↝ Γ′ ⦆⦅ ad ⦆
+  ∙ Txout Γ
+    ──────────────────────────────
+    Txout (ad .G)
+ℍ[C-Advertise]⇒TxoutG {Γ = Γ} {ad = ad} (_ , _ , _ , d⊆) txout =
+  weaken-↦ txout (deposits⊆⇒namesʳ⊆ {ad}{Γ} d⊆)
 
 committed⇒ℍ[C-AuthCommit]∗ :
     R ≈⋯ Γ₀ at t

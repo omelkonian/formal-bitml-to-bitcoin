@@ -200,3 +200,51 @@ LIFTᶜ {R} 𝕣 {ad} ∃H =
     R≈′ = splitRunˡ-≈⋯ R xy∈ᵗ
   in
     LIFT₀ 𝕣′ tᵢ x R≈′ ad ad∈ p⊆
+
+ad∈⇒TxoutG :
+  ∙ ` ad ∈ᶜ Γ
+  ∙ R ≈⋯ Γ at t
+  ∙ Txout R
+    ───────────
+    Txout ad
+ad∈⇒TxoutG {ad}{Γ}{R@(record {trace = _ , tr})} ad∈ R≈ txout =
+  let
+    Γᵢ′ , Γᵢ , _ , _ , xy∈ , (x≈ , _) , ℍ = ad∈≈⇒ℍ {R}{Γ} R≈ ad∈
+    Γᵢ∈ , _ = ∈-allTransitions⁻ tr xy∈
+    txoutΓᵢ = Txout≈ {Γᵢ′}{Γᵢ} x≈
+            $ Txout∈ {R = R} txout Γᵢ∈
+  in
+    ℍ[C-Advertise]⇒TxoutG {Γ = Γᵢ}{ad = ad} ℍ txoutΓᵢ
+
+auth-commit∈⇒TxoutG : ∀ {Δ : List (Secret × Maybe ℕ)} →
+  ∙ auth-commit⦅ A , ad , Δ ⦆ ∈ labels R
+  ∙ ℝ R
+    ──────────────────────────────────────
+    Txout ad
+auth-commit∈⇒TxoutG {A}{ad} {R@(record {trace = _ , tr})} α∈ 𝕣 =
+  let
+    Γᵢ′ , Γᵢ , _ , _ , xy∈ , (x≈ , _) , _ , Γᵢ≡ , _ = auth-commit⇒∗ tr α∈
+    Γᵢ∈ , _ = ∈-allTransitions⁻ tr xy∈
+    ad∈ : ` ad ∈ᶜ Γᵢ
+    ad∈ = subst (` ad ∈ᶜ_) (sym Γᵢ≡) (here refl)
+
+    ad∈′ : ` ad ∈ᶜ Γᵢ′
+    ad∈′ = ∈ᶜ-resp-≈ {Γᵢ}{Γᵢ′} (↭-sym x≈) ad∈
+
+    tᵢ , _ , xy∈ᵗ = ×∈⇒×∈ᵗ tr xy∈
+    tr′      = splitTraceˡ tr xy∈ᵗ
+    R′       = splitRunˡ R xy∈ᵗ
+
+    𝕣′ : ℝ R′
+    𝕣′ = ℝ⊆ xy∈ᵗ 𝕣
+
+    R≈′ : R′ ≈⋯ Γᵢ′ at tᵢ
+    R≈′ = splitRunˡ-≈⋯ R xy∈ᵗ
+
+    Γⱼ′ , Γⱼ , _ , _ , xy∈′ , (x≈′ , _) , ℍ = ad∈≈⇒ℍ {R′}{Γᵢ′} R≈′ ad∈′
+    Γⱼ∈ , _ = ∈-allTransitions⁻ tr′ xy∈′
+    txoutΓⱼ = Txout≈ {Γⱼ′}{Γⱼ} x≈′
+            $ Txout∈ {R = R′} (𝕣′ .ℝ.txout′) Γⱼ∈
+
+  in
+    ℍ[C-Advertise]⇒TxoutG {Γ = Γⱼ}{ad = ad} ℍ txoutΓⱼ

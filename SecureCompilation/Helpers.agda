@@ -50,7 +50,7 @@ open import SecureCompilation.Compiler Participant Honest η
   using (∃Tx¹; ∃Txᶜ; bitml-compiler)
 
 postulate
-  encode : Txout Rˢ → Ad → Message
+  encode : (ad : Ad) → Txout (ad .G) → Message
   -- ^ encode {G}C as a bitstring, representing each x in it as txout(x)
 
   SIGᵖ : ∀ {A : Set} → ℤ {- public key -} → A → ℤ
@@ -84,6 +84,7 @@ COMPILE {ad = ad} (vad , txout₀ , sechash₀ , κ₀) =
 -- ∙ for typechecking performance, `abstract` all exported definitions (if possible...)
 -- ∙ all definitions should be private, except the following:
 --   ∘ λˢ : the next symbolic move, along with updated mappings for the resulting state/configuration
+--   ∘ txoutG/txoutΓ/txoutΓ′ : (optional) mappings for relevant subcomponents
 --   ∘ T : (optional) compiled transaction needed for computational move λᶜ
 --   ∘ pubK : (optional) public key to sign the transaction
 --   ∘ value-preserving⇒ : (T0D0) proof that each mapping transformation preserves value assignments
@@ -102,6 +103,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       -- abstract
       λˢ : 𝕃 R Γₜ″
       λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
+
       private
         𝕒  = λˢ .proj₁
         R′ = Γₜ″ ∷ R ⊣ 𝕒
@@ -323,10 +325,10 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       private
         𝕘 : 𝔾 ad
         𝕘 = LIFT₀ 𝕣 t Γ R≈ ad (here refl) committedA
-      abstract
-        T : ∃Tx
-        T = let (_ , Tᵢₙᵢₜ) , _ = COMPILE 𝕘
-            in -, -, Tᵢₙᵢₜ
+      -- abstract
+      T : ∃Tx
+      T = let (_ , Tᵢₙᵢₜ) , _ = COMPILE 𝕘
+          in -, -, Tᵢₙᵢₜ
       private
         names≡ : Γ′ ≡⦅ names ⦆ Γ
         names≡ rewrite collectFromBase-++ {X = Name} Γ (A auth[ x ▷ˢ ad ]) = L.++-identityʳ _
@@ -385,9 +387,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
 
         tx : TxInput′
         tx = $T at 0F
-      abstract
-        T : ∃Tx
-        T = $T
+      -- abstract
+      T : ∃Tx
+      T = $T
       private
         h₀ : ∀ ps → Null $ namesʳ (|| map (_auth[ ♯▷ ad ]) ps)
         h₀ [] = refl
@@ -501,12 +503,12 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
             _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
             _ , Tᵈ = ∀d∗ d∈
           in (-, -, Tᵈ) , (κ′ ad∈ d∈ {A} A∈ .pub)
-      abstract
-        T : ∃Tx
-        T = T×pubK .proj₁
+      -- abstract
+      T : ∃Tx
+      T = T×pubK .proj₁
 
-        pubK : ℤ
-        pubK = T×pubK .proj₂
+      pubK : ℤ
+      pubK = T×pubK .proj₂
       -- abstract
       -- (iv) txout = txout′, sechash = sechash′, κ = κ′
       λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
@@ -540,9 +542,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
 
         tx : TxInput′
         tx = $T at 0F
-      abstract
-        T : ∃Tx
-        T = $T
+      -- abstract
+      T : ∃Tx
+      T = $T
       private
         postulate val≡ : tx ∙value ≡ v + sum vs
 
