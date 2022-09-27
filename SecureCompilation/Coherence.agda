@@ -21,6 +21,8 @@ open import Prelude.Setoid
 open import Prelude.Nary
 open import Prelude.Apartness
 open import Prelude.Split hiding (split)
+open import Prelude.Serializable
+open import Prelude.Views hiding (_▷_)
 
 import Bitcoin.Crypto as BTC
 
@@ -42,6 +44,7 @@ open import ComputationalModel Participant Honest finPart keypairs as C
   hiding (Hon; Σ
          ; t; t′; `; ∣_∣; n)
 
+open import SecureCompilation.ComputationalContracts Participant Honest
 open import SecureCompilation.Compiler Participant Honest η
 open import SecureCompilation.Helpers  Participant Honest finPart keypairs η
 
@@ -56,11 +59,14 @@ v -redeemableWith- k = Ctx 1 , record {value = v;  validator = ƛ (versig [ k ] 
 SIGᵐ : KeyPair → Message → Message
 SIGᵐ k = map (SIG k)
 
+encodeAd : (ad : Ad) → Txout ad × Txout (ad .C) → Message
+encodeAd ad (txoutG , txoutC) = encodeMsg $ reify (ad , txoutG , txoutC)
+
 -- * Inductive case 1
 data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
 
   -- ** Stipulation: advertisting a contract
-  [1] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
+  [1] : ∀ {⟨G⟩C : Ad} {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
       let
         ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G
         Γₜ = Γ at t
@@ -84,10 +90,13 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         -- txout′ = txout, sechash′ = sechash, κ′ = κ
         open H₁ 𝕣 t α t′ Γ R≈ ⟨G⟩C Γ→Γ′ ∃Γ≈ using (λˢ)
 
-        txoutΓ = Txout Γ ∋ Txout≈ {Rˢ ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_)
-        txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
-
-        C  = encode ⟨G⟩C txoutG
+        C =
+          let
+            txoutΓ = Txout Γ ∋ Txout≈ {Rˢ ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_)
+            txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
+            txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
+          in
+            encodeAd ⟨G⟩C (txoutG , txoutC)
         λᶜ = A →∗∶ C
       in
       ────────────────────────────────────────────────────
@@ -104,10 +113,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       in
       (R≈ : Rˢ ≈⋯ Γₜ)
     → let
-        txoutG : Txout G
-        txoutG = ad∈⇒TxoutG {⟨G⟩C}{Γ}{Rˢ} (here refl) R≈ txout′
-
-        C = encode ⟨G⟩C txoutG
+        C = encodeAd ⟨G⟩C (ad∈⇒Txout {⟨G⟩C}{Γ}{Rˢ} (here refl) R≈ txout′)
 
         Δ : List (Secret × Maybe ℕ)
         Δ = map drop₃ Δ×h̅
@@ -375,10 +381,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
     → (∃α : auth-commit⦅ A , ⟨G⟩C , Δ ⦆ ∈ labels Rˢ)
     → a ∈ namesˡ G
     → let
-        txoutG : Txout G
-        txoutG = auth-commit∈⇒TxoutG ∃α 𝕣
-
-        C = encode ⟨G⟩C txoutG
+        C = encodeAd ⟨G⟩C (auth-commit∈⇒Txout ∃α 𝕣)
 
         -- T0D0: should we search for a signature of this message instead?
         C,h̅,k̅ : Message

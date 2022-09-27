@@ -20,6 +20,7 @@ open import Prelude.Membership hiding (_∈_; _∉_; mapWith∈)
 open import Prelude.ToList
 open import Prelude.Traces
 open import Prelude.InferenceRules
+open import Prelude.Serializable
 
 -- Bitcoin
 module BTC where
@@ -45,6 +46,7 @@ open Induction using (CS)
 -- BitML compiler
 η = 1024
 open import SecureCompilation.Compiler Participant Honest η
+open import SecureCompilation.ComputationalContracts Participant Honest
 
 -- [TODO] move to `formal-bitcoin`
 tx↝ : TxInput′ → TxInput
@@ -96,10 +98,21 @@ postulate
   encodeStr : String → Message
   decodeStr : Message → Maybe String
 
-  encode-txout≡ : ∀ (ad : Ad) (txout txout′ : Txout ad) →
-              txout ≗↦ txout′
-    ──────────────────────────────────
-    encode ad txout ≡ encode ad txout′
+  reify-txout≡ : ∀ ad (txoutG txoutG′ : Txout ad) (txoutC txoutC′ : Txout (ad .C)) →
+    ∙ txoutG ≗↦ txoutG′
+    ∙ txoutC ≗↦ txoutC′
+      ───────────────────────────────
+      reify (ad , txoutG  , txoutC) ≡
+      reify (ad , txoutG′ , txoutC′)
+
+encode-txout≡ : ∀ ad (txoutG txoutG′ : Txout ad) (txoutC txoutC′ : Txout (ad .C)) →
+  ∙ txoutG ≗↦ txoutG′
+  ∙ txoutC ≗↦ txoutC′
+    ────────────────────────────────
+    encodeAd ad (txoutG  , txoutC) ≡
+    encodeAd ad (txoutG′ , txoutC′)
+encode-txout≡ ad txoutG txoutG′ txoutC txoutC′ txoutG≗ txoutC≗ =
+  cong encodeMsg (reify-txout≡ ad txoutG txoutG′ txoutC txoutC′ txoutG≗ txoutC≗)
 
 infix 0 _at0
 _at0 : Cfg → Cfgᵗ
@@ -331,13 +344,12 @@ module Section7 where -- (see BitML paper, Section 7).
     d⊆ : ex-ad ⊆⦅ deposits ⦆ Γ₀
     d⊆ = toWitness {Q = _ ⊆? _} tt
 
+    vad = Valid ex-ad ∋ auto
     txoutΓ = Txout Γ ∋ Txout≈ {Rˢ′ ∙cfg}{Γ₀} auto (𝕣 ∙txoutEnd_)
     txoutG = Txout ex-ad ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {ex-ad}{Γ₀} d⊆)
+    txoutC = Txout (ex-ad .C) ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
 
-    _ : txoutG ≗↦ txout
-    _ = λ where 𝟘 → refl; 𝟙 → refl
-
-    _C = encode ex-ad txoutG
+    _C = encodeAd ex-ad (txoutG , txoutC)
     λᶜ = A →∗∶ _C
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
 
@@ -359,13 +371,13 @@ module Section7 where -- (see BitML paper, Section 7).
        $ C-AuthCommit {Γ = ⟨ A has 1 ⟩at x ∣ ⟨ B has 1 ⟩at y} {secrets = []}
     Rˢ = Γₜ ⟨ Γ→ ⟩←—— Rˢ′
 
-    txoutG : Txout ex-ad
-    txoutG = ad∈⇒TxoutG {ex-ad}{M₁.Γ}{Rˢ′}{0} (here refl) auto txout′
-
-    _C = encode ex-ad txoutG
+    txoutGC = ad∈⇒Txout {ex-ad}{M₁.Γ}{Rˢ′}{0} (here refl) auto txout′
+    txoutG = txoutGC .proj₁; txoutC = txoutGC .proj₂
+    _C = encodeAd ex-ad txoutGC
 
     C≡ : _C ≡ M₁._C
-    C≡ = encode-txout≡ ex-ad txoutG M₁.txoutG λ where 𝟘 → refl; 𝟙 → refl
+    C≡ = encode-txout≡ ex-ad txoutG M₁.txoutG txoutC M₁.txoutC
+           (λ where 𝟘 → refl; 𝟙 → refl) λ ()
 
     h̅ : List ℤ
     h̅ = []
@@ -412,13 +424,13 @@ module Section7 where -- (see BitML paper, Section 7).
                       {secrets = []}
     Rˢ = Γₜ ⟨ Γ→ ⟩←—— Rˢ′
 
-    txoutG : Txout ex-ad
-    txoutG = ad∈⇒TxoutG {ex-ad}{M₂.Γ}{Rˢ′}{0} (here refl) auto txout′
-
-    _C = encode ex-ad txoutG
+    txoutGC = ad∈⇒Txout {ex-ad}{M₂.Γ}{Rˢ′}{0} (here refl) auto txout′
+    txoutG = txoutGC .proj₁; txoutC = txoutGC .proj₂
+    _C = encodeAd ex-ad txoutGC
 
     C≡ : _C ≡ M₁._C
-    C≡ = encode-txout≡ ex-ad txoutG M₁.txoutG λ where 𝟘 → refl; 𝟙 → refl
+    C≡ = encode-txout≡ ex-ad txoutG M₁.txoutG txoutC M₁.txoutC
+           (λ where 𝟘 → refl; 𝟙 → refl) λ ()
 
     h̅ : List ℤ
     h̅ = []
@@ -446,7 +458,7 @@ module Section7 where -- (see BitML paper, Section 7).
           first-∃B : All (λ l → ∀ X → l ≢ X →∗∶ _C) (Any-tail $ ∃B .proj₂)
           first-λᶜ : All (λ l → ∀ X → l ≢ X →∗∶ C,h̅,k̅ₐ) (Any-front $ ∃B .proj₂)
     𝕣∗ = coh .proj₁
-
+{-
   module M₄ where
     open M₃ using () renaming (Rˢ to Rˢ′; 𝕣∗ to 𝕣∗′; Rᶜ to Rᶜ′; coh to coh′)
     𝕣 = ℝ∗⇒ℝ 𝕣∗′
@@ -562,7 +574,6 @@ module Section7 where -- (see BitML paper, Section 7).
     coh = -, step₁ (coh′ .proj₂)
       ([L] [4] {ex-ad}{∅ᶜ}{0}{x₁}{Rᶜ′}{Rˢ′}{𝕣∗′} auto (Γ , auto) λ where 𝟘⊥; 𝟙⊥)
     𝕣∗ = coh .proj₁
-{-
 -}
 
 {-
@@ -1001,7 +1012,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     _C = encode tc txoutG
 
     C≡ : _C ≡ M₁._C
-    C≡ = encode-txout≡ tc txoutG M₁.txoutG λ where 𝟘 → refl; 𝟙 → refl
+    C≡ = ? -- encode-txout≡ tc txoutG M₁.txoutG λ where 𝟘 → refl; 𝟙 → refl
 
     h̅ : List ℤ
     h̅ = [ h ]
@@ -1063,7 +1074,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     _C = encode tc txoutG
 
     C≡ : _C ≡ M₁._C
-    C≡ = encode-txout≡ tc txoutG M₁.txoutG λ where 𝟘 → refl; 𝟙 → refl
+    C≡ = ? -- encode-txout≡ tc txoutG M₁.txoutG λ where 𝟘 → refl; 𝟙 → refl
 
     h̅ : List ℤ
     h̅ = []

@@ -48,11 +48,9 @@ open import ComputationalModel Participant Honest finPart keypairs as C
   using (_∙value; K̂; CRun; oracleInteractionsᶜ; Message)
 open import SecureCompilation.Compiler Participant Honest η
   using (∃Tx¹; ∃Txᶜ; bitml-compiler)
+open import SecureCompilation.ComputationalContracts Participant Honest
 
 postulate
-  encode : (ad : Ad) → Txout (ad .G) → Message
-  -- ^ encode {G}C as a bitstring, representing each x in it as txout(x)
-
   SIGᵖ : ∀ {A : Set} → ℤ {- public key -} → A → ℤ
 
   ∣_∣ᶻ : ℤ → ℕ
@@ -113,6 +111,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
 
         R≈′ : R′ ≈⋯ Γ′ at t′
         R≈′ = refl , Γ≈
+
       abstract
         value-preserving⇒ :
           ValuePreservingʳ 𝕣

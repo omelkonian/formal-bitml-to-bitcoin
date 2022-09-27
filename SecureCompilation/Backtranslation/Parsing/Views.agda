@@ -40,35 +40,42 @@ module SecureCompilation.Backtranslation.Parsing.Views
 open import SymbolicModel Participant Honest as S
   hiding (Rˢ′; d)
 open import ComputationalModel Participant Honest finPart keypairs as C
-  hiding (Hon; Initial; Σ
-         ; t; t′; `; ∣_∣; n)
+  hiding (Hon; Σ; t; t′; `; ∣_∣; n)
 
 open import SecureCompilation.Helpers  Participant Honest finPart keypairs η
 open import SecureCompilation.Coherence Participant Honest finPart keypairs η as SC
 
-postulate
-  decode : Txout Rˢ → Message → Maybe Ad
-  -- ^ decode bitstring as {G}C, converting outputs `txout(x)` to names `x`
 
-  encode-decode : ∀ {Rˢ} (𝕣 : ℝ Rˢ) m → let open ℝ 𝕣 in
-    ∀ ad →
-      decode {Rˢ} txout′ m ≡ just ad
-      ══════════════════════════════
-      m ≡ encode {Rˢ} txout′ ad
+-- postulate
+--   decode : Message → Maybe $ ∃ λ ad → Txout (ad .G)
+--   -- ^ decode bitstring as {G}C, converting outputs `txout(x)` to names `x`
 
-  encode-injective : ∀ {Rˢ} (𝕣 : ℝ Rˢ) → let open ℝ 𝕣 in
-    ∀ {ad ad′} →
-      encode {Rˢ} txout′ ad ≡ encode {Rˢ} txout′ ad′
-      ─────────────────────────────────────────────
-      ad ≡ ad′
+--   encode-decode : ∀ m ad (txout : Txout (ad .G)) →
 
-try-decode : ∀ {Rˢ} (𝕣∗ : ℝ∗ Rˢ) m → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-    Dec (∃ λ ad → m ≡ encode {Rˢ} txout′ ad)
+--       decode m ≡ just (ad , txout)
+--       ════════════════════════════
+--       m ≡ encode ad txout
+
+--   encode-injective :
+--     ∀ {ad ad′} (txout : Txout (ad .G)) (txout′ : Txout (ad′ .G)) →
+
+--       encode ad txout ≡ encode ad′ txout′
+--       ─────────────────────────────────────────────
+--       ad ≡ ad′
+
+{-
+try-decode : ∀ {Rˢ} (𝕣∗ : ℝ∗ Rˢ) m →
+  let
+    𝕣 = ℝ∗⇒ℝ 𝕣∗
+    txoutG = ? -- auth-commit∈⇒TxoutG ∃α 𝕣
+  in
+    Dec (∃ λ ad → m ≡ encode ad txoutG)
 try-decode {Rˢ} 𝕣∗ m
   with 𝕣 ← ℝ∗⇒ℝ 𝕣∗
   with decode {Rˢ} (𝕣 .ℝ.txout′) m | encode-decode {Rˢ = Rˢ} 𝕣 m
 ... | just ad | p = yes (ad , p ad .proj₁ refl)
 ... | nothing | p = no λ where (ad , refl) → case p ad .proj₂ refl of λ ()
+-}
 
 module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
   𝕣 = ℝ∗⇒ℝ 𝕣∗
@@ -87,19 +94,105 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
         Squashed-↭ : ∀ {A : Set ℓ} {xs ys : List A} → Squashed (xs ↭ ys)
 
     module _ (⟨G⟩C : Ad) where
-      ℍ[1] = Valid ⟨G⟩C
-           × Any (_∈ S.Hon) (nub-participants $ ⟨G⟩C .G)
-           × (⟨G⟩C ⊆⦅ deposits ⦆ (Rˢ ∙cfg))
-           × (m₀ ≡ encode {Rˢ} txout′ ⟨G⟩C)
+      ℍ[1]₀ : Set
+      ℍ[1]₀ = let ⟨ G ⟩ C = ⟨G⟩C; partG = nub-participants G; Γ = Rˢ ∙cfg in
+          Valid ⟨G⟩C
+        × Any (_∈ S.Hon) partG
+        × (⟨G⟩C ⊆⦅ deposits ⦆ Γ)
+
+      ℍ[1]?₀ : Dec ℍ[1]₀
+      ℍ[1]?₀ = let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G in
+              Valid? ⟨G⟩C
+        ×-dec any? (_∈? S.Hon) partG
+        ×-dec (deposits ⟨G⟩C ⊆? deposits (Rˢ ∙cfg))
+
+      ℍ[1] : Set
+      ℍ[1] = let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G; Γ = Rˢ ∙cfg in
+        ∃ λ (vad : Valid ⟨G⟩C)
+        → Any (_∈ S.Hon) partG
+        × ∃ λ (d⊆ : ⟨G⟩C ⊆⦅ deposits ⦆ Γ) →
+        let
+          txoutΓ = Txout Γ ∋ 𝕣 ∙txoutEnd_
+          txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
+          txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
+          C = encodeAd ⟨G⟩C (txoutG , txoutC)
+        in
+         m₀ ≡ C
 
       ℍ[1]? : Dec ℍ[1]
-      ℍ[1]? = Valid? ⟨G⟩C
-        ×-dec any? (_∈? S.Hon) (nub-participants (⟨G⟩C .G))
-        ×-dec deposits ⟨G⟩C ⊆? deposits (Rˢ ∙cfg)
-        ×-dec m₀ ≟ encode {Rˢ} txout′ ⟨G⟩C
+      ℍ[1]? = let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G in
+        {!!}
+        -- (Valid? ⟨G⟩C) ∃-dec λ vad
+        -- → any? (_∈? S.Hon) partG
+        -- ×-dec (deposits ⟨G⟩C ⊆? deposits (Rˢ ∙cfg)) ∃-dec λ d⊆ →
+        -- let
+        --   Γ = Rˢ ∙cfg
+        --   txoutΓ = Txout Γ ∋ 𝕣 ∙txoutEnd_
+        --   txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
+        --   txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
+        --   C = encodeAd ⟨G⟩C (txoutG , txoutC)
+        -- in
+        --  m₀ ≟ C
 
     ∃ℍ[1] = ∃ λ ⟨G⟩C → ℍ[1] ⟨G⟩C
 
+    data DecodeBroadcastResponse : Set where
+
+      [1] : ∀ ⟨G⟩C →
+
+        ℍ[1]₀ ⟨G⟩C
+        ───────────────────────
+        DecodeBroadcastResponse
+
+    try-decode : ∀ m → Dec (∃ λ ad → m ≡ encodeAd (ad , txoutG , txoutC))
+    try-decode m
+      with decode {Rˢ} txout′ m | encode-decode {Rˢ = Rˢ} 𝕣 m
+    ... | just ad | p = yes (ad , p ad .proj₁ refl)
+    ... | nothing | p = no λ where (ad , refl) → case p ad .proj₂ refl of λ ()
+
+    -- try-decode-[1] : Dec ∃ℍ[1]
+    -- try-decode-[1]
+    --   with try-decode {Rˢ = Rˢ} 𝕣∗ m₀
+    -- ... | no m≢ = no λ (_ , _ , _ , _ , m≡) → m≢ (_ , m≡)
+    -- ... | yes (⟨G⟩C , m≡)
+    --   with ℍ[1]? ⟨G⟩C
+    -- ... | yes h = yes (-, h)
+    -- ... | no ¬[1] = no go
+    --   where
+    --     go : ¬ ∃ℍ[1]
+    --     go (_ , h@(_ , _ , _ , m≡′))
+    --       rewrite encode-injective 𝕣 {ad = ⟨G⟩C} (trans (sym m≡) m≡′)
+    --       = ¬[1] h
+
+    decodeBroadcast : DecodeBroadcastResponse
+    decodeBroadcast
+      with decode′ m₀ as Advertisementᶜ
+    ... | no m≢
+      = ?
+    ... | yes (adᶜ , m≡)
+      = ?
+    {-
+      ad , txoutC , txoutG
+
+    -}
+
+      -- with try-decodeAd {Rˢ = Rˢ} 𝕣∗ m₀
+      -- = {![1] !}
+
+
+    --   with try-decodeAd {Rˢ = Rˢ} 𝕣∗ m₀
+    -- ... | no m≢ = ?
+    -- ... | yes (⟨G⟩C , txoutG , txoutC)
+    --   with ℍ[1]?₀ ⟨G⟩C
+    -- ... | no ¬[1]₀ = ?
+    -- ... | yes (vad , hon , d⊆)
+    --   with m₀ ≟ encode
+    --   = ?
+    --   with try-decode-[1]
+    -- ... | yes (⟨G⟩C , h) = [1] ⟨G⟩C h
+    -- ... | no ¬[1]
+
+{-
     module _ ⟨G⟩C Δ×h̅ (k⃗ : 𝕂²′ ⟨G⟩C) A Γ₀ t where
       ℍ[2] : Set
       ℍ[2] =
@@ -108,8 +201,8 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
           Γ = ` ⟨G⟩C ∣ Γ₀
           Γₜ = Γ at t
 
-          C : Message
-          C = encode {Rˢ} txout′ ⟨G⟩C
+          txoutG , txoutC = ad∈⇒Txout {⟨G⟩C}{Γ}{Rˢ} (here refl) R≈ txout′
+          C = encodeMsg $ reifyᵃᵈ $ view (⟨G⟩C , (λ {_} → txoutG) , (λ {_} → txoutC))
 
           Δ : List (Secret × Maybe ℕ)
           Δ = map (λ{ (s , mn , _) → s , mn }) Δ×h̅
@@ -146,8 +239,8 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
           Γ = ` ⟨G⟩C ∣ Γ₀
           Γₜ = Γ at t
 
-          C : Message
-          C = encode {Rˢ} txout′ ⟨G⟩C
+          txoutG , txoutC = ad∈⇒Txout {⟨G⟩C}{Γ}{Rˢ} (here refl) R≈ txout′
+          C = encodeMsg $ reifyᵃᵈ $ view (⟨G⟩C , (λ {_} → txoutC) , (λ {_} → txoutG))
 
           Δ : List (Secret × Maybe ℕ)
           Δ = map (λ{ (s , mn , _) → s , mn }) Δ×h̅
@@ -1134,3 +1227,4 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
         -- [T0D0] What happens when T consumes inputs from txout′, but does not correspond to any case?
         ins♯ : T₀ .proj₂ .proj₂ .inputs ♯ (hashTxⁱ <$> codom txout′)
         ins♯ = {!!}
+-}

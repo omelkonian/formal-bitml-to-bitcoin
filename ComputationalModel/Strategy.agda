@@ -13,6 +13,8 @@ open import Prelude.ToList
 open import Prelude.InferenceRules
 open import Prelude.Traces
 open import Prelude.Decidable
+open import Prelude.Bitstring
+open import Prelude.Serializable
 
 open import Bitcoin
 
@@ -36,6 +38,11 @@ open import ComputationalModel.KeyPairs Participant keypairs
 -- Computational runs.
 
 Message = List ℤ
+
+postulate fromBitstring : Bitstring → Message
+
+encodeMsg : ∀ {A : Set} → ⦃ Serializable A ⦄ → A → List ℤ
+encodeMsg = fromBitstring ∘ encode
 
 data Label : Set where
   -- broadcast message
