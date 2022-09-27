@@ -201,27 +201,35 @@ LIFTᶜ {R} 𝕣 {ad} ∃H =
   in
     LIFT₀ 𝕣′ tᵢ x R≈′ ad ad∈ p⊆
 
-ad∈⇒TxoutG :
+ad∈⇒Txout :
   ∙ ` ad ∈ᶜ Γ
   ∙ R ≈⋯ Γ at t
   ∙ Txout R
-    ───────────
-    Txout ad
-ad∈⇒TxoutG {ad}{Γ}{R@(record {trace = _ , tr})} ad∈ R≈ txout =
+    ────────────────────────
+    Txout ad × Txout (ad .C)
+ad∈⇒Txout {ad}{Γ}{R@(record {trace = _ , tr})} ad∈ R≈ txout =
   let
     Γᵢ′ , Γᵢ , _ , _ , xy∈ , (x≈ , _) , ℍ = ad∈≈⇒ℍ {R}{Γ} R≈ ad∈
     Γᵢ∈ , _ = ∈-allTransitions⁻ tr xy∈
     txoutΓᵢ = Txout≈ {Γᵢ′}{Γᵢ} x≈
             $ Txout∈ {R = R} txout Γᵢ∈
   in
-    ℍ[C-Advertise]⇒TxoutG {Γ = Γᵢ}{ad = ad} ℍ txoutΓᵢ
+    ℍ[C-Advertise]⇒Txout {Γ = Γᵢ}{ad = ad} ℍ txoutΓᵢ
 
-auth-commit∈⇒TxoutG : ∀ {Δ : List (Secret × Maybe ℕ)} →
+ad∈⇒TxoutG :
+  ∙ ` ad ∈ᶜ Γ
+  ∙ R ≈⋯ Γ at t
+  ∙ Txout R
+    ───────────
+    Txout ad
+ad∈⇒TxoutG {ad}{Γ}{R} ad∈ R≈ txout = ad∈⇒Txout {ad}{Γ}{R} ad∈ R≈ txout .proj₁
+
+auth-commit∈⇒Txout : ∀ {Δ : List (Secret × Maybe ℕ)} →
   ∙ auth-commit⦅ A , ad , Δ ⦆ ∈ labels R
   ∙ ℝ R
     ──────────────────────────────────────
-    Txout ad
-auth-commit∈⇒TxoutG {A}{ad} {R@(record {trace = _ , tr})} α∈ 𝕣 =
+    Txout ad × Txout (ad .C)
+auth-commit∈⇒Txout {A}{ad} {R@(record {trace = _ , tr})} α∈ 𝕣 =
   let
     Γᵢ′ , Γᵢ , _ , _ , xy∈ , (x≈ , _) , _ , Γᵢ≡ , _ = auth-commit⇒∗ tr α∈
     Γᵢ∈ , _ = ∈-allTransitions⁻ tr xy∈
@@ -247,4 +255,11 @@ auth-commit∈⇒TxoutG {A}{ad} {R@(record {trace = _ , tr})} α∈ 𝕣 =
             $ Txout∈ {R = R′} (𝕣′ .ℝ.txout′) Γⱼ∈
 
   in
-    ℍ[C-Advertise]⇒TxoutG {Γ = Γⱼ}{ad = ad} ℍ txoutΓⱼ
+    ℍ[C-Advertise]⇒Txout {Γ = Γⱼ}{ad = ad} ℍ txoutΓⱼ
+
+auth-commit∈⇒TxoutG : ∀ {Δ : List (Secret × Maybe ℕ)} →
+  ∙ auth-commit⦅ A , ad , Δ ⦆ ∈ labels R
+  ∙ ℝ R
+    ──────────────────────────────────────
+    Txout ad
+auth-commit∈⇒TxoutG {A}{ad} {R} α∈ 𝕣 = auth-commit∈⇒Txout {A}{ad} {R} α∈ 𝕣 .proj₁

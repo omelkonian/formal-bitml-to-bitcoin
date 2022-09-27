@@ -205,13 +205,22 @@ Last∈-end∈allCfgsᵗ R = go (R ∙trace′)
     ∣κ:       𝕂⊆ κ′
     ]
 
+ℍ[C-Advertise]⇒Txout :
+  ∙ ℍ[C-Advertise]⦅ Γ ↝ Γ′ ⦆⦅ ad ⦆
+  ∙ Txout Γ
+    ──────────────────────────────
+    Txout ad × Txout (ad .C)
+ℍ[C-Advertise]⇒Txout {Γ = Γ} {ad = ad} (_ , vad , _ , d⊆) txout =
+  let txoutG = weaken-↦ txout (deposits⊆⇒namesʳ⊆ {ad}{Γ} d⊆)
+  in txoutG , weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
+
 ℍ[C-Advertise]⇒TxoutG :
   ∙ ℍ[C-Advertise]⦅ Γ ↝ Γ′ ⦆⦅ ad ⦆
   ∙ Txout Γ
     ──────────────────────────────
-    Txout (ad .G)
-ℍ[C-Advertise]⇒TxoutG {Γ = Γ} {ad = ad} (_ , _ , _ , d⊆) txout =
-  weaken-↦ txout (deposits⊆⇒namesʳ⊆ {ad}{Γ} d⊆)
+    Txout ad
+ℍ[C-Advertise]⇒TxoutG {Γ = Γ} {ad = ad} ℍ txout =
+  ℍ[C-Advertise]⇒Txout {Γ = Γ} {ad = ad} ℍ txout .proj₁
 
 committed⇒ℍ[C-AuthCommit]∗ :
     R ≈⋯ Γ₀ at t
