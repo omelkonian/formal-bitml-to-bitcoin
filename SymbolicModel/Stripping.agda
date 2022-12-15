@@ -6,7 +6,7 @@ open import Prelude.Init hiding (Σ)
 open import Prelude.Lists
 open import Prelude.DecEq
 open import Prelude.Bifunctor
-open import Prelude.Collections
+open import Prelude.Lists.Collections
 open import Prelude.Membership
 open import Prelude.Validity
 open import Prelude.Closures

@@ -3,7 +3,7 @@ module SymbolicModel.Run.Example where
 open import Prelude.Init
 open import Prelude.DecEq
 open import Prelude.Lists
-open import Prelude.DecLists
+open import Prelude.Lists.Dec
 open import Prelude.Decidable
 
 open import BitML.Example.Setup using (Participant; Honest; A; B)

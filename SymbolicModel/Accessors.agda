@@ -4,7 +4,7 @@ open import Prelude.DecEq
 open import Prelude.Traces
 open import Prelude.Accessors
 open import Prelude.Decidable
-open import Prelude.Collections
+open import Prelude.Lists.Collections
 open import Prelude.Setoid
 open import Prelude.General
 open import Prelude.Membership

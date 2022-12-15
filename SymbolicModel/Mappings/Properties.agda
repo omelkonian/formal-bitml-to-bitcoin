@@ -2,7 +2,8 @@ open import Prelude.Init
 open import Prelude.DecEq
 open import Prelude.Lists
 open import Prelude.Membership
-open import Prelude.Collections
+open import Prelude.Lists.Collections
+open import Prelude.Lists.SuffixSubset
 open import Prelude.Setoid
 open import Prelude.Traces
 open import Prelude.General

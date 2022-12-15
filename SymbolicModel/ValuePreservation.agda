@@ -5,7 +5,7 @@ open import Prelude.DecEq
 open import Prelude.InferenceRules
 open import Prelude.Setoid
 open import Prelude.General
-open import Prelude.Collections
+open import Prelude.Lists.Collections
 open import Prelude.Lists.Mappings
 open import Prelude.Lists.Permutations
 open import Prelude.Lists.MapMaybe

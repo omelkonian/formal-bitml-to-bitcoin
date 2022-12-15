@@ -5,7 +5,7 @@
 open import Prelude.Init hiding (T)
 open L.Mem using (_∈_; ∈-map⁻; mapWith∈)
 open import Prelude.Lists
-open import Prelude.DecLists
+open import Prelude.Lists.Dec
 open import Prelude.DecEq
 open import Prelude.Traces
 open import Prelude.Membership hiding (_∈_; mapWith∈)
@@ -14,7 +14,7 @@ open import Prelude.Decidable
 open import Prelude.Validity
 open import Prelude.Setoid
 open import Prelude.InferenceRules
-open import Prelude.Collections
+open import Prelude.Lists.Collections
 open import Prelude.Semigroup
 open import Prelude.ToList
 open import Prelude.Functor

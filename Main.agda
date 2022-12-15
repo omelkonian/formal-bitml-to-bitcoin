@@ -1,7 +1,7 @@
 module Main where
 
 open import SecureCompilation.Compiler
-open import SecureCompilation.Example
+-- open import SecureCompilation.Example
 
 open import SymbolicModel
 

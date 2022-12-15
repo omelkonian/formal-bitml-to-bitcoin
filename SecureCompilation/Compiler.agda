@@ -5,24 +5,16 @@
 open import Data.Fin as Fin using (raise; inject+; toℕ)
 
 
-open import Data.Nat.Properties using (≤-refl; <-trans; n<1+n)
-open import Data.List.Membership.Setoid.Properties         using (length-mapWith∈)
-open import Data.List.Relation.Unary.Any                   using (index)
-
-open import Data.List.Relation.Unary.All                   using (lookup)
-
 open import Data.List.Relation.Binary.Subset.Propositional.Properties using (⊆-refl)
-
-open import Relation.Binary.PropositionalEquality using (setoid)
 
 open import Prelude.Init
 open import Prelude.General
 open import Prelude.Lists
-open import Prelude.DecLists
+open import Prelude.Lists.Dec
 open L.Mem
 open import Prelude.DecEq
-open import Prelude.Sets
-open import Prelude.Collections
+open import Prelude.Sets hiding (codom; _↦_; _↦′_)
+open import Prelude.Lists.Collections
 open import Prelude.Functor
 open import Prelude.Validity
 
@@ -149,7 +141,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (record {names-⊆ = names⊆; names-put
         put∈ rewrite remove-putComponents {D} | eq = here refl
 
         p⊆as : secrets p ⊆ as
-        p⊆as = proj₂ (lookup putComponents⊆ (p⊆ put∈))
+        p⊆as = proj₂ (L.All.lookup putComponents⊆ (p⊆ put∈))
 
         as⊆ : as ⊆ namesˡ G₀
         as⊆ = (λ x → ∈-mapMaybe⁺ isInj₁ x refl) ∘ names⊆ ∘ n⊆ ∘ as⊆′ ∘ ∈-map⁺ inj₁
@@ -252,14 +244,14 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} (record {names-⊆ = names⊆; names-put
         k = length zs
 
         ins : Vec TxInput k
-        ins rewrite sym (length-mapWith∈ (setoid _) zs {f = hashTxⁱ ∘ txout ∘ zs⊆})
+        ins rewrite sym (length-mapWith∈ (hashTxⁱ ∘ txout ∘ zs⊆))
                   = V.fromList (mapWith∈ zs (hashTxⁱ ∘ txout ∘ zs⊆))
 
         K⋆ : zs ↦ List KeyPair
         K⋆ = [_] ∘ K ∘ proj₂ ∘ part ∘ zs⊆
 
         wits : Vec (List KeyPair) k
-        wits rewrite sym (length-mapWith∈ (setoid _) zs {K⋆})
+        wits rewrite sym (length-mapWith∈ K⋆)
                    = V.fromList (mapWith∈ zs K⋆)
 
         Tc : Tx (suc k) 1

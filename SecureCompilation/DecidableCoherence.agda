@@ -3,12 +3,12 @@ open import Prelude.Init hiding (T)
 open L.Mem
 open import Prelude.Lists
 open import Prelude.General
-open import Prelude.DecLists
+open import Prelude.Lists.Dec
 open import Prelude.DecEq
 open import Prelude.Decidable
 open import Prelude.InferenceRules
 
-open import Prelude.Collections
+open import Prelude.Lists.Collections
 open import Prelude.Monoid
 
 open import Prelude.Functor
@@ -135,11 +135,8 @@ A ∈Hon⇒?All-Is-just ms
       k̅ : List ℤ -- ≈ Message
       k̅ = concatMap (map pub ∘ codom) (codom k⃗)
 
-      C,h̅,k̅ : Message
-      C,h̅,k̅ = C ◇ h̅ ◇ k̅
-
-      C,h̅,k̅ₐ : Message
-      C,h̅,k̅ₐ = SIGᵐ (K A) C,h̅,k̅
+      C,h̅,k̅ = encode (C , h̅ , k̅)
+      C,h̅,k̅ₐ = SIG (K A) C,h̅,k̅
 
       α   = auth-commit⦅ A , ⟨G⟩C , Δ ⦆
       Γ′  = Γ ∣ Δᶜ ∣ A auth[ ♯▷ ⟨G⟩C ]
@@ -366,10 +363,7 @@ A ∈Hon⇒?All-Is-just ms
 --         Δ : List (Secret × Maybe ℕ)
 --         Δ = map drop₃ Δ×h̅
 
---         h̅ : Message
 --         h̅ = map (proj₂ ∘ proj₂) Δ×h̅
-
---         k̅ : Message
 --         k̅ = concatMap (map pub ∘ codom) (codom k⃗)
 --       in
 --       -- (ii) in Rᶜ we find ⋯ (B → O ∶ m) (O → B : sechash′(a)) for some B ⋯
@@ -385,8 +379,7 @@ A ∈Hon⇒?All-Is-just ms
 --         C = encode ⟨G⟩C txoutG
 
 --         -- T0D0: should we search for a signature of this message instead?
---         C,h̅,k̅ : Message
---         C,h̅,k̅ = C ◇ h̅ ◇ k̅
+--         C,h̅,k̅ = encode (C , h̅ , k̅)
 
 --         -- (i) some participant B broadcasts message m
 --         λᶜ = B →∗∶ m

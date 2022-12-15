@@ -4,9 +4,9 @@
 
 {-# OPTIONS --allow-unsolved-metas #-}
 open import Prelude.Init hiding (T)
-open L.Mem using (_∈_; ∈-map⁻)
+open L.Mem using (_∈_; ∈-map⁻; ∈-++⁺ˡ; ∈-++⁺ʳ; ∈-++⁻)
 open import Prelude.Lists
-open import Prelude.DecLists
+open import Prelude.Lists.Dec
 open import Prelude.DecEq
 open import Prelude.Traces
 open import Prelude.Membership hiding (_∈_)
@@ -15,7 +15,7 @@ open import Prelude.Decidable
 open import Prelude.Validity
 open import Prelude.Setoid
 open import Prelude.InferenceRules
-open import Prelude.Collections
+open import Prelude.Lists.Collections
 open import Prelude.Semigroup
 open import Prelude.ToList
 open import Prelude.Functor
@@ -23,8 +23,10 @@ open import Prelude.Nary
 open import Prelude.Apartness
 open import Prelude.General
 open import Prelude.Tactics.Existentials
+open import Prelude.Views
 
-open import Bitcoin using (KeyPair)
+open import Bitcoin using (KeyPair; HashId)
+open import Prelude.Serializable HashId
 
 module SecureCompilation.Backtranslation.Parsing.Views
   (Participant : Set)
@@ -38,60 +40,55 @@ module SecureCompilation.Backtranslation.Parsing.Views
   where
 
 open import SymbolicModel Participant Honest as S
-  hiding (Rˢ′; d)
+  hiding (Rˢ′; d; Σ)
 open import ComputationalModel Participant Honest finPart keypairs as C
   hiding (Hon; Σ; t; t′; `; ∣_∣; n)
 
+open import SecureCompilation.ComputationalContracts Participant Honest
 open import SecureCompilation.Helpers  Participant Honest finPart keypairs η
 open import SecureCompilation.Coherence Participant Honest finPart keypairs η as SC
-
-
--- postulate
---   decode : Message → Maybe $ ∃ λ ad → Txout (ad .G)
---   -- ^ decode bitstring as {G}C, converting outputs `txout(x)` to names `x`
-
---   encode-decode : ∀ m ad (txout : Txout (ad .G)) →
-
---       decode m ≡ just (ad , txout)
---       ════════════════════════════
---       m ≡ encode ad txout
-
---   encode-injective :
---     ∀ {ad ad′} (txout : Txout (ad .G)) (txout′ : Txout (ad′ .G)) →
-
---       encode ad txout ≡ encode ad′ txout′
---       ─────────────────────────────────────────────
---       ad ≡ ad′
-
-{-
-try-decode : ∀ {Rˢ} (𝕣∗ : ℝ∗ Rˢ) m →
-  let
-    𝕣 = ℝ∗⇒ℝ 𝕣∗
-    txoutG = ? -- auth-commit∈⇒TxoutG ∃α 𝕣
-  in
-    Dec (∃ λ ad → m ≡ encode ad txoutG)
-try-decode {Rˢ} 𝕣∗ m
-  with 𝕣 ← ℝ∗⇒ℝ 𝕣∗
-  with decode {Rˢ} (𝕣 .ℝ.txout′) m | encode-decode {Rˢ = Rˢ} 𝕣 m
-... | just ad | p = yes (ad , p ad .proj₁ refl)
-... | nothing | p = no λ where (ad , refl) → case p ad .proj₂ refl of λ ()
--}
 
 module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
   𝕣 = ℝ∗⇒ℝ 𝕣∗
   open ℝ 𝕣
+
+  try-decode : ∀ m → Dec $
+    ∃ λ ad → ∃ λ (txoutG : Txout ad) → ∃ λ (txoutC : Txout (ad .C)) →
+      m ≡ encodeAd ad (txoutG , txoutC)
+  try-decode m
+    with decode′ {A = Advertisementᶜ} m
+  ... | no m≢ = no λ (ad , txoutG , txoutC , m≡) →
+    m≢ (reify (ad , txoutG , txoutC) , m≡)
+  ... | yes (adᶜ , m≡)
+    with idsᶜ adᶜ ⊆? codom txout′
+  ... | no ids⊈ = no λ (ad , txoutG , txoutC , m≡) →
+    ids⊈ {!!}
+  ... | yes ids⊆ =
+    let ad , txoutG , txoutC = abstractᶜ adᶜ (codom-↦ txout′ ∘ ids⊆)
+        open ≡-Reasoning renaming (begin_ to begin≡_; _∎ to _∎≡)
+    in yes (ad , txoutG , txoutC ,
+      (begin≡
+        m
+      ≡⟨ m≡ ⟩
+        encode adᶜ
+      ≡⟨ cong encode $ sym $ reify∘abstract adᶜ (codom-↦ txout′ ∘ ids⊆) ⟩
+        encode (reify (ad , txoutG , txoutC))
+      ≡⟨⟩
+        encodeAd ad (txoutG , txoutC)
+      ∎≡
+      ))
 
   module _ (A₀ : Participant) (m₀ : Message) where
 
     open import Prelude.Irrelevance
 
     -- THESE DO NOT HOLD
-    postulate
-      instance
-        Squashed-⊆ : ∀ {A : Set ℓ} {xs ys : List A} → Squashed (xs ⊆ ys)
-        Squashed-∈ : ∀ {A : Set ℓ} {x : A} {xs : List A} → Squashed (x ∈ xs)
+    -- postulate
+    --   instance
+    --     Squashed-⊆ : ∀ {A : Set ℓ} {xs ys : List A} → Squashed (xs ⊆ ys)
+    --     Squashed-∈ : ∀ {A : Set ℓ} {x : A} {xs : List A} → Squashed (x ∈ xs)
     --     Squashed-∉ : ∀ {A : Set} {x : A} {xs : List A} → Squashed (x ∉ xs)
-        Squashed-↭ : ∀ {A : Set ℓ} {xs ys : List A} → Squashed (xs ↭ ys)
+        -- Squashed-↭ : ∀ {A : Set ℓ} {xs ys : List A} → Squashed (xs ↭ ys)
 
     module _ (⟨G⟩C : Ad) where
       ℍ[1]₀ : Set
@@ -119,9 +116,62 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
         in
          m₀ ≡ C
 
+      EQ₀ : let ⟨ G ⟩ _ = ⟨G⟩C; Γ = Rˢ ∙cfg in
+        ∀ (d⊆ d⊆′ : ⟨G⟩C ⊆⦅ deposits ⦆ Γ) →
+        let
+          txoutΓ  = Txout Γ ∋ 𝕣 ∙txoutEnd_
+          txoutG  = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
+          txoutG′ = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆′)
+        in
+          txoutG ≗↦ txoutG′
+      EQ₀ d⊆ d⊆′ = {!!}
+
+      EQ₁ : ∀ (txoutG : Txout ⟨G⟩C) (vad vad′ : Valid ⟨G⟩C) →
+        let
+          ⟨ _ ⟩ C = ⟨G⟩C
+          txoutC  = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad  .names-⊆)
+          txoutC′ = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad′ .names-⊆)
+        in
+          txoutC ≗↦ txoutC′
+      EQ₁ txoutG vad vad′ = {!!}
+
+      EQ : let ⟨ G ⟩ C = ⟨G⟩C ; Γ = Rˢ ∙cfg in
+        ∀ (vad vad′ : Valid ⟨G⟩C) (d⊆ d⊆′ : ⟨G⟩C ⊆⦅ deposits ⦆ Γ) →
+        let
+          txoutΓ = Txout Γ ∋ 𝕣 ∙txoutEnd_
+
+          txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
+          txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
+
+          txoutG′ = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆′)
+          txoutC′ = Txout C ∋ weaken-↦ txoutG′ (mapMaybe-⊆ isInj₂ $ vad′ .names-⊆)
+        in (txoutG ≗↦ txoutG′)
+         × (txoutC ≗↦ txoutC′)
+      EQ vad vad′ d⊆ d⊆′ = {!!}
+
       ℍ[1]? : Dec ℍ[1]
-      ℍ[1]? = let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G in
-        {!!}
+      ℍ[1]? = let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G; Γ = Rˢ ∙cfg in
+        case Valid? ⟨G⟩C of λ where
+        (no ¬vad) → no λ (vad , _) → ¬vad vad
+        (yes vad) →
+          case any? (_∈? S.Hon) partG of λ where
+          (no ¬hon) → no λ (_ , hon , _) → ¬hon hon
+          (yes hon) →
+            case deposits ⟨G⟩C ⊆? deposits Γ of λ where
+            (no  d⊈)  → no λ (_ , _ , d⊆ , _) → d⊈ d⊆
+            (yes d⊆)  →
+              let
+                txoutΓ = Txout Γ ∋ 𝕣 ∙txoutEnd_
+                txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
+                txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
+                C = encodeAd ⟨G⟩C (txoutG , txoutC)
+              in
+              case m₀ ≟ C of λ where
+              (yes m≡) → yes (vad , hon , {!!}) -- d⊆ , m≡)
+              (no  m≢) → no λ (vad , hon , d⊆ , m≡) → {!m≢ m≡!}
+
+      -- ℍ[1]? = let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G in
+      --   {!(Valid? ⟨G⟩C) ∃-dec λ vad → ?!}
         -- (Valid? ⟨G⟩C) ∃-dec λ vad
         -- → any? (_∈? S.Hon) partG
         -- ×-dec (deposits ⟨G⟩C ⊆? deposits (Rˢ ∙cfg)) ∃-dec λ d⊆ →
@@ -136,6 +186,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
 
     ∃ℍ[1] = ∃ λ ⟨G⟩C → ℍ[1] ⟨G⟩C
 
+    -- T0D0: bundle _~_ proofs immediately in the view
     data DecodeBroadcastResponse : Set where
 
       [1] : ∀ ⟨G⟩C →
@@ -143,12 +194,6 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
         ℍ[1]₀ ⟨G⟩C
         ───────────────────────
         DecodeBroadcastResponse
-
-    try-decode : ∀ m → Dec (∃ λ ad → m ≡ encodeAd (ad , txoutG , txoutC))
-    try-decode m
-      with decode {Rˢ} txout′ m | encode-decode {Rˢ = Rˢ} 𝕣 m
-    ... | just ad | p = yes (ad , p ad .proj₁ refl)
-    ... | nothing | p = no λ where (ad , refl) → case p ad .proj₂ refl of λ ()
 
     -- try-decode-[1] : Dec ∃ℍ[1]
     -- try-decode-[1]
@@ -164,13 +209,14 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
     --       rewrite encode-injective 𝕣 {ad = ⟨G⟩C} (trans (sym m≡) m≡′)
     --       = ¬[1] h
 
-    decodeBroadcast : DecodeBroadcastResponse
-    decodeBroadcast
-      with decode′ m₀ as Advertisementᶜ
-    ... | no m≢
-      = ?
-    ... | yes (adᶜ , m≡)
-      = ?
+    postulate
+      decodeBroadcast : DecodeBroadcastResponse
+    -- decodeBroadcast
+    --   with decode′ m₀ as Advertisementᶜ
+    -- ... | no m≢
+    --   = ?
+    -- ... | yes (adᶜ , m≡)
+    --   = ?
     {-
       ad , txoutC , txoutG
 
@@ -188,7 +234,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
     -- ... | yes (vad , hon , d⊆)
     --   with m₀ ≟ encode
     --   = ?
-    --   with try-decode-[1]
+    --   with try-decode-[1]u
     -- ... | yes (⟨G⟩C , h) = [1] ⟨G⟩C h
     -- ... | no ¬[1]
 
@@ -216,10 +262,10 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
           k̅ = concatMap (map pub ∘ codom) (codom k⃗)
 
           C,h̅,k̅ : Message
-          C,h̅,k̅ = C ◇ h̅ ◇ k̅
+          C,h̅,k̅ = encode (C , h̅ , k̅)
 
           C,h̅,k̅ₐ : Message
-          C,h̅,k̅ₐ = SIGᵐ (K A) C,h̅,k̅
+          C,h̅,k̅ₐ = SIG (K A) C,h̅,k̅
         in
           (Rˢ ≈⋯ Γₜ)
         × (as ≡ secretsOfᵖ A G)
@@ -254,10 +300,10 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
           k̅ = concatMap (map pub ∘ codom) (codom k⃗)
 
           C,h̅,k̅ : Message
-          C,h̅,k̅ = C ◇ h̅ ◇ k̅
+          C,h̅,k̅ = encode (C , h̅ , k̅)
 
           C,h̅,k̅ₐ : Message
-          C,h̅,k̅ₐ = SIGᵐ (K A) C,h̅,k̅
+          C,h̅,k̅ₐ = SIG (K A) C,h̅,k̅
         in
               (Rˢ ≈⋯? Γₜ)
         ×-dec (as ≟ secretsOfᵖ A G)

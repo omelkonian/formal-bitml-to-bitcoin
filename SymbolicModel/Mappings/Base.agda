@@ -2,7 +2,7 @@ open import Prelude.Init
 open import Prelude.DecEq
 open import Prelude.Lists
 open import Prelude.Validity
-open import Prelude.Collections
+open import Prelude.Lists.Collections
 open import Prelude.InferenceRules
 open import Prelude.Traces
 

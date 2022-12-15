@@ -7,7 +7,7 @@ open import Prelude.Init hiding (T)
 open L.Mem
 open import Prelude.DecEq
 open import Prelude.Lists
-open import Prelude.DecLists
+open import Prelude.Lists.Dec
 open import Prelude.Applicative
 open import Prelude.Semigroup
 open import Prelude.Nary
@@ -15,7 +15,7 @@ open import Prelude.Validity
 open import Prelude.Decidable
 open import Prelude.ToN
 open import Prelude.Functor
-open import Prelude.Collections
+open import Prelude.Lists.Collections
 open import Prelude.Membership hiding (_∈_; _∉_; mapWith∈)
 open import Prelude.ToList
 open import Prelude.Traces
@@ -389,7 +389,7 @@ module Section7 where -- (see BitML paper, Section 7).
     k̅ = concatMap (map pub ∘ codom) (codom k⃗)
 
     C,h̅,k̅ = _C ◇ h̅ ◇ k̅
-    C,h̅,k̅ₐ = SIGᵐ (Kᵖᵘᵇ A) C,h̅,k̅
+    C,h̅,k̅ₐ = SIG (Kᵖᵘᵇ A) C,h̅,k̅
 
     λᶜ = A →∗∶ C,h̅,k̅ₐ
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
@@ -441,8 +441,8 @@ module Section7 where -- (see BitML paper, Section 7).
     k̅ : List ℤ
     k̅ = concatMap (map pub ∘ codom) (codom k⃗)
 
-    C,h̅,k̅ = _C ◇ h̅ ◇ k̅
-    C,h̅,k̅ₐ = SIGᵐ (Kᵖᵘᵇ B) C,h̅,k̅
+    C,h̅,k̅ = encode (_C , h̅ , k̅)
+    C,h̅,k̅ₐ = SIG (Kᵖᵘᵇ B) C,h̅,k̅
 
     λᶜ = B →∗∶ C,h̅,k̅ₐ
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
@@ -1024,8 +1024,8 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     k̅ = concatMap (map pub ∘ codom) (codom k⃗)
     -- ≈ pub <$> [Kᵈ² A, Kᵈ² B, Kʷᵃ A, Kʷᵃ B, Kᵈ² A, Kᵈ² B]
 
-    C,h̅,k̅ = _C ◇ h̅ ◇ k̅
-    C,h̅,k̅ₐ = SIGᵐ (Kᵖᵘᵇ A) C,h̅,k̅
+    C,h̅,k̅ = encode (_C , h̅ , k̅)
+    C,h̅,k̅ₐ = SIG (Kᵖᵘᵇ A) C,h̅,k̅
 
     λᶜ = A →∗∶ C,h̅,k̅ₐ
     Rᶜ = λᶜ ∷ Rᶜ′ ✓
@@ -1085,8 +1085,8 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     k̅ : List ℤ
     k̅ = concatMap (map pub ∘ codom) (codom k⃗)
 
-    C,h̅,k̅ = _C ◇ h̅ ◇ k̅
-    C,h̅,k̅ₐ = SIGᵐ (Kᵖᵘᵇ B) C,h̅,k̅
+    C,h̅,k̅ = encode (_C , h̅ , k̅)
+    C,h̅,k̅ₐ = SIG (Kᵖᵘᵇ B) C,h̅,k̅
 
     λᶜ = B →∗∶ C,h̅,k̅ₐ
     Rᶜ = λᶜ ∷ Rᶜ′ ✓

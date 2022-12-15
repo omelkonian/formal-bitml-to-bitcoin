@@ -8,7 +8,7 @@ open import Prelude.Membership
 open import Prelude.Closures
 open import Prelude.Traces
 open import Prelude.Setoid
-open import Prelude.Collections
+open import Prelude.Lists.Collections
 
 module SymbolicModel.Collections
   (Participant : Set)

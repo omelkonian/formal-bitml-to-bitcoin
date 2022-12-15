@@ -8,20 +8,21 @@ open L.Perm using (Any-resp-↭; ∈-resp-↭)
 open import Prelude.Lists.PermutationsMeta using (↭-sym∘↭-reflexive)
 open import Prelude.Membership
 open import Prelude.DecEq
-open import Prelude.Sets
-open import Prelude.Collections
+open import Prelude.Sets hiding (_⊣_; _↦′_; _↦_; extend-↦; weaken-↦; cons-↦)
+open import Prelude.Lists.Collections
 open import Prelude.Bifunctor
 open import Prelude.Nary
 open import Prelude.Validity
 open import Prelude.Traces
 open import Prelude.Decidable
 open import Prelude.DecEq
-open import Prelude.DecLists
+open import Prelude.Lists.Dec
 open import Prelude.Setoid
 open import Prelude.Coercions
 open import Prelude.InferenceRules
 open import Prelude.Irrelevance
 open import Prelude.Ord
+open import Prelude.Null
 
 open import Bitcoin.Crypto
 open import Bitcoin.Tx
@@ -60,9 +61,9 @@ CheckOracleInteractions : CRun → List (Secret × Maybe ℕ × ℤ) → Set
 CheckOracleInteractions Rᶜ = let os = oracleInteractionsᶜ Rᶜ in
   All λ where
     (_ , just Nᵢ , hᵢ) →
-      ∃ λ B → ∃ λ mᵢ → ((B , mᵢ , [ hᵢ ]) L.Mem.∈ os) × (∣ mᵢ ∣ᵐ ≡ η + Nᵢ)
+      ∃ λ B → ∃ λ mᵢ → ((B , mᵢ , hᵢ) L.Mem.∈ os) × (∣ mᵢ ∣ᵐ ≡ η + Nᵢ)
     (_ , nothing , hᵢ) →
-      [ hᵢ ] ∉ map (proj₂ ∘ proj₂) (filter ((η ≤?_) ∘ ∣_∣ᵐ ∘ proj₁ ∘ proj₂) os)
+      hᵢ ∉ map (proj₂ ∘ proj₂) (filter ((η ≤?_) ∘ ∣_∣ᵐ ∘ proj₁ ∘ proj₂) os)
 
 -- Convenient wrapper for calling the BitML compiler.
 COMPILE : 𝔾 ad → ∃Tx¹ × (subtermsᵃ′ ad ↦′ ∃Txᶜ ∘ removeTopDecorations)

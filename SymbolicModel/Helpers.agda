@@ -3,7 +3,7 @@ open import Prelude.DecEq
 open import Prelude.Lists
 open import Prelude.Setoid
 open import Prelude.Membership
-open import Prelude.Collections
+open import Prelude.Lists.Collections
 open import Prelude.Validity
 open import Prelude.Traces
 open import Prelude.InferenceRules
@@ -49,6 +49,7 @@ _∷_⊣≡_✓ :
   → (λˢ : 𝕃≡ R Γₜ) →
     ────────────────────────
     ℝ∗ (Γₜ ∷ R ⊣≡ λˢ .proj₁)
+
 _∷_⊣≡_✓ {R} Γₜ 𝕣 𝕝≡ = Γₜ ∷ 𝕣 ⊣ 𝕃≡⇒𝕃 {R} 𝕝≡ ✓
 
 ℝ∗⇒ℝ : ℝ∗ ⊆¹ ℝ

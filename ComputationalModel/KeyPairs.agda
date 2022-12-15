@@ -2,7 +2,7 @@ open import Prelude.Init
 open import Prelude.Lists
 open import Prelude.DecEq
 
-open import Bitcoin.Crypto
+open import Bitcoin
 
 module ComputationalModel.KeyPairs
   (Participant : Set)
@@ -17,14 +17,14 @@ K = proj₁ ∘ keypairs
 K̂ : Participant → KeyPair
 K̂ = proj₂ ∘ keypairs
 
-Kᵖ : Participant → ℤ
+Kᵖ : Participant → HashId
 Kᵖ = pub ∘ K
 
-Kˢ : Participant → ℤ
+Kˢ : Participant → HashId
 Kˢ = sec ∘ K
 
-K̂ᵖ : Participant → ℤ
+K̂ᵖ : Participant → HashId
 K̂ᵖ = pub ∘ K̂
 
-K̂ˢ : Participant → ℤ
+K̂ˢ : Participant → HashId
 K̂ˢ = sec ∘ K̂

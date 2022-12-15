@@ -1,13 +1,13 @@
-{-# OPTIONS --no-forcing #-}
+-- {-# OPTIONS --no-forcing #-}
 open import Prelude.Init hiding (T)
 open L.Mem
 open import Prelude.Lists
 open import Prelude.General
-open import Prelude.DecLists
+open import Prelude.Lists.Dec
 open import Prelude.DecEq
 open import Prelude.InferenceRules
 
-open import Prelude.Collections
+open import Prelude.Lists.Collections
 open import Prelude.Monoid
 
 open import Prelude.Functor
@@ -23,6 +23,7 @@ open import Prelude.Apartness
 open import Prelude.Split hiding (split)
 open import Prelude.Serializable
 open import Prelude.Views hiding (_▷_)
+open import Prelude.Null
 
 import Bitcoin.Crypto as BTC
 
@@ -54,13 +55,6 @@ private variable
 
 _-redeemableWith-_ : S.Value → KeyPair → ∃TxOutput
 v -redeemableWith- k = Ctx 1 , record {value = v;  validator = ƛ (versig [ k ] [ # 0 ])}
-
--- T0D0: redefine Message ≈ ℤ ??
-SIGᵐ : KeyPair → Message → Message
-SIGᵐ k = map (SIG k)
-
-encodeAd : (ad : Ad) → Txout ad × Txout (ad .C) → Message
-encodeAd ad (txoutG , txoutC) = encodeMsg $ reify (ad , txoutG , txoutC)
 
 -- * Inductive case 1
 data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
@@ -129,11 +123,8 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         k̅ : List ℤ -- ≈ Message
         k̅ = concatMap (map pub ∘ codom) (codom k⃗)
 
-        C,h̅,k̅ : Message
-        C,h̅,k̅ = C ◇ h̅ ◇ k̅
-
-        C,h̅,k̅ₐ : Message
-        C,h̅,k̅ₐ = SIGᵐ (K A) C,h̅,k̅
+        C,h̅,k̅ = encode (C , h̅ , k̅)
+        C,h̅,k̅ₐ = SIG (K A) C,h̅,k̅
 
         α   = auth-commit⦅ A , ⟨G⟩C , Δ ⦆
         Γ′  = Γ ∣ Δᶜ ∣ A auth[ ♯▷ ⟨G⟩C ]
@@ -206,12 +197,12 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         open H₃ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ A x R≈ Γ→Γ′ ∃Γ≈ committedA using (λˢ; T)
 
         -- (i) broadcast Tᵢₙᵢₜ , signed with A's private key
-        m = [ SIG (K̂ A) T ]
+        m = SIG (K̂ A) T
         λᶜ = B →∗∶ m
 
       in
       -- (ii) Tᵢₙᵢₜ occurs as a message in Rᶜ
-    ∀ (∃λ : ∃ λ B → (B →∗∶ [ T ♯ ]) ∈ toList Rᶜ) →
+    ∀ (∃λ : ∃ λ B → (B →∗∶ (T ♯)) ∈ toList Rᶜ) →
 
       -- (iii) broadcast message in Rᶜ
       -- ∘ λᶜ is the first occurrence of such a message after Tinit in Rᶜ
@@ -281,7 +272,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
 
         open H₅ {Rˢ} 𝕣 t α t′ c v x Γ₀ A i R≈ Γ→Γ′ ∃Γ≈ D≡A:D′ using (λˢ; T; pubK)
 
-        λᶜ = B →∗∶ [ SIGᵖ pubK T ]
+        λᶜ = B →∗∶ SIGᵖ pubK T
       in
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
@@ -368,14 +359,11 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         Δ : List (Secret × Maybe ℕ)
         Δ = map drop₃ Δ×h̅
 
-        h̅ : Message
-        h̅ = map (proj₂ ∘ proj₂) Δ×h̅
-
-        k̅ : Message
-        k̅ = concatMap (map pub ∘ codom) (codom k⃗)
+        h̅ = encode $ map (proj₂ ∘ proj₂) Δ×h̅
+        k̅ = encode $ concatMap (map pub ∘ codom) (codom k⃗)
       in
       -- (ii) in Rᶜ we find ⋯ (B → O ∶ m) (O → B : sechash′(a)) for some B ⋯
-      (∃ λ B → (B , m , [ sechash′ {a} a∈ ]) ∈ oracleInteractionsᶜ Rᶜ)
+      (∃ λ B → (B , m , sechash′ {a} a∈) ∈ oracleInteractionsᶜ Rᶜ)
 
       -- (iv) in Rˢ, we find an A:{G}C,∆ action, with a in G
     → (∃α : auth-commit⦅ A , ⟨G⟩C , Δ ⦆ ∈ labels Rˢ)
@@ -384,8 +372,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         C = encodeAd ⟨G⟩C (auth-commit∈⇒Txout ∃α 𝕣)
 
         -- T0D0: should we search for a signature of this message instead?
-        C,h̅,k̅ : Message
-        C,h̅,k̅ = C ◇ h̅ ◇ k̅
+        C,h̅,k̅ = encode (C , h̅ , k̅)
 
         -- (i) some participant B broadcasts message m
         λᶜ = B →∗∶ m
@@ -497,7 +484,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         x∈′ = n⊆ (there $′ here refl)
       in
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
-                → (l ≡ B →∗∶ [ T ♯ ])
+                → (l ≡ B →∗∶ (T ♯))
                 × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ [])
                 × (outputs T ≡ V.[ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
                 ) (toList Rᶜ))
@@ -506,7 +493,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         T = 2 , 1 , L.Any.satisfied ∃λ .proj₂ .proj₂ .proj₁
 
         -- (iii) broadcast transaction T, signed by A
-        m′ = [ SIG (K̂ A) T ]
+        m′ = SIG (K̂ A) T
         λᶜ = B →∗∶ m′
 
         -- (v) txout = txout′, sechash = sechash′, κ = κ′
@@ -577,7 +564,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         x∈  = n⊆ (here refl)
       in
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
-                → (l ≡ B →∗∶ [ T ♯ ])
+                → (l ≡ B →∗∶ (T ♯))
                 × (inputs  T ≡ V.[ hashTxⁱ (txout′ {x} x∈) ])
                 × (outputs T ≡ (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ [])
                 ) (toList Rᶜ))
@@ -586,7 +573,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         T = 1 , 2 , L.Any.satisfied ∃λ .proj₂ .proj₂ .proj₁
 
         -- (iii) broadcast transaction T, signed by A
-        m′ = [ SIG (K̂ A) T ]
+        m′ = SIG (K̂ A) T
         λᶜ = B →∗∶ m′
 
         -- (v) txout = txout′, sechash = sechash′, κ = κ′
@@ -655,7 +642,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         x∈  = n⊆ (here refl)
       in
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
-                → (l ≡ B →∗∶ [ T ♯ ])
+                → (l ≡ B →∗∶ (T ♯))
                 × (inputs  T ≡ V.[ hashTxⁱ (txout′ {x} x∈) ])
                 × (outputs T ≡ V.[ v -redeemableWith- K̂ B′ ])
                 ) (toList Rᶜ))
@@ -664,7 +651,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         T = 1 , 1 , L.Any.satisfied ∃λ .proj₂ .proj₂ .proj₁
 
         -- (iii) broadcast transaction T, signed by A
-        m′ = [ SIG (K̂ A) T ]
+        m′ = SIG (K̂ A) T
         λᶜ = B →∗∶ m′
 
         -- (v) txout = txout′, sechash = sechash′, κ = κ′
@@ -772,11 +759,11 @@ data _~₁₂_ : ℝ∗ Rˢ → CRun → Set where
       -- (iii) in Rᶜ we find B → ∗ ∶ T, for some T having txout′(yᵢ) as inputs (+ possibly others)
       (T : Tx i 0)
     → (hashTxⁱ <$> codom xs↦) ⊆ V.toList (inputs T)
-    → (T∈ : Any (λ l → ∃ λ B → l ≡ B →∗∶ [ T ♯ ]) (toList Rᶜ))
+    → (T∈ : Any (λ l → ∃ λ B → l ≡ B →∗∶ (T ♯)) (toList Rᶜ))
 
     → let
         -- (iv) broadcast transaction T, signed by A
-        m = [ SIG (K̂ A) T ]
+        m = SIG (K̂ A) T
         λᶜ = B →∗∶ m
       in
       -- (v) λᶜ is the first broadcast of m in Rᶜ after the first broadcast of T
@@ -879,7 +866,7 @@ data _~′_ : ℝ∗ Rˢ → CRun → Set where
     ∀ (init : Initial Γₜ₀) →
       -- (ii) Rᶜ = T₀ ⋯ initial
     ∀ (cinit : Initial Rᶜ) →
-      -- (iii) generation of public keys, we do not consider that here
+     -- (iii) generation of public keys, we do not consider that here
       -- (iv) ⟨A,v⟩ₓ ∈ Γ₀ ⇒ txout{ x ↦ (v$ spendable with K̂(A)(rₐ)) ∈ T₀ }
     ∙ (∀ {A v x} (d∈ : ⟨ A has v ⟩at x ∈ᶜ Γ₀) →
         let ∃T₀ , _ = cinit; _ , o , T₀ = ∃T₀ in

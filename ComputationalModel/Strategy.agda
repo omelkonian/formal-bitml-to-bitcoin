@@ -14,9 +14,9 @@ open import Prelude.InferenceRules
 open import Prelude.Traces
 open import Prelude.Decidable
 open import Prelude.Bitstring
-open import Prelude.Serializable
 
 open import Bitcoin
+open import Prelude.Serializable HashId
 
 module ComputationalModel.Strategy
   (Participant : Set)
@@ -35,14 +35,19 @@ allParticipants = finList finPart
 
 open import ComputationalModel.KeyPairs Participant keypairs
 
+-- ** Serialization
+Message = HashId
+private variable X : Set ℓ; Y : Set ℓ′
+
+instance postulate
+  Serializable-ℕ : Serializable ℕ
+  Serializable-ℤ : Serializable ℤ
+  Serializable-Bool : Serializable Bool
+  Serializable-List : ⦃ Serializable X ⦄ → Serializable (List X)
+  Serializable-× : ⦃ Serializable X ⦄ → ⦃ Serializable Y ⦄ → Serializable (X × Y)
+  Serializable-⊎ : ⦃ Serializable X ⦄ → ⦃ Serializable Y ⦄ → Serializable (X ⊎ Y)
+
 -- Computational runs.
-
-Message = List ℤ
-
-postulate fromBitstring : Bitstring → Message
-
-encodeMsg : ∀ {A : Set} → ⦃ Serializable A ⦄ → A → List ℤ
-encodeMsg = fromBitstring ∘ encode
 
 data Label : Set where
   -- broadcast message
@@ -91,7 +96,8 @@ strip A = mapMaybe go
 ... | submit tx = (tx at (δʳ ls)) ∷ 𝔹 ls
 ... | _         = 𝔹 ls
 
--- For each participant, the coinbase transaction contains an output redeemable with his/her private key.
+-- For each participant, the coinbase transaction contains an output
+-- redeemable with his/her private key.
 Coinbase : Pred₀ ∃Tx
 Coinbase (_ , _ , tx) =
   ∀ {A} → A ∈ allParticipants →
@@ -128,7 +134,7 @@ initialBroadcasts : Labels
 initialBroadcasts = map go allParticipants
   module ∣initialBroadcasts∣ where
     go : Participant → Label
-    go A = A →∗∶ (Kᵖ A ∷ K̂ᵖ A ∷ [])
+    go A = A →∗∶ encode (Kᵖ A , K̂ᵖ A)
 
 instance
   -- An initial run begins with a coinbase transaction and
@@ -194,7 +200,8 @@ OracleReply = Participant × Message
 OracleInteraction = Participant × Message × Message
 
 oracleRequests : Participant → Run → List (Label × Label)
-oracleRequests A (l@(A′ →O∶ m) ∷ l′@(O→ A″ ∶ hm) ∷ R) with A ≟ A′ | A′ ≟ A″
+oracleRequests A (l@(A′ →O∶ m) ∷ l′@(O→ A″ ∶ hm) ∷ R)
+  with A ≟ A′ | A′ ≟ A″
 ... | yes _ | yes _      = (l , l′) ∷ oracleRequests A R
 ... | _     | _          = oracleRequests A R
 oracleRequests A (_ ∷ R) = oracleRequests A R
@@ -248,14 +255,16 @@ oracleInteractionsᶜ = oracleInteractions ∘ toList
 -- Computational strategies.
 
 
--- Consistent update of the blockchain, in a run where certain components of the transaction have been made public.
+-- Consistent update of the blockchain, in a run where certain
+-- components of the transaction have been made public.
 _▷ʳ_ : Run → ∃Tx → Set
 R ▷ʳ ∃tx =
   let tx = proj₂ (proj₂ ∃tx) in
     (𝔹 R ▷ tx , δʳ R)
-  × ∃[ B ] (B →∗∶ [ ∃tx ♯ ] ∈ R)
-  × V.All.All (λ i → ∃[ tx′ ] ((submit tx′ ∈ R) × (tx′ ♯ ≡ txId i))) (inputs tx)
-  × V.All.All (λ w → ∃[ B ] (B →∗∶ V.toList (proj₂ w) ∈ R)) (wit tx)
+  × ∃[ B ] (B →∗∶ (∃tx ♯) ∈ R)
+  × V.All.All (λ i → ∃[ tx′ ] ((submit tx′ ∈ R) × (tx′ ♯ ≡ txId i)))
+              (inputs tx)
+  × V.All.All (λ w → ∃[ B ] (B →∗∶ encode (V.toList (proj₂ w)) ∈ R)) (wit tx)
 
 record ParticipantStrategy (A : Participant) : Set where
   field Σ : CRun → Labels
@@ -310,25 +319,27 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
     field
       Σₐ : CRun → HonestMoves → Label
 
-      valid :
-        ∀ {R moves} →
-          let
-            R∗ = stripᶜ Adv R
-            α  = Σₐ R∗ moves -- T0D0 should the honest moves be stripped?
-          in
-          ( -- (1) impersonate another participant
-            ∃[ m ]
-              ( ∃[ A ] (α ≡ A →∗∶ m)
-              ⊎ (α ≡ Adv →O∶ m) )
-            -- (2) consistently update the blockchain
-          ⊎ ∃[ tx ]
-              ( (α ≡ submit tx)
-              × (toList R∗ ▷ʳ tx) )
-            -- (3) delay, if all honest participants agree
-          ⊎ ∃[ δ ]
-              ( (α ≡ delay δ)
-              × All (λ{ (_ , Λ) → (Λ ≡ []) ⊎ Any (λ{ (delay δ′) → δ′ ≥ δ ; _ → ⊥ }) Λ}) moves )
-          )
+      valid : ∀ {R moves} →
+        let
+          R∗ = stripᶜ Adv R
+          α  = Σₐ R∗ moves -- T0D0 should the honest moves be stripped?
+        in
+          -- (1) impersonate another participant
+          ∃[ m ]
+            ( ∃[ A ] (α ≡ A →∗∶ m)
+            ⊎ (α ≡ Adv →O∶ m) )
+          -- (2) consistently update the blockchain
+        ⊎ ∃[ tx ]
+            ( (α ≡ submit tx)
+            × (toList R∗ ▷ʳ tx) )
+          -- (3) delay, if all honest participants agree
+        ⊎ ∃[ δ ]
+            ( (α ≡ delay δ)
+            × All (λ{ (_ , Λ) →
+              (Λ ≡ []) ⊎
+              Any (λ{ (delay δ′) → δ′ ≥ δ ; _ → ⊥ }) Λ}
+            ) moves
+            )
 
   open AdversaryStrategy public
 
