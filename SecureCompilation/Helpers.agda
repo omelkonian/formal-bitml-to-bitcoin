@@ -25,28 +25,25 @@ open import Prelude.Ord
 open import Prelude.Null
 
 open import Bitcoin.Crypto
-open import Bitcoin.Tx
-  hiding ({-variables-} i)
--- open import ComputationalModel.Accessors
+
+open import BitML.BasicTypes using (⋯)
 
 module SecureCompilation.Helpers
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
+  (⋯ : ⋯) (let open ⋯ ⋯)
 
-  (Honest : List⁺ Participant)
   (finPart : Finite Participant)
   (keypairs : ∀ (A : Participant) → KeyPair × KeyPair)
 
   (η : ℕ) -- security parameter
   where
 
-open import SymbolicModel Participant Honest as S
+open import SymbolicModel ⋯ as S
   hiding ( _∎; begin_
          ; {-variables-} t; t′; α; g; c; c′; ds; x; x′; y; y′; as; vs; xs
          ; Γ₀; Γ; Γ′; Γ″; Γₜ; Γₜ′; Γₜ″; R; R′; Δ; d; v
          )
 open import ComputationalModel Participant Honest finPart keypairs as C
-  using (_∙value; K̂; CRun; oracleInteractionsᶜ; Message)
+  using (∃Tx; TxInput′; _∙value; K̂; CRun; oracleInteractionsᶜ; Message)
 open import SecureCompilation.Compiler Participant Honest η
   using (∃Tx¹; ∃Txᶜ; bitml-compiler)
 open import SecureCompilation.ComputationalContracts Participant Honest
@@ -213,9 +210,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         hᵃ (_ ∷ Δ@(_ ∷ _)) rewrite hᵃ Δ = L.++-identityʳ _
 
         ads≡ : advertisements Γ′ ≡ advertisements Γ ++ advertisements (A auth[ ♯▷ ad ])
-        ads≡ rewrite collectFromBase-++ {X = Advertisement}
+        ads≡ rewrite collectFromBase-++ {X = Ad}
                        (Γ ∣ || map (uncurry ⟨ B ∶_♯_⟩) Δ) (A auth[ ♯▷ ad ])
-                    | collectFromBase-++ {X = Advertisement}
+                    | collectFromBase-++ {X = Ad}
                         Γ (|| map (uncurry ⟨ B ∶_♯_⟩) Δ)
                     | hᵃ Δ
                     | L.++-identityʳ (advertisements Γ)
@@ -340,7 +337,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         secrets≡ = cong filter₁ names≡
 
         ads≡ : Γ′ ≡⦅ advertisements ⦆ Γ
-        ads≡ rewrite collectFromBase-++ {X = Advertisement} Γ (A auth[ x ▷ˢ ad ]) = L.++-identityʳ _
+        ads≡ rewrite collectFromBase-++ {X = Ad} Γ (A auth[ x ▷ˢ ad ]) = L.++-identityʳ _
 
         txout↝ : Γ →⦅ Txout ⦆ Γ′
         txout↝ txout′ rewrite ids≡ = txout′
@@ -349,7 +346,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         sechash↝ sechash′ rewrite secrets≡ = sechash′
 
         κ↝ : Γ →⦅ 𝕂² ⦆ Γ′
-        κ↝ κ′ rewrite collectFromBase-++ {X = Advertisement} Γ (A auth[ x ▷ˢ ad ])
+        κ↝ κ′ rewrite collectFromBase-++ {X = Ad} Γ (A auth[ x ▷ˢ ad ])
                     | L.++-identityʳ (advertisements Γ)
                     = κ′
       -- abstract
@@ -464,7 +461,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         ads⊆′ : Γ′ ⊆⦅ advertisements ⦆ Γ
         ads⊆′ = begin advertisements Γ′ ≡⟨⟩
                       advertisements Γ₀ ⊆⟨ ∈-collect-++⁺ˡ (Γ₁ ∣ Γ₂) Γ₃ ∘ ∈-collect-++⁺ˡ Γ₁ Γ₂ ⟩
-                      advertisements Γ  ∎ where open ⊆-Reasoning Advertisement
+                      advertisements Γ  ∎ where open ⊆-Reasoning Ad
 
         sechash↝ :  Γ →⦅ Sechash ⦆ Γ′
         sechash↝ = lift Γ —⟨ namesˡ ⟩— Γ′ ⊣ secrets≡
@@ -982,10 +979,10 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         secrets≡ = cong filter₁ names≡
 
         ads≡ : Γ′ ≡⦅ advertisements ⦆ Γ
-        ads≡ rewrite collectFromBase-++ {X = Advertisement} (Δ ∣ A auth[ xs , j′ ▷ᵈˢ y ]) Γ₀
-                  | collectFromBase-++ {X = Advertisement} Δ (A auth[ xs , j′ ▷ᵈˢ y ])
+        ads≡ rewrite collectFromBase-++ {X = Ad} (Δ ∣ A auth[ xs , j′ ▷ᵈˢ y ]) Γ₀
+                  | collectFromBase-++ {X = Ad} Δ (A auth[ xs , j′ ▷ᵈˢ y ])
                   | L.++-identityʳ (advertisements Δ)
-                  = sym $ collectFromBase-++ {X = Advertisement} Δ Γ₀
+                  = sym $ collectFromBase-++ {X = Ad} Δ Γ₀
 
         txout↝ : Γ →⦅ Txout ⦆ Γ′
         txout↝ = lift Γ —⟨ namesʳ ⟩— Γ′ ⊣ ids≡

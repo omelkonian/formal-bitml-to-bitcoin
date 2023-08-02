@@ -493,7 +493,7 @@ A ∈Hon⇒?All-Is-just ms
 --       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
 --                 → (l ≡ B →∗∶ [ T ♯ ])
 --                 × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ [])
---                 × (outputs T ≡ V.[ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
+--                 × (outputs T ≡ [ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
 --                 ) (toList Rᶜ))
 --     → let
 --         T : ∃Tx
@@ -540,7 +540,7 @@ A ∈Hon⇒?All-Is-just ms
 --           { inputs  = hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ []
 --           ; wit     = wit⊥
 --           ; relLock = V.replicate 0
---           ; outputs = V.[ (v + v′) -redeemableWith- K̂ A ]
+--           ; outputs = [ (v + v′) -redeemableWith- K̂ A ]
 --           ; absLock = 0 }
 --         λᶜ = submit T
 
@@ -572,7 +572,7 @@ A ∈Hon⇒?All-Is-just ms
 --       in
 --       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
 --                 → (l ≡ B →∗∶ [ T ♯ ])
---                 × (inputs  T ≡ V.[ hashTxⁱ (txout′ {x} x∈) ])
+--                 × (inputs  T ≡ [ hashTxⁱ (txout′ {x} x∈) ])
 --                 × (outputs T ≡ (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ [])
 --                 ) (toList Rᶜ))
 --     → let
@@ -615,7 +615,7 @@ A ∈Hon⇒?All-Is-just ms
 
 --         -- (iii) submit transaction T
 --         T  = 1 , 2 , sig⋆ (V.replicate [ K̂ A ]) record
---           { inputs  = V.[ hashTxⁱ (txout′ {x} x∈) ]
+--           { inputs  = [ hashTxⁱ (txout′ {x} x∈) ]
 --           ; wit     = wit⊥
 --           ; relLock = V.replicate 0
 --           ; outputs = (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ []
@@ -650,8 +650,8 @@ A ∈Hon⇒?All-Is-just ms
 --       in
 --       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
 --                 → (l ≡ B →∗∶ [ T ♯ ])
---                 × (inputs  T ≡ V.[ hashTxⁱ (txout′ {x} x∈) ])
---                 × (outputs T ≡ V.[ v -redeemableWith- K̂ B′ ])
+--                 × (inputs  T ≡ [ hashTxⁱ (txout′ {x} x∈) ])
+--                 × (outputs T ≡ [ v -redeemableWith- K̂ B′ ])
 --                 ) (toList Rᶜ))
 --     → let
 --         T : ∃Tx
@@ -693,10 +693,10 @@ A ∈Hon⇒?All-Is-just ms
 
 --         -- (iii) submit transaction T
 --         T  = 1 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
---           { inputs  = V.[ hashTxⁱ (txout′ {x} x∈) ]
+--           { inputs  = [ hashTxⁱ (txout′ {x} x∈) ]
 --           ; wit     = wit⊥
 --           ; relLock = V.replicate 0
---           ; outputs = V.[ v -redeemableWith- K̂ B′ ]
+--           ; outputs = [ v -redeemableWith- K̂ B′ ]
 --           ; absLock = 0 }
 --         λᶜ = submit T
 

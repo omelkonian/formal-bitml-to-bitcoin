@@ -4,16 +4,11 @@
 open import Prelude.Init
 open import Prelude.DecEq
 
-module SymbolicModel.Run
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-  where
+open import BitML.BasicTypes using (⋯)
 
--- re-export all BitML definitions
-open import BitML Participant Honest public
-  hiding (∣_∣; `; _∙)
-open import SymbolicModel.Run.Base Participant Honest public
-open import SymbolicModel.Run.Properties Participant Honest public
+module SymbolicModel.Run (⋯ : ⋯) (let open ⋯ ⋯) where
 
+open import BitML ⋯ public -- re-export all BitML definitions
+open import SymbolicModel.Run.Base ⋯ public
+open import SymbolicModel.Run.Properties ⋯ public
 open import SymbolicModel.Run.Example

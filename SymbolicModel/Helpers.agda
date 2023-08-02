@@ -9,17 +9,15 @@ open import Prelude.Traces
 open import Prelude.InferenceRules
 open import Prelude.Decidable
 
-module SymbolicModel.Helpers
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-  where
+open import BitML.BasicTypes using (⋯)
 
-open import SymbolicModel.Run         Participant Honest
+module SymbolicModel.Helpers (⋯ : ⋯) (let open ⋯ ⋯) where
+
+open import SymbolicModel.Run ⋯
   hiding ({-variables-} Γₜ; Γₜ′; Γₜ″; R′)
-open import SymbolicModel.Collections Participant Honest
-open import SymbolicModel.Mappings    Participant Honest
-open import SymbolicModel.Accessors   Participant Honest
+open import SymbolicModel.Collections ⋯
+open import SymbolicModel.Mappings ⋯
+open import SymbolicModel.Accessors ⋯
 
 -- [BUG] See issue #5464
 _≈ᶜ_ = _≈_ ⦃ Setoid-Cfg ⦄

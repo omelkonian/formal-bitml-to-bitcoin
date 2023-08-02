@@ -7,14 +7,12 @@ open import Prelude.Setoid
 open import Prelude.Membership
 open import Prelude.InferenceRules
 
-module SymbolicModel.Run.Properties
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-  where
+open import BitML.BasicTypes using (⋯)
 
-open import BitML Participant Honest hiding (∣_∣; `; _∙)
-open import SymbolicModel.Run.Base Participant Honest
+module SymbolicModel.Run.Properties (⋯ : ⋯) (let open ⋯ ⋯) where
+
+open import BitML ⋯
+open import SymbolicModel.Run.Base ⋯
 
 start∈allCfgsᵗ : R .start ∈ allTCfgs⁺ R
 start∈allCfgsᵗ {R = record {trace = _ , Γ↞}} with Γ↞

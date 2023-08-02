@@ -1,4 +1,4 @@
--- {-# OPTIONS --no-forcing #-}
+{-# OPTIONS --no-forcing #-}
 open import Prelude.Init hiding (T)
 open L.Mem
 open import Prelude.Lists
@@ -486,7 +486,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
                 → (l ≡ B →∗∶ (T ♯))
                 × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ [])
-                × (outputs T ≡ V.[ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
+                × (outputs T ≡ [ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
                 ) (toList Rᶜ))
     → let
         T : ∃Tx
@@ -533,7 +533,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
           { inputs  = hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ []
           ; wit     = wit⊥
           ; relLock = V.replicate 0
-          ; outputs = V.[ (v + v′) -redeemableWith- K̂ A ]
+          ; outputs = [ (v + v′) -redeemableWith- K̂ A ]
           ; absLock = 0 }
         λᶜ = submit T
 
@@ -565,7 +565,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       in
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
                 → (l ≡ B →∗∶ (T ♯))
-                × (inputs  T ≡ V.[ hashTxⁱ (txout′ {x} x∈) ])
+                × (inputs  T ≡ [ hashTxⁱ (txout′ {x} x∈) ])
                 × (outputs T ≡ (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ [])
                 ) (toList Rᶜ))
     → let
@@ -608,7 +608,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
 
         -- (iii) submit transaction T
         T  = 1 , 2 , sig⋆ (V.replicate [ K̂ A ]) record
-          { inputs  = V.[ hashTxⁱ (txout′ {x} x∈) ]
+          { inputs  = [ hashTxⁱ (txout′ {x} x∈) ]
           ; wit     = wit⊥
           ; relLock = V.replicate 0
           ; outputs = (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ []
@@ -643,8 +643,8 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       in
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
                 → (l ≡ B →∗∶ (T ♯))
-                × (inputs  T ≡ V.[ hashTxⁱ (txout′ {x} x∈) ])
-                × (outputs T ≡ V.[ v -redeemableWith- K̂ B′ ])
+                × (inputs  T ≡ [ hashTxⁱ (txout′ {x} x∈) ])
+                × (outputs T ≡ [ v -redeemableWith- K̂ B′ ])
                 ) (toList Rᶜ))
     → let
         T : ∃Tx
@@ -686,10 +686,10 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
 
         -- (iii) submit transaction T
         T  = 1 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
-          { inputs  = V.[ hashTxⁱ (txout′ {x} x∈) ]
+          { inputs  = [ hashTxⁱ (txout′ {x} x∈) ]
           ; wit     = wit⊥
           ; relLock = V.replicate 0
-          ; outputs = V.[ v -redeemableWith- K̂ B′ ]
+          ; outputs = [ v -redeemableWith- K̂ B′ ]
           ; absLock = 0 }
         λᶜ = submit T
 

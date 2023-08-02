@@ -10,13 +10,11 @@ open import Prelude.Traces
 open import Prelude.Setoid
 open import Prelude.Lists.Collections
 
-module SymbolicModel.Collections
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-  where
+open import BitML.BasicTypes
 
-open import SymbolicModel.Run Participant Honest
+module SymbolicModel.Collections (⋯ : ⋯) (let open ⋯ ⋯) where
+
+open import SymbolicModel.Run ⋯
   hiding ( _∎; begin_)
 
 open ≡-Reasoning
@@ -28,7 +26,7 @@ instance
   HXʳ ⦃ h ⦄ .collect = collect ⦃ h ⦄ ∘ trace
 
 -- [BUG] instantiated `advertisements ⦃ HAʳ ⦄`, to aid Agda's type inference
-authorizedHonAdsʳ : Run → List Advertisement
+authorizedHonAdsʳ : Run → List Ad
 authorizedHonAdsʳ = collect
 
 ads⦅end⦆⊆ : ∀ R → advertisements (R .end) ⊆ advertisements R

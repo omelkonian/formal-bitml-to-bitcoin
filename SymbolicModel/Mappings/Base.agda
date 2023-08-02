@@ -7,16 +7,13 @@ open import Prelude.InferenceRules
 open import Prelude.Traces
 
 open import Bitcoin
+open import BitML.BasicTypes using (⋯)
 
-module SymbolicModel.Mappings.Base
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-  where
+module SymbolicModel.Mappings.Base (⋯ : ⋯) where
 
-open import SymbolicModel.Run Participant Honest
-open import SymbolicModel.Accessors Participant Honest
-open import SymbolicModel.Collections Participant Honest
+open import SymbolicModel.Run ⋯
+open import SymbolicModel.Accessors ⋯
+open import SymbolicModel.Collections ⋯
 
 private variable X : Set ℓ
 
@@ -29,14 +26,14 @@ Sechash x = namesˡ x ↦ ℤ
 𝕂 : Pred₀ Precondition
 𝕂 g = nub-participants g ↦ KeyPair
 
-𝕂²′ : Pred₀ Advertisement
+𝕂²′ : Pred₀ Ad
 𝕂²′ (⟨ g ⟩ c) = subtermsᶜ′ c ↦ nub-participants g ↦ KeyPair
 
-𝕂² : ⦃ X has Advertisement ⦄ → Pred₀ X
+𝕂² : ⦃ X has Ad ⦄ → Pred₀ X
 𝕂² x = advertisements x ↦′ 𝕂²′
 
 -- Well-formed terms, where we can provide mappings txout,sechash,κ.
-record 𝕎 ⦃ _ : X has Name ⦄ ⦃ _ : X has Advertisement ⦄ (x : X) : Set where
+record 𝕎 ⦃ _ : X has Name ⦄ ⦃ _ : X has Ad ⦄ (x : X) : Set where
   constructor [txout:_∣sechash:_∣κ:_]
   field
     txout   : Txout   x

@@ -9,15 +9,13 @@ open import Prelude.Bifunctor
 open import Prelude.Ord
 open import Prelude.Traces
 
-module SymbolicModel.Strategy
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-  where
+open import BitML.BasicTypes using (⋯)
 
-open import SymbolicModel.Run Participant Honest
-open import SymbolicModel.Collections Participant Honest
-open import SymbolicModel.Stripping Participant Honest
+module SymbolicModel.Strategy (⋯ : ⋯) (let open ⋯ ⋯) where
+
+open import SymbolicModel.Run ⋯
+open import SymbolicModel.Collections ⋯
+open import SymbolicModel.Stripping ⋯
 
 record ParticipantStrategy (A : Participant) : Set where
   field Σ : Run → Labels

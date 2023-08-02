@@ -8,13 +8,11 @@ open import Prelude.Traces
 open import Prelude.ToList
 open import Prelude.Setoid
 
-module SymbolicModel.Run.Base
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-  where
+open import BitML.BasicTypes using (⋯)
 
-open import BitML Participant Honest
+module SymbolicModel.Run.Base (⋯ : ⋯) (let open ⋯ ⋯) where
+
+open import BitML ⋯
 
 Run = Trace _—↠ₜ_
 variable R R′ R″ Rˢ Rˢ′ Rˢ″ : Run
@@ -25,23 +23,23 @@ _∙partG = nub-participants
 _∙trace′ : (R : Run) → R .start —[ R .trace .proj₁ ]↠ₜ R .end
 R ∙trace′ = R .trace .proj₂
 
-allTCfgs⁺ : Run → List⁺ TimedConfiguration
+allTCfgs⁺ : Run → List⁺ Cfgᵗ
 allTCfgs⁺ (record {trace = _ , Γ↠}) = allStatesᵗ⁺ Γ↠
 
-allCfgs⁺ : Run → List⁺ Configuration
+allCfgs⁺ : Run → List⁺ Cfg
 allCfgs⁺ = L.NE.map cfg ∘ allTCfgs⁺
 
-allTCfgs : Run → List TimedConfiguration
+allTCfgs : Run → List Cfgᵗ
 allTCfgs = toList ∘ allTCfgs⁺
 
-allCfgs : Run → List Configuration
+allCfgs : Run → List Cfg
 allCfgs = map cfg ∘ allTCfgs
 
-lastCfgᵗ firstCfgᵗ : Run → TimedConfiguration
+lastCfgᵗ firstCfgᵗ : Run → Cfgᵗ
 lastCfgᵗ = L.NE.head ∘ allTCfgs⁺
 firstCfgᵗ = L.NE.last ∘ allTCfgs⁺
 
-lastCfg firstCfg : Run → Configuration
+lastCfg firstCfg : Run → Cfg
 lastCfg = cfg ∘ lastCfgᵗ
 firstCfg = cfg ∘ firstCfgᵗ
 
@@ -52,10 +50,10 @@ _⋯∈ᵗ_ : Cfgᵗ × Cfgᵗ → Run → Set
 (Γₜ , Γₜ′) ⋯∈ᵗ R = (Γₜ , Γₜ′) ∈ allTransitionsᵗ (R ∙trace′)
 
 infix -1 _——[_]→_
-_——[_]→_ : Run → Label → TimedConfiguration → Set
+_——[_]→_ : Run → Label → Cfgᵗ → Set
 R ——[ α ]→ tc′ = end R —[ α ]→ₜ tc′
 
-_∎⊣_ : (Γₜ : TimedConfiguration) → Initial Γₜ → Run
+_∎⊣_ : (Γₜ : Cfgᵗ) → Initial Γₜ → Run
 Γₜ ∎⊣ init  = record {start = Γₜ; end = Γₜ; trace = -, (Γₜ ∎ₜ); init = init}
 
 ∅ˢ : Run

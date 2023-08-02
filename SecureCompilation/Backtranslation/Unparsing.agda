@@ -267,7 +267,7 @@ unparseMove
     ∃λ : Any (λ l → ∃ λ B → ∃ λ T
          → (l ≡ B →∗∶ [ T ♯ ])
          × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ [])
-         × (outputs T ≡ V.[ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
+         × (outputs T ≡ [ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
          ) (toList Rᶜ)
     ∃λ = {!!}
 
@@ -319,7 +319,7 @@ unparseMove
 
     ∃λ : Any (λ l → ∃ λ B → ∃ λ T
          → (l ≡ B →∗∶ [ T ♯ ])
-         × (inputs  T ≡ V.[ hashTxⁱ (txout′ {x} x∈) ])
+         × (inputs  T ≡ [ hashTxⁱ (txout′ {x} x∈) ])
          × (outputs T ≡ (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ [])
          ) (toList Rᶜ)
     ∃λ = {!!}
@@ -374,8 +374,8 @@ unparseMove
 
     ∃λ : Any (λ l → ∃ λ B → ∃ λ T
              → (l ≡ B →∗∶ [ T ♯ ])
-             × (inputs  T ≡ V.[ hashTxⁱ (txout′ {x} x∈) ])
-             × (outputs T ≡ V.[ v -redeemableWith- K̂ B′ ])
+             × (inputs  T ≡ [ hashTxⁱ (txout′ {x} x∈) ])
+             × (outputs T ≡ [ v -redeemableWith- K̂ B′ ])
              ) (toList Rᶜ)
     ∃λ = {!!}
 

@@ -10,17 +10,14 @@ open import Prelude.General
 open import Prelude.Membership
 open import Prelude.Lists.Concat
 
-open import ComputationalModel.Accessors
+open import Bitcoin.Tx.Base using (_∙Value; _∙value)
+open import BitML.BasicTypes using (⋯)
 
-module SymbolicModel.Accessors
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-  where
+module SymbolicModel.Accessors (⋯ : ⋯) where
 
-open import SymbolicModel.Run Participant Honest
+open import SymbolicModel.Run ⋯
   hiding (beginₜ_; begin_; _∎)
-open import SymbolicModel.Collections Participant Honest
+open import SymbolicModel.Collections ⋯
 
 unquoteDecl _∙Cfg _∙cfg ∙cfg=_ = genAccessor _∙Cfg _∙cfg ∙cfg=_ (quote Cfg)
 instance

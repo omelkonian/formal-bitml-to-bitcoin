@@ -1,4 +1,4 @@
-open import Prelude.Init hiding (T)
+open import Prelude.Init hiding (T); open SetAsType
 open ≡-Reasoning
 open L.Mem using (∈-++⁺ˡ; ∈-++⁺ʳ)
 open import Prelude.Lists
@@ -11,70 +11,67 @@ open import Prelude.InferenceRules
 
 open import Bitcoin using (HashId; TxInput′)
 open import Prelude.Serializable HashId
+open import BitML.BasicTypes using (⋯)
 
-module SecureCompilation.ComputationalContracts
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-  where
+module SecureCompilation.ComputationalContracts (⋯ : ⋯) (let open ⋯ ⋯) where
 
-open import SymbolicModel Participant Honest hiding (A; B; begin_; _∎; Σ; _▷_; g′)
+import SymbolicModel ⋯ as BitML
+open BitML hiding (A; B; begin_; _∎; Σ; _▷_; g′)
 
 -- ** Computational contracts (transaction outputs instead of identifiers)
 Idᶜ  = TxInput′
 Idsᶜ = List Idᶜ
 
-data Contractᶜ : Set
-Contractsᶜ  = List Contractᶜ
-VContractsᶜ = List (Value × Contractsᶜ)
+data Branchᶜ : Type
+Contractᶜ  = List Branchᶜ
+VContractsᶜ = List (Value × Contractᶜ)
 
-data Contractᶜ where
-  put_&reveal_if_⇒_ : Idsᶜ → Secrets → Predicate → Contractsᶜ → Contractᶜ
-  withdraw : Participant → Contractᶜ
-  split : VContractsᶜ → Contractᶜ
-  _⇒_ : Participant → Contractᶜ → Contractᶜ
-  after_⇒_ : Time → Contractᶜ → Contractᶜ
+data Branchᶜ where
+  put_&reveal_if_⇒_ : Idsᶜ → Secrets → Predicate → Contractᶜ → Branchᶜ
+  withdraw : Participant → Branchᶜ
+  split : VContractsᶜ → Branchᶜ
+  _∶_ : Participant → Branchᶜ → Branchᶜ
+  after_∶_ : Time → Branchᶜ → Branchᶜ
 
-data Preconditionᶜ : Set where
+data Preconditionᶜ : Type where
   _:?_at_ : Participant → Value → Idᶜ → Preconditionᶜ
   _:!_at_ : Participant → Value → Idᶜ → Preconditionᶜ
   _:secret_ : Participant → Secret → Preconditionᶜ
-  _∣∣_ : Preconditionᶜ → Preconditionᶜ → Preconditionᶜ
+  _∣_ : Preconditionᶜ → Preconditionᶜ → Preconditionᶜ
 
-record Advertisementᶜ : Set where
+record Advertisementᶜ : Type where
   constructor ⟨_⟩_
   field
     G : Preconditionᶜ
-    C : Contractsᶜ
+    C : Contractᶜ
 
-infix  2 ⟨_⟩_
-infix  5 _:?_at_
-infix  5 _:!_at_
-infix  5 _:secret_
-infixl 2 _∣∣_
-infixr 9 _⇒_
+infix  7 _:?_at_ _:!_at_ _:secret_
+infixl 6 _∣_
+infix  0 ⟨_⟩_
+
+infixr 9 _∶_ after_∶_
 infix  8 put_&reveal_if_⇒_
 
-postulate TODO : ∀ {X : Set ℓ} → X
+postulate TODO : ∀ {X : Type ℓ} → X
 instance
   postulate
-    Serializable-Contractᶜ : Serializable Contractᶜ
+    Serializable-Branchᶜ : Serializable Branchᶜ
     Serializable-Preconditionᶜ : Serializable Preconditionᶜ
     Serializable-Advertisementᶜ : Serializable Advertisementᶜ
 {-
-  Serializable-TxContract : Serializable TxContract
-  Serializable-TxContract .encode tc = encode (reifyᶜ tc)
-  Serializable-TxContract .encode-injective = TODO
-  Serializable-TxContract .decode = fmap abstractᶜ ∘ decode
-  Serializable-TxContract .encode-decode m x .proj₁ = TODO
-  Serializable-TxContract .encode-decode m x .proj₂ = TODO
+  Serializable-TxBranch : Serializable TxBranch
+  Serializable-TxBranch .encode tc = encode (reifyᶜ tc)
+  Serializable-TxBranch .encode-injective = TODO
+  Serializable-TxBranch .decode = fmap abstractᶜ ∘ decode
+  Serializable-TxBranch .encode-decode m x .proj₁ = TODO
+  Serializable-TxBranch .encode-decode m x .proj₂ = TODO
 
-  Serializable-Contract : Serializable (∃ λ (c : Contract) → Txout c)
-  Serializable-Contract .encode (c , txout) = encode (mkTxContract c txout)
-  Serializable-Contract .encode-injective = TODO
-  Serializable-Contract .decode = {!!} -- fmap {!!} ∘ decode -- fmap abstractᶜ ∘ decode
-  Serializable-Contract .encode-decode m x .proj₁ = TODO
-  Serializable-Contract .encode-decode m x .proj₂ = TODO
+  Serializable-Branch : Serializable (∃ λ (c : Branch) → Txout c)
+  Serializable-Branch .encode (c , txout) = encode (mkTxBranch c txout)
+  Serializable-Branch .encode-injective = TODO
+  Serializable-Branch .decode = {!!} -- fmap {!!} ∘ decode -- fmap abstractᶜ ∘ decode
+  Serializable-Branch .encode-decode m x .proj₁ = TODO
+  Serializable-Branch .encode-decode m x .proj₂ = TODO
 -}
 
 -- ** De-bruijn contracts (indices instead of identifiers)
@@ -82,43 +79,40 @@ module _ (n : ℕ) where
   Id′  = Fin n
   Ids′ = List Id′
 
-  data Contract′ : Set
-  Contracts′  = List Contract′
-  VContracts′ = List (Value × Contracts′)
+  data Branch′ : Type
+  Contract′  = List Branch′
+  VContracts′ = List (Value × Contract′)
 
-  data Contract′ where
-    put_&reveal_if_⇒_ : Ids′ → Secrets → Predicate → Contracts′ → Contract′
-    withdraw : Participant → Contract′
-    split : VContracts′ → Contract′
-    _⇒_ : Participant → Contract′ → Contract′
-    after_⇒_ : Time → Contract′ → Contract′
+  data Branch′ where
+    put_&reveal_if_⇒_ : Ids′ → Secrets → Predicate → Contract′ → Branch′
+    withdraw : Participant → Branch′
+    split : VContracts′ → Branch′
+    _∶_ : Participant → Branch′ → Branch′
+    after_∶_ : Time → Branch′ → Branch′
 
-  data Precondition′ : Set where
+  data Precondition′ : Type where
     _:?_at_ : Participant → Value → Id′ → Precondition′
     _:!_at_ : Participant → Value → Id′ → Precondition′
     _:secret_ : Participant → Secret → Precondition′
-    _∣∣_ : Precondition′ → Precondition′ → Precondition′
+    _∣_ : Precondition′ → Precondition′ → Precondition′
 
-  record Advertisement′ : Set where
+  record Advertisement′ : Type where
     constructor ⟨_⟩_
     field
       G : Precondition′
-      C : Contracts′
+      C : Contract′
 
-  infix  2 ⟨_⟩_
+  infix  7 _:?_at_ _:!_at_ _:secret_
+  infixl 6 _∣_
+  infix  0 ⟨_⟩_
 
-  infix  5 _:?_at_
-  infix  5 _:!_at_
-  infix  5 _:secret_
-  infixl 2 _∣∣_
-
-  infixr 9 _⇒_
+  infixr 9 _∶_ after_∶_
   infix  8 put_&reveal_if_⇒_
 
-rei′ : ∀ {n} → (Fin n → Id) → Contract′ n → Contract
+rei′ : ∀ {n} → (Fin n → Id) → Branch′ n → Branch
 rei′ {n} getId = go
   where mutual
-    go : Contract′ n → Contract
+    go : Branch′ n → Branch
     go = λ where
       (put xs &reveal as if p ⇒ cs) →
         put (getId <$> xs) &reveal as if p ⇒ gos cs
@@ -126,12 +120,12 @@ rei′ {n} getId = go
         withdraw p
       (split vcs) →
         split (goss vcs)
-      (p ⇒ c) →
-        p ⇒ go c
-      (after t ⇒ c) →
-        after t ⇒ go c
+      (p ∶ c) →
+        p ∶ go c
+      (after t ∶ c) →
+        after t ∶ go c
 
-    gos : Contracts′ n → Contracts
+    gos : Contract′ n → Contract
     gos = λ where
       [] → []
       (c ∷ cs) → go c ∷ gos cs
@@ -143,8 +137,8 @@ rei′ {n} getId = go
 
 {- simply-typed version (using normal function space)
   module _ (txout : Id → Idᶜ) where
-    rei : Contract → Contractᶜ
-    reis : Contracts → Contractsᶜ
+    rei : Branch → Branchᶜ
+    reis : Contract → Contractᶜ
     reis = λ where
       [] → []
       (c ∷ cs) → rei c ∷ reis cs
@@ -159,14 +153,14 @@ rei′ {n} getId = go
         withdraw p
       (split vcs) →
         split (reiss vcs)
-      (p ⇒ c) →
-        p ⇒ rei c
-      (after t ⇒ c) →
-        after t ⇒ rei c
+      (p ∶ c) →
+        p ∶ rei c
+      (after t ∶ c) →
+        after t ∶ rei c
 
   module _ (txout⁻¹ : Idᶜ → Id) where
-    abs : Contractᶜ → Contract
-    abss : Contractsᶜ → Contracts
+    abs : Branchᶜ → Branch
+    abss : Contractᶜ → Contract
     abss = λ where
       [] → []
       (c ∷ cs) → abs c ∷ abss cs
@@ -181,18 +175,18 @@ rei′ {n} getId = go
         withdraw p
       (split vcs) →
         split (absss vcs)
-      (p ⇒ c) →
-        p ⇒ abs c
-      (after t ⇒ c) →
-        after t ⇒ abs c
+      (p ∶ c) →
+        p ∶ abs c
+      (after t ∶ c) →
+        after t ∶ abs c
 -}
 
 -- T0D0: move to formal-bitml/BitML.Contracts.Helpers
-ids-put≡ : ∀ {xs as} (p : Predicate) (cs : Contracts) →
-  ids (Contract ∋ put xs &reveal as if p ⇒ cs) ≡ xs ++ ids cs
+ids-put≡ : ∀ {xs as} (p : Predicate) (cs : Contract) →
+  ids (Branch ∋ put xs &reveal as if p ⇒ cs) ≡ xs ++ ids cs
 ids-put≡ {xs}{as} p cs =
   begin
-    ids (Contract ∋ put xs &reveal as if p ⇒ cs)
+    ids (Branch ∋ put xs &reveal as if p ⇒ cs)
   ≡⟨⟩
     mapMaybe isInj₂ (map inj₂ xs ++ map inj₁ as ++ names cs)
   ≡⟨ mapMaybe-++ isInj₂ (map inj₂ xs) _ ⟩
@@ -207,32 +201,32 @@ ids-put≡ {xs}{as} p cs =
     xs ++ ids cs
   ∎
 
-data TxContract : Set
-TxContracts  = List TxContract
-TxVContracts = List (Value × TxContracts)
+data TxBranch : Type
+TxContract  = List TxBranch
+TxVContracts = List (Value × TxContract)
 
-data TxContract where
+data TxBranch where
   put_&reveal_if_⇒_ :
-    (Σ Ids (_↦ TxInput′)) → Secrets → Predicate → TxContracts → TxContract
-  withdraw : Participant → TxContract
-  split : TxVContracts → TxContract
-  _⇒_ : Participant → TxContract → TxContract
-  after_⇒_ : Time → TxContract → TxContract
+    (Σ Ids (_↦ TxInput′)) → Secrets → Predicate → TxContract → TxBranch
+  withdraw : Participant → TxBranch
+  split : TxVContracts → TxBranch
+  _∶_ : Participant → TxBranch → TxBranch
+  after_∶_ : Time → TxBranch → TxBranch
 
 mutual
-  reifyᶜ : TxContract → Contractᶜ
+  reifyᶜ : TxBranch → Branchᶜ
   reifyᶜ (put (xs , txoutXS) &reveal as if p ⇒ cs) =
     put (codom txoutXS) &reveal as if p ⇒ reifyᶜˢ cs
   reifyᶜ (withdraw p) =
     withdraw p
   reifyᶜ (split vcs) =
     split (reifyᵛᶜˢ vcs)
-  reifyᶜ (p ⇒ c) =
-    p ⇒ reifyᶜ c
-  reifyᶜ (after t ⇒ c) =
-    after t ⇒ reifyᶜ c
+  reifyᶜ (p ∶ c) =
+    p ∶ reifyᶜ c
+  reifyᶜ (after t ∶ c) =
+    after t ∶ reifyᶜ c
 
-  reifyᶜˢ : TxContracts → Contractsᶜ
+  reifyᶜˢ : TxContract → Contractᶜ
   reifyᶜˢ []       = []
   reifyᶜˢ (c ∷ cs) = reifyᶜ c ∷ reifyᶜˢ cs
 
@@ -242,11 +236,11 @@ mutual
 
 open import Prelude.Setoid
 instance
-  Setoid-TxContract : ISetoid TxContract
-  Setoid-TxContract .relℓ = 0ℓ
-  Setoid-TxContract ._≈_ = go
-    module ∣Setoid-TxContract∣ where mutual
-      go : Rel₀ TxContract
+  Setoid-TxBranch : ISetoid TxBranch
+  Setoid-TxBranch .relℓ = 0ℓ
+  Setoid-TxBranch ._≈_ = go
+    module ∣Setoid-TxBranch∣ where mutual
+      go : Rel₀ TxBranch
       go (put (xs , f) &reveal as if p ⇒ cs) (put (xs′ , f′) &reveal as′ if p′ ⇒ cs′) =
         ∃ λ (xs≡ : xs ≡ xs′)
         → (f ≗⟨ ↭-reflexive $ sym xs≡ ⟩↦ f′)
@@ -255,11 +249,11 @@ instance
         × gos cs cs′
       go (withdraw p)  (withdraw p′)   = p ≡ p′
       go (split vcs)   (split vcs′)    = goss vcs vcs′
-      go (p ⇒ c) (p′ ⇒ c′) = (p ≡ p′) × go c c′
-      go (after t ⇒ c) (after t′ ⇒ c′) = (t ≡ t′) × go c c′
+      go (p ∶ c) (p′ ∶ c′) = (p ≡ p′) × go c c′
+      go (after t ∶ c) (after t′ ∶ c′) = (t ≡ t′) × go c c′
       go _ _ = ⊥
 
-      gos : Rel₀ TxContracts
+      gos : Rel₀ TxContract
       gos [] [] = ⊤
       gos (c ∷ cs) (c′ ∷ cs′) = go c c′ × gos cs cs′
       gos _ _ = ⊥
@@ -269,20 +263,20 @@ instance
       goss ((v , cs) ∷ vcs) ((v′ , cs′) ∷ vcs′) = (v ≡ v′) × gos cs cs′ × goss vcs vcs′
       goss _ _ = ⊥
 
-  Setoid-TxContracts : ISetoid TxContracts
-  Setoid-TxContracts = λ where
+  Setoid-TxContract : ISetoid TxContract
+  Setoid-TxContract = λ where
     .relℓ → 0ℓ
-    ._≈_  → ∣Setoid-TxContract∣.gos
+    ._≈_  → ∣Setoid-TxBranch∣.gos
 
   Setoid-TxVContracts : ISetoid TxVContracts
   Setoid-TxVContracts = λ where
     .relℓ → 0ℓ
-    ._≈_  → ∣Setoid-TxContract∣.goss
+    ._≈_  → ∣Setoid-TxBranch∣.goss
 
-  Contract▷TxContract : Σ Contract Txout ▷ TxContract
-  Contract▷TxContract .view = uncurry go
-    module ∣Contract▷TxContract∣ where mutual
-      go : (c : Contract) → Txout c → TxContract
+  Branch▷TxBranch : Σ Branch Txout ▷ TxBranch
+  Branch▷TxBranch .view = uncurry go
+    module ∣Branch▷TxBranch∣ where mutual
+      go : (c : Branch) → Txout c → TxBranch
       go c txout with c
       ... | put xs &reveal as if p ⇒ cs =
         let txoutXS , txoutCS = destruct≡-++/↦ (ids-put≡ p cs) txout
@@ -291,12 +285,12 @@ instance
         withdraw p
       ... | split vcs =
         split (goss vcs txout)
-      ... | p ⇒ c =
-        p ⇒ go c (txout ∘ ∈-++⁺ʳ _)
-      ... | after t ⇒ c =
-        after t ⇒ go c txout
+      ... | p ∶ c =
+        p ∶ go c (txout ∘ ∈-++⁺ʳ _)
+      ... | after t ∶ c =
+        after t ∶ go c txout
 
-      gos : (cs : Contracts) → Txout cs → TxContracts
+      gos : (cs : Contract) → Txout cs → TxContract
       gos []       _     = []
       gos cs₀@(c ∷ cs) txout =
         let
@@ -317,9 +311,9 @@ instance
           txoutCS , txoutVCS = destruct≡-++/↦ n≡ txout
         in
           (v , gos cs txoutCS) ∷ goss vcs txoutVCS
-  Contract▷TxContract .unview = go
-    module ∣Contract▷TxContract∣˘ where mutual
-      go : TxContract → ∃ λ (c : Contract) → Txout c
+  Branch▷TxBranch .unview = go
+    module ∣Branch▷TxBranch∣˘ where mutual
+      go : TxBranch → ∃ λ (c : Branch) → Txout c
       go = λ where
         (put (xs , txoutXS) &reveal as if p ⇒ cs) →
           let cs′ , txoutCS = gos cs
@@ -330,14 +324,14 @@ instance
         (split vcs) →
           let vcs′ , txout = goss vcs
           in split vcs′ , txout
-        (p ⇒ c) →
+        (p ∶ c) →
           let c′ , txout = go c
-          in (p ⇒ c′) , txout
-        (after t ⇒ c) →
+          in (p ∶ c′) , txout
+        (after t ∶ c) →
           let c′ , txout = go c
-          in (after t ⇒ c′) , txout
+          in (after t ∶ c′) , txout
 
-      gos : TxContracts → ∃ λ (cs : Contracts) → Txout cs
+      gos : TxContract → ∃ λ (cs : Contract) → Txout cs
       gos [] = ([] , λ ())
       gos (c ∷ cs) =
         let c′  , txoutC  = go c
@@ -354,33 +348,33 @@ instance
             txout = cong-↦ (txoutCS ++/↦ txoutVCS)
                   $ mapMaybe-++ isInj₂ (names cs′) (names vcs′)
         in ((v , cs′) ∷ vcs′) , txout
+  Branch▷TxBranch .unview∘view = TODO
+  Branch▷TxBranch .view∘unview = TODO
+
+  Contract▷TxContract : Σ Contract Txout ▷ TxContract
+  Contract▷TxContract .view = uncurry ∣Branch▷TxBranch∣.gos
+  Contract▷TxContract .unview = ∣Branch▷TxBranch∣˘.gos
   Contract▷TxContract .unview∘view = TODO
   Contract▷TxContract .view∘unview = TODO
 
-  Contracts▷TxContracts : Σ Contracts Txout ▷ TxContracts
-  Contracts▷TxContracts .view = uncurry ∣Contract▷TxContract∣.gos
-  Contracts▷TxContracts .unview = ∣Contract▷TxContract∣˘.gos
-  Contracts▷TxContracts .unview∘view = TODO
-  Contracts▷TxContracts .view∘unview = TODO
-
   VContracts▷TxVContracts : Σ VContracts Txout ▷ TxVContracts
-  VContracts▷TxVContracts .view = uncurry ∣Contract▷TxContract∣.goss
-  VContracts▷TxVContracts .unview = ∣Contract▷TxContract∣˘.goss
+  VContracts▷TxVContracts .view = uncurry ∣Branch▷TxBranch∣.goss
+  VContracts▷TxVContracts .unview = ∣Branch▷TxBranch∣˘.goss
   VContracts▷TxVContracts .unview∘view = TODO
   VContracts▷TxVContracts .view∘unview = TODO
 
-data TxPrecondition : Set where
+data TxPrecondition : Type where
   _:?_at_ : Participant → Value → Id × TxInput′ → TxPrecondition
   _:!_at_ : Participant → Value → Id × TxInput′ → TxPrecondition
   _:secret_ : Participant → Secret → TxPrecondition
-  _∣∣_ : TxPrecondition → TxPrecondition → TxPrecondition
+  _∣_ : TxPrecondition → TxPrecondition → TxPrecondition
 
 reifyᵖ : TxPrecondition → Preconditionᶜ
 reifyᵖ = λ where
   (p :? v at (x , o)) → p :? v at o
   (p :! v at (x , o)) → p :! v at o
   (p :secret s)       → p :secret s
-  (p ∣∣ q)            → reifyᵖ p ∣∣ reifyᵖ q
+  (p ∣ q)            → reifyᵖ p ∣ reifyᵖ q
 
 instance
   Precondition▷TxPrecondition : Σ Precondition Txout ▷ TxPrecondition
@@ -391,41 +385,41 @@ instance
       ... | P :? v at x = P :? v at (x , txout (here refl))
       ... | P :! v at x = P :! v at (x , txout (here refl))
       ... | P :secret s = P :secret s
-      ... | p ∣∣ q =
+      ... | p ∣ q =
         let
           ids≡ = mapMaybe-++ isInj₂ (names p) (names q)
           txoutP , txoutQ = destruct≡-++/↦ ids≡ txout
         in
-          go p txoutP ∣∣ go q txoutQ
+          go p txoutP ∣ go q txoutQ
   Precondition▷TxPrecondition .unview = go
     where
       go : TxPrecondition → Σ Precondition Txout
       go (P :? v at (x , o)) = (P :? v at x) , (λ where (here refl) → o)
       go (P :! v at (x , o)) = (P :! v at x) , (λ where (here refl) → o)
       go (P :secret s)       = (P :secret s) , λ ()
-      go (p ∣∣ q) =
+      go (p ∣ q) =
         let p′ , txoutP = go p
             q′ , txoutQ = go q
             ids≡ = mapMaybe-++ isInj₂ (names p′) (names q′)
-        in (p′ ∣∣ q′) , cong-↦ (txoutP ++/↦ txoutQ) ids≡
+        in (p′ ∣ q′) , cong-↦ (txoutP ++/↦ txoutQ) ids≡
   Precondition▷TxPrecondition .unview∘view = TODO
   Precondition▷TxPrecondition .view∘unview = TODO
 
-record TxAdvertisement : Set where
+record TxAd : Type where
   constructor ⟨_⟩_
   field
     G : TxPrecondition
-    C : TxContracts
+    C : TxContract
 
-reifyᵃᵈ : TxAdvertisement → Advertisementᶜ
+reifyᵃᵈ : TxAd → Advertisementᶜ
 reifyᵃᵈ (⟨ G ⟩ C) = ⟨ reifyᵖ G ⟩ reifyᶜˢ C
 
 instance
-  Setoid-TxAd : ISetoid TxAdvertisement
+  Setoid-TxAd : ISetoid TxAd
   Setoid-TxAd .relℓ = 0ℓ
   Setoid-TxAd ._≈_ (⟨ g ⟩ cs) (⟨ g′ ⟩ cs′) = (g ≡ g′) × (cs ≈ cs′)
 
-  Ad▷TxAd : (∃ λ (ad : Ad) → Txout ad × Txout (ad .C)) ▷ TxAdvertisement
+  Ad▷TxAd : (∃ λ (ad : Ad) → Txout ad × Txout (ad .C)) ▷ TxAd
   Ad▷TxAd .view ((⟨ G ⟩ C) , txoutG , txoutC) =
     ⟨ view (G , λ {_} → txoutG) ⟩ view (C , λ {_} → txoutC)
   Ad▷TxAd .unview (⟨ G ⟩ C) =
@@ -443,7 +437,7 @@ encodeAd ad (txoutG , txoutC) = encode $ reify (ad , txoutG , txoutC)
 
 open import Prelude.Lists.Collections
 
-idsᶜ : ∀ {X : Set} ⦃ _ : X has Idᶜ ⦄ → (X → Idsᶜ)
+idsᶜ : ∀ {X : Type} ⦃ _ : X has Idᶜ ⦄ → (X → Idsᶜ)
 idsᶜ = collect
 
 instance
@@ -452,20 +446,20 @@ instance
     (_ :secret _) → []
     (_ :? _ at x) → [ x ]
     (_ :! _ at x) → [ x ]
-    (p ∣∣ q) → collect p ++ collect q
+    (p ∣ q) → collect p ++ collect q
 
-  HCᵗˣⁱ : Contractᶜ has TxInput′
+  HCᵗˣⁱ : Branchᶜ has TxInput′
   HCᵗˣⁱ .collect = go
     module ∣HCᵗˣⁱ∣ where mutual
-      go : Contractᶜ → Idsᶜ
+      go : Branchᶜ → Idsᶜ
       go = λ where
         (put xs &reveal _ if _ ⇒ cs) → xs ++ gos cs
         (withdraw _)                 → []
         (split vcs)                  → goss vcs
-        (_ ⇒ c′)                     → go c′
-        (after _ ⇒ c′)               → go c′
+        (_ ∶ c′)                     → go c′
+        (after _ ∶ c′)               → go c′
 
-      gos : Contractsᶜ → Idsᶜ
+      gos : Contractᶜ → Idsᶜ
       gos [] = []
       gos (c ∷ cs) = go c ++ gos cs
 
@@ -473,7 +467,7 @@ instance
       goss [] = []
       goss ((v , cs) ∷ vcs) = gos cs ++ goss vcs
 
-  HCSᵗˣⁱ : Contractsᶜ has TxInput′
+  HCSᵗˣⁱ : Contractᶜ has TxInput′
   HCSᵗˣⁱ .collect = ∣HCᵗˣⁱ∣.gos
 
   HVCSᵗˣⁱ : VContractsᶜ has TxInput′
@@ -482,11 +476,11 @@ instance
   HAᵗˣⁱ : Advertisementᶜ has TxInput′
   HAᵗˣⁱ .collect (⟨ g ⟩ c) = collect g ++ collect c
 
-Txout⁻¹ : ∀ {X : Set} → ⦃ X has Idᶜ ⦄ → Pred₀ X
+Txout⁻¹ : ∀ {X : Type} → ⦃ X has Idᶜ ⦄ → Pred₀ X
 Txout⁻¹ x = idsᶜ x ↦ Id
 
 -- T0D0: move to Prelude.Lists.Mappings
-destruct-++/↦-≡ : ∀ {A : Set} {P : A → Set} {xs ys : List A} {h h′ : xs ++ ys ↦′ P} →
+destruct-++/↦-≡ : ∀ {A : Type} {P : A → Type} {xs ys : List A} {h h′ : xs ++ ys ↦′ P} →
   ∙ h ≗↦ h′
     ───────────────────────────────────────
     let f  , g  = destruct-++/↦ {ys = ys} h
@@ -494,12 +488,12 @@ destruct-++/↦-≡ : ∀ {A : Set} {P : A → Set} {xs ys : List A} {h h′ : x
     in (f ≗↦ f′) × (g ≗↦ g′)
 destruct-++/↦-≡ eq = (λ _ → eq _) , (λ _ → eq _)
 
-codom∘codom-↦ : ∀ {A B : Set} {xs : List A} (f : xs ↦ B) →
+codom∘codom-↦ : ∀ {A B : Type} {xs : List A} (f : xs ↦ B) →
   codom (codom-↦ f) ≡ xs
 codom∘codom-↦ {xs = []} _ = refl
 codom∘codom-↦ {xs = x ∷ xs} f = cong (x ∷_) ( codom∘codom-↦ {xs = xs} (uncons-↦ f))
 
-≗↦⇒codom≡ : ∀ {A B : Set} {xs : List A} {f f′ : xs ↦ B} →
+≗↦⇒codom≡ : ∀ {A B : Type} {xs : List A} {f f′ : xs ↦ B} →
   f ≗↦ f′
   ──────────────────
   codom f ≡ codom f′
@@ -508,7 +502,7 @@ codom∘codom-↦ {xs = x ∷ xs} f = cong (x ∷_) ( codom∘codom-↦ {xs = xs
   rewrite eq (here refl)
   = cong (_ ∷_) $ ≗↦⇒codom≡ {xs = xs} (λ _ → eq _)
 
-codom∘destruct∘codom-↦ˡ : ∀ {A B : Set} {xs : List A} {ys : List B}
+codom∘destruct∘codom-↦ˡ : ∀ {A B : Type} {xs : List A} {ys : List B}
   (f : xs ↦ B) (g : ys ↦ A) →
   codom (destruct-++/↦ {xs = codom f} (codom-↦ f ++/↦ g) .proj₁) ≡ xs
 codom∘destruct∘codom-↦ˡ {xs = xs} f g =
@@ -520,7 +514,7 @@ codom∘destruct∘codom-↦ˡ {xs = xs} f g =
     xs
   ∎
 
-codom∘destruct∘codom-↦ʳ : ∀ {A B : Set} {ys : List A} {xs : List B}
+codom∘destruct∘codom-↦ʳ : ∀ {A B : Type} {ys : List A} {xs : List B}
   (f : xs ↦ A) (g : ys ↦ B) →
   codom (destruct-++/↦ {ys = codom g} (f ++/↦ codom-↦ g) .proj₂) ≡ ys
 codom∘destruct∘codom-↦ʳ {ys = ys} f g =
@@ -532,47 +526,47 @@ codom∘destruct∘codom-↦ʳ {ys = ys} f g =
     ys
   ∎
 
-codom∘destruct≡∘codom-↦ˡ : ∀ {A B : Set} {xs : List A} {ys zs : List B}
+codom∘destruct≡∘codom-↦ˡ : ∀ {A B : Type} {xs : List A} {ys zs : List B}
   (f : xs ↦ B) (g : ys ↦ A)
   (eq : zs ≡ codom f ++ ys) →
   codom (destruct≡-++/↦ {xs = codom f} eq (cong-↦ (codom-↦ f ++/↦ g) eq) .proj₁) ≡ xs
 codom∘destruct≡∘codom-↦ˡ f g refl = codom∘destruct∘codom-↦ˡ f g
 
-codom∘destruct≡∘codom-↦ʳ : ∀ {A B : Set} {ys : List A} {xs zs : List B}
+codom∘destruct≡∘codom-↦ʳ : ∀ {A B : Type} {ys : List A} {xs zs : List B}
   (f : xs ↦ A) (g : ys ↦ B)
   (eq : zs ≡ xs ++ codom g) →
   codom (destruct≡-++/↦ {ys = codom g} eq (cong-↦ (f ++/↦ codom-↦ g) eq) .proj₂) ≡ ys
 codom∘destruct≡∘codom-↦ʳ f g refl = codom∘destruct∘codom-↦ʳ f g
 
-_∣∣/≡_ : ∀ {p p′ q q′} →
+_∣/≡_ : ∀ {p p′ q q′} →
   ∙ p ≡ p′
   ∙ q ≡ q′
     ────────────────────────────────────
-    (Precondition ∋ p ∣∣ q) ≡ (p′ ∣∣ q′)
-refl ∣∣/≡ refl = refl
+    (Precondition ∋ p ∣ q) ≡ (p′ ∣ q′)
+refl ∣/≡ refl = refl
 
-_∣∣/≡ᵗˣ_ : ∀ {p p′ q q′} →
+_∣/≡ᵗˣ_ : ∀ {p p′ q q′} →
   ∙ p ≡ p′
   ∙ q ≡ q′
     ──────────────────────────────────────
-    (TxPrecondition ∋ p ∣∣ q) ≡ (p′ ∣∣ q′)
-refl ∣∣/≡ᵗˣ refl = refl
+    (TxPrecondition ∋ p ∣ q) ≡ (p′ ∣ q′)
+refl ∣/≡ᵗˣ refl = refl
 
-_∣∣/≡ᶜ_ : ∀ {p p′ q q′} →
+_∣/≡ᶜ_ : ∀ {p p′ q q′} →
   ∙ p ≡ p′
   ∙ q ≡ q′
     ─────────────────────────────────────
-    (Preconditionᶜ ∋ p ∣∣ q) ≡ (p′ ∣∣ q′)
-refl ∣∣/≡ᶜ refl = refl
+    (Preconditionᶜ ∋ p ∣ q) ≡ (p′ ∣ q′)
+refl ∣/≡ᶜ refl = refl
 
-_∷/≡_ : ∀ {A : Set ℓ} {x x′ : A} {xs xs′ : List A} →
+_∷/≡_ : ∀ {A : Type ℓ} {x x′ : A} {xs xs′ : List A} →
   ∙ x ≡ x′
   ∙ xs ≡ xs′
     ──────────────────────────────
     (List A ∋ x ∷ xs) ≡ (x′ ∷ xs′)
 refl ∷/≡ refl = refl
 
-_++/≡_ : ∀ {A : Set ℓ} {xs xs′ ys ys′ : List A} →
+_++/≡_ : ∀ {A : Type ℓ} {xs xs′ ys ys′ : List A} →
   ∙ xs ≡ xs′
   ∙ ys ≡ ys′
     ──────────────────────────────────
@@ -583,7 +577,7 @@ refl ++/≡ refl = refl
   ∙ g ≡ g′
   ∙ c ≈ c′
     ─────────────────────────────
-    (TxAdvertisement ∋ ⟨ g ⟩ c) ≈
+    (TxAd ∋ (⟨ g ⟩ c)) ≈
     (⟨ g′ ⟩ c′)
 ⟨_⟩/≡_ = _,_
 
@@ -591,7 +585,7 @@ put_⇒/≡_ : ∀ {xs xs′ cs cs′} {as p} →
   ∙ xs ≡ xs′
   ∙ cs ≡ cs′
     ──────────────────────────────
-    (Contractᶜ ∋ put xs &reveal as if p ⇒ cs) ≡
+    (Branchᶜ ∋ put xs &reveal as if p ⇒ cs) ≡
     (put xs′ &reveal as if p ⇒ cs′)
 put refl ⇒/≡ refl = refl
 --
@@ -605,12 +599,12 @@ module ∣view≡∣ where
   goᵖ (_ :? x₁ at _) eq rewrite eq (here refl) = refl
   goᵖ (_ :! x₁ at _) eq rewrite eq (here refl) = refl
   goᵖ (_ :secret _) _ = refl
-  goᵖ (p ∣∣ q) {txout}{txout′} eq
+  goᵖ (p ∣ q) {txout}{txout′} eq
     rewrite mapMaybe-++ isInj₂ (names p) (names q)
-    = goᵖ p (λ _ → eq _) ∣∣/≡ᵗˣ goᵖ q (λ _ → eq _)
+    = goᵖ p (λ _ → eq _) ∣/≡ᵗˣ goᵖ q (λ _ → eq _)
 
   mutual
-    go : ∀ (c : Contract) {txout txout′ : Txout c} →
+    go : ∀ (c : Branch) {txout txout′ : Txout c} →
       txout ≗↦ txout′
       ──────────────────────────
       view (c , λ {_} → txout) ≈
@@ -621,10 +615,10 @@ module ∣view≡∣ where
         in refl , txoutXS≗ , refl , refl , gos cs txoutCS≗
     go (withdraw _)   _  = refl
     go (split vcs)    eq = goss vcs eq -- cong split $ goss vcs eq
-    go (_ ⇒ c′)       eq = refl , go c′ eq -- cong (_ ⇒_) $ go c′ eq
-    go (after _ ⇒ c′) eq = refl , go c′ eq -- cong (after _ ⇒_) $ go c′ eq
+    go (_ ∶ c′)       eq = refl , go c′ eq -- cong (_ ∶_) $ go c′ eq
+    go (after _ ∶ c′) eq = refl , go c′ eq -- cong (after _ ∶_) $ go c′ eq
 
-    gos : ∀ (cs : Contracts) {txout txout′ : Txout cs} →
+    gos : ∀ (cs : Contract) {txout txout′ : Txout cs} →
       txout ≗↦ txout′
       ───────────────────────────
       view (cs , λ {_} → txout) ≈
@@ -656,7 +650,7 @@ view≡ {⟨ g ⟩ c} txoutG≗ txoutC≗ = ⟨ goᵖ g txoutG≗ ⟩/≡ gos c 
   where open ∣view≡∣
 
 module ∣reify≡∣ where mutual
-  go : ∀ (c c′ : TxContract) →
+  go : ∀ (c c′ : TxBranch) →
     c ≈ c′
     ────────────────────
     reifyᶜ c ≡ reifyᶜ c′
@@ -665,10 +659,10 @@ module ∣reify≡∣ where mutual
       rewrite gos _ _ cs≈ | ≗↦⇒codom≡ xs≈ = refl
   go (withdraw _) (withdraw _) refl = refl
   go (split _) (split _) vcs≈ rewrite goss _ _ vcs≈ = refl
-  go (_ ⇒ c) (_ ⇒ c′) (refl , c≈) rewrite go c c′ c≈ = refl
-  go (after _ ⇒ c) (after _ ⇒ c′) (refl , c≈) rewrite go c c′ c≈ = refl
+  go (_ ∶ c) (_ ∶ c′) (refl , c≈) rewrite go c c′ c≈ = refl
+  go (after _ ∶ c) (after _ ∶ c′) (refl , c≈) rewrite go c c′ c≈ = refl
 
-  gos : ∀ (cs cs′ : TxContracts) →
+  gos : ∀ (cs cs′ : TxContract) →
     cs ≈ cs′
     ────────────────────────
     reifyᶜˢ cs ≡ reifyᶜˢ cs′
@@ -683,7 +677,7 @@ module ∣reify≡∣ where mutual
   goss ((v , cs) ∷ vcs) ((v , cs′) ∷ vcs′) (refl , cs≈ , vcs≈) =
     cong (v ,_) (gos cs cs′ cs≈) ∷/≡ goss vcs vcs′ vcs≈
 
-reify≡ : ∀ {ad ad′ : TxAdvertisement} →
+reify≡ : ∀ {ad ad′ : TxAd} →
   ad ≈ ad′
   ────────────────────────────────────────────────
   reifyᵃᵈ ad ≡ reifyᵃᵈ ad′
@@ -698,7 +692,7 @@ abstractᶜ (⟨ g ⟩ c) txout⁻¹ =
   in (⟨ g ⟩ c) , txoutG , txoutC
   module ∣abstractᶜ∣ where
     mutual
-      go : (c : Contractᶜ) → Txout⁻¹ c → ∃ λ (c : Contract) → Txout c
+      go : (c : Branchᶜ) → Txout⁻¹ c → ∃ λ (c : Branch) → Txout c
       go c txout⁻¹ with c
       ... | put xs &reveal as if p ⇒ cs =
         let txoutXS , txoutCS = destruct-++/↦ txout⁻¹
@@ -711,14 +705,14 @@ abstractᶜ (⟨ g ⟩ c) txout⁻¹ =
       ... | split vcs =
         let vcs , txout = goss vcs txout⁻¹
         in split vcs , txout
-      ... | p ⇒ c =
+      ... | p ∶ c =
         let c , txout = go c txout⁻¹
-        in (p ⇒ c) , txout
-      ... | after t ⇒ c =
+        in (p ∶ c) , txout
+      ... | after t ∶ c =
         let c , txout = go c txout⁻¹
-        in (after t ⇒ c) , txout
+        in (after t ∶ c) , txout
 
-      gos : (cs : Contractsᶜ) → Txout⁻¹ cs → ∃ λ (cs : Contracts) → Txout cs
+      gos : (cs : Contractᶜ) → Txout⁻¹ cs → ∃ λ (cs : Contract) → Txout cs
       gos [] _ = [] , λ ()
       gos (c ∷ cs) txout⁻¹ =
         let c , txoutC = go c (txout⁻¹ ∘ ∈-++⁺ˡ)
@@ -741,11 +735,11 @@ abstractᶜ (⟨ g ⟩ c) txout⁻¹ =
     ... | A :secret s = A :secret s , λ ()
     ... | A :? v at i = A :? v at txout⁻¹ 𝟘 , λ where 𝟘 → i
     ... | A :! v at i = A :! v at txout⁻¹ 𝟘 , λ where 𝟘 → i
-    ... | p ∣∣ q =
+    ... | p ∣ q =
       let p , txoutP = goᵖ p (txout⁻¹ ∘ ∈-++⁺ˡ)
           q , txoutQ = goᵖ q (txout⁻¹ ∘ ∈-++⁺ʳ _)
           ids≡ = mapMaybe-++ isInj₂ (names p) (names q)
-      in (p ∣∣ q) , cong-↦ (txoutP ++/↦ txoutQ) ids≡
+      in (p ∣ q) , cong-↦ (txoutP ++/↦ txoutQ) ids≡
 
 reify∘abstract : ∀ adᶜ (txout⁻¹ : Txout⁻¹ adᶜ)
   → reify (abstractᶜ adᶜ txout⁻¹) ≡ adᶜ
@@ -769,7 +763,7 @@ reify∘abstract (⟨ g ⟩ cs) txout⁻¹ =
     ... | _ :secret _ = refl
     ... | _ :? _ at _ = refl
     ... | _ :! _ at _ = refl
-    ... | pᶜ ∣∣ qᶜ =
+    ... | pᶜ ∣ qᶜ =
       let
         p≡ = Goᵖ pᶜ (txout⁻¹ ∘ ∈-++⁺ˡ)
         p , txoutP = goᵖ pᶜ (txout⁻¹ ∘ ∈-++⁺ˡ)
@@ -779,11 +773,11 @@ reify∘abstract (⟨ g ⟩ cs) txout⁻¹ =
         txoutP≗ , txoutQ≗ = destruct≡-++/↦∘cong-↦ txoutP txoutQ ids≡
       in
         trans (cong reifyᵖ $ sym (∣view≡∣.goᵖ p txoutP≗)) p≡
-        ∣∣/≡ᶜ
+        ∣/≡ᶜ
         trans (cong reifyᵖ $ sym (∣view≡∣.goᵖ q txoutQ≗)) q≡
 
     mutual
-      Go : (c : Contractᶜ) (txout⁻¹ : Txout⁻¹ c) →
+      Go : (c : Branchᶜ) (txout⁻¹ : Txout⁻¹ c) →
         reifyᶜ (view $ go c txout⁻¹) ≡ c
       Go c txout⁻¹ with c
       ... | put xs &reveal as if p ⇒ cs =
@@ -802,16 +796,16 @@ reify∘abstract (⟨ g ⟩ cs) txout⁻¹ =
         let vcs≡ = Goss vcs txout⁻¹
             vcs , txout = goss vcs txout⁻¹
         in cong split vcs≡
-      ... | p ⇒ c =
+      ... | p ∶ c =
         let c≡ = Go c txout⁻¹
             c , txout = go c txout⁻¹
-        in cong (p ⇒_) c≡
-      ... | after t ⇒ c =
+        in cong (p ∶_) c≡
+      ... | after t ∶ c =
         let c≡ = Go c txout⁻¹
             c , txout = go c txout⁻¹
-        in cong (after t ⇒_) c≡
+        in cong (after t ∶_) c≡
 
-      Gos : (cs : Contractsᶜ) (txout⁻¹ : Txout⁻¹ cs) →
+      Gos : (cs : Contractᶜ) (txout⁻¹ : Txout⁻¹ cs) →
         reifyᶜˢ (view $ gos cs txout⁻¹) ≡ cs
       Gos [] _ = refl
       Gos (c ∷ cs) txout⁻¹

@@ -12,26 +12,24 @@ open import Prelude.Validity
 open import Prelude.Closures
 open import Prelude.Traces
 
-module SymbolicModel.Stripping
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-  where
+open import BitML.BasicTypes using (⋯)
 
-open import SymbolicModel.Run Participant Honest
+module SymbolicModel.Stripping (⋯ : ⋯) where
+
+open import SymbolicModel.Run ⋯
 
 record Strippable (A : Set) : Set where
   field _∗ : A → A
 open Strippable ⦃...⦄ public
 
 instance
-  ∗ᶜ : Strippable Configuration
+  ∗ᶜ : Strippable Cfg
   ∗ᶜ ._∗ c with c
   ... | ⟨ p ∶ a ♯ _ ⟩ = ⟨ p ∶ a ♯ nothing ⟩
   ... | l ∣ r         = l ∗ ∣ r ∗
   ... | _             = c
 
-  ∗ᵗ : Strippable TimedConfiguration
+  ∗ᵗ : Strippable Cfgᵗ
   ∗ᵗ ._∗ (Γ at t) = (Γ ∗) at t
 
   ∗ˡ : Strippable Label
@@ -42,7 +40,7 @@ instance
   ∗ʳ : Strippable Run
   ∗ʳ ._∗ = mapRun _∗ _∗
     where
-        mapRun : (TimedConfiguration → TimedConfiguration) → (Label → Label) → (Run → Run)
+        mapRun : (Cfgᵗ → Cfgᵗ) → (Label → Label) → (Run → Run)
         mapRun f g record { start = s ; end = .s ; trace = (.`∅ᶜ , (.s ∎)); init = init }
           = let s′ = f s in
             record {start = s′; end = s′; trace = -, (s′ ∎ₜ); init = {!init!}}
@@ -56,5 +54,5 @@ prefixRuns record { start = start ; end = end ; trace = trace ; init = init } = 
 -- prefixRuns (tc ∙)        = [ tc ∙ ]
 -- prefixRuns (tc ∷⟦ α ⟧ R) = let rs = prefixRuns R in rs ++ map (tc ∷⟦ α ⟧_) rs
 
--- _∈ʳ_ : Configuration → Run → Set
+-- _∈ʳ_ : Cfg → Run → Set
 -- _∈ʳ_ c R = c ∈ᶜ cfg (lastCfgᵗ (R ∗))

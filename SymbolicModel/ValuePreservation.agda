@@ -12,19 +12,16 @@ open import Prelude.Lists.MapMaybe
 
 open import Bitcoin.Crypto
 open import Bitcoin.Tx
-open import ComputationalModel.Accessors
 
-module SymbolicModel.ValuePreservation
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-  where
+open import BitML.BasicTypes using (⋯)
 
-open import SymbolicModel.Run Participant Honest as S
+module SymbolicModel.ValuePreservation (⋯ : ⋯) where
+
+open import SymbolicModel.Run ⋯ as S
   hiding (_∎; begin_)
-open import SymbolicModel.Accessors Participant Honest
-open import SymbolicModel.Collections Participant Honest
-open import SymbolicModel.Mappings Participant Honest
+open import SymbolicModel.Accessors ⋯
+open import SymbolicModel.Collections ⋯
+open import SymbolicModel.Mappings ⋯
 
 open ≡-Reasoning
 

@@ -11,17 +11,15 @@ open import Prelude.InferenceRules
 
 open import Bitcoin using (TxInput′)
 
-module SymbolicModel.Mappings.Properties
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-  where
+open import BitML.BasicTypes using () renaming (⋯ to ⋯′)
 
-open import SymbolicModel.Run Participant Honest
+module SymbolicModel.Mappings.Properties (⋯′ : ⋯′) where
+
+open import SymbolicModel.Run ⋯′
   hiding (_∎; begin_)
-open import SymbolicModel.Accessors Participant Honest
-open import SymbolicModel.Collections Participant Honest
-open import SymbolicModel.Mappings.Base Participant Honest
+open import SymbolicModel.Collections ⋯′
+open import SymbolicModel.Accessors ⋯′
+open import SymbolicModel.Mappings.Base ⋯′
 
 Txout≈ : _≈_ ⇒² _→⦅ Txout ⦆_
 Txout≈ {Γ}{Γ′} = permute-↦ {P = const TxInput′} ∘ ≈⇒namesʳ↭ {Γ}{Γ′}
@@ -213,7 +211,7 @@ Last∈-end∈allCfgsᵗ R = go (R ∙trace′)
     Txout ad × Txout (ad .C)
 ℍ[C-Advertise]⇒Txout {Γ = Γ} {ad = ad} (_ , vad , _ , d⊆) txout =
   let txoutG = weaken-↦ txout (deposits⊆⇒namesʳ⊆ {ad}{Γ} d⊆)
-  in txoutG , weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
+  in txoutG , weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆ .unmk⊆)
 
 ℍ[C-Advertise]⇒TxoutG :
   ∙ ℍ[C-Advertise]⦅ Γ ↝ Γ′ ⦆⦅ ad ⦆
@@ -385,7 +383,7 @@ Txout≈∘Txout≈⁻¹ {Γ}{Γ′} Γ≈ txout {x} x∈ =
 ... | inj₁ _  = refl
 ... | inj₂ y∈ = Txout≈∘Txout≈⁻¹ {Γ}{Γ′} Γ≈ txoutʳ y∈
 
-open import ComputationalModel.Accessors using (_∙value)
+open import Bitcoin.Tx.Base using (_∙value)
 
 module _ {R} (𝕣 : ℝ R) where
   _∙txout_ = 𝕣 .ℝ.txout′

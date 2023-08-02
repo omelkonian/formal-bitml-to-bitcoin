@@ -18,6 +18,5 @@ module ComputationalModel
 open import Bitcoin public
 
 open import ComputationalModel.KeyPairs Participant keypairs public
-open import ComputationalModel.Accessors public
 open import ComputationalModel.Strategy Participant Honest finPart keypairs public
 open import ComputationalModel.Lemmas Participant Honest finPart keypairs public

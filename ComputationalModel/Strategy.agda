@@ -101,7 +101,7 @@ strip A = mapMaybe go
 Coinbase : Pred₀ ∃Tx
 Coinbase (_ , _ , tx) =
   ∀ {A} → A ∈ allParticipants →
-    (Ctx 1 , (ƛ (versig [ K̂ A ] [ # 0 ])))
+    (1 , (ƛ (versig [ K̂ A ] [ # 0 ])))
     ∈ map (map₂′ validator) (V.toList (outputs tx))
 
 open import Prelude.Enumerable
@@ -120,7 +120,7 @@ instance
 
   Dec-Coinbase : Coinbase ⁇¹
   Dec-Coinbase {x = i , o , tx} .dec
-    with all? (λ A → (Ctx 1 , (ƛ (versig [ K̂ A ] [ # 0 ])))
+    with all? (λ A → (1 , (ƛ (versig [ K̂ A ] [ # 0 ])))
                    ∈? map (map₂′ validator) (V.toList (outputs tx)))
               allParticipants
   ... | no ¬∀  = no  (¬∀ ∘ L.All.tabulate)

@@ -187,10 +187,9 @@ module Section7 where -- (see BitML paper, Section 7).
     { inputs  = []
     ; wit     = wit⊥
     ; relLock = V.replicate 0
-    ; outputs =
-        (Ctx 1 , record {value = 1 ; validator = ƛ (versig [ K̂ᵃ ] [ # 0 ])})
-      ∷ (Ctx 1 , record {value = 1 ; validator = ƛ (versig [ K̂ᵇ ] [ # 0 ])})
-      ∷ []
+    ; outputs = [ (1 , record {value = 1 ; validator = ƛ (versig [ K̂ᵃ ] [ # 0 ])})
+                ⨾ (1 , record {value = 1 ; validator = ƛ (versig [ K̂ᵇ ] [ # 0 ])})
+                ]
     ; absLock = 0 }
 
   -- pre-existing deposits
@@ -222,19 +221,19 @@ module Section7 where -- (see BitML paper, Section 7).
 
   Tᵢₙᵢₜ : Tx 2 1
   Tᵢₙᵢₜ = record
-    { inputs  = tx↝ <$> Tˣ ∷ Tʸ ∷ []
+    { inputs  = tx↝ <$> [ Tˣ ⨾ Tʸ ]
     ; wit     = wit⊥
     ; relLock = V.replicate 0
-    ; outputs = V.[ Ctx 2 , record { value = 2; validator = ƛ versig Ks (allFin _) }]
+    ; outputs = [ 2 , record { value = 2; validator = ƛ versig Ks (allFin _) }]
     ; absLock = 0 }
   Tᵢₙᵢₜ♯ = (∃Tx ∋ -, -, Tᵢₙᵢₜ) ♯
 
   Tᵇ : Tx 1 1
-  Tᵇ = sig⋆ V.[ Ks ] record
-    { inputs  = V.[ Tᵢₙᵢₜ♯ at 0 ]
+  Tᵇ = sig⋆ [ Ks ] record
+    { inputs  = [ Tᵢₙᵢₜ♯ at 0 ]
     ; wit     = wit⊥
     ; relLock = V.replicate 0
-    ; outputs = V.[ Ctx 1 , record { value = 2; validator = ƛ versig [ K (there (here refl)) ] [ 0F ] }]
+    ; outputs = [ 1 , record { value = 2; validator = ƛ versig [ K (there (here refl)) ] [ 0F ] }]
     ; absLock = 0 }
 
   out : ∃Tx¹ × (subtermsᵃ⁺ ex-ad ↦′ ∃Txᶜ)
@@ -254,10 +253,10 @@ module Section7 where -- (see BitML paper, Section 7).
   ℽ₀ = [txout: (λ where 𝟘 → Tˣ; 𝟙 → Tʸ) ∣sechash: (λ ()) ∣κ: (λ ()) ]
 
   rᶜ : C.Run
-  rᶜ = submit (-, -, T₀)
-     ∷ (A →∗∶ (Kᵖ A ∷ K̂ᵖ A ∷ []))
-     ∷ (B →∗∶ (Kᵖ B ∷ K̂ᵖ B ∷ []))
-     ∷ []
+  rᶜ = [ submit (-, -, T₀)
+       ⨾ (A →∗∶ [ Kᵖ A ⨾ K̂ᵖ A ])
+       ⨾ (B →∗∶ [ Kᵖ B ⨾ K̂ᵖ B ])
+       ]
 
   cinit : Initial rᶜ
   cinit = -, (λ where 𝟘 → 𝟘; 𝟙 → 𝟙) , refl
@@ -673,10 +672,9 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     { inputs  = []
     ; wit     = wit⊥
     ; relLock = V.replicate 0
-    ; outputs =
-        (Ctx 1 , record {value = 1 ; validator = ƛ (versig [ K̂ᵃ ] [ # 0 ])})
-      ∷ (Ctx 1 , record {value = 0 ; validator = ƛ (versig [ K̂ᵇ ] [ # 0 ])})
-      ∷ []
+    ; outputs = [ (1 , record {value = 1 ; validator = ƛ (versig [ K̂ᵃ ] [ # 0 ])})
+                ⨾ (1 , record {value = 0 ; validator = ƛ (versig [ K̂ᵇ ] [ # 0 ])})
+                ]
     ; absLock = 0 }
 
   -- pre-existing deposits
@@ -719,48 +717,48 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
   module _ where
     open BTC
 
-    e₁ : Script (Ctx 3) `Bool
+    e₁ : Script 3 `Bool
     e₁ = versig (K⋆ 𝟘) ⟦ # 0 , # 1 ⟧
       `∧ `true
       `∧ ⋀ [ hash (var (# 2)) `= ` (sechash 𝟘) `∧ (` (+ η) `< ∣ var (# 2) ∣) ]
 
-    e₂ : Script (Ctx 3) `Bool
+    e₂ : Script 3 `Bool
     e₂ = versig (K⋆ 𝟚) ⟦ # 0 , # 1 ⟧
 
-    e′ : Script (Ctx 2) `Bool
+    e′ : Script 2 `Bool
     e′ = versig (K⋆ 𝟙) ⟦ # 0 , # 1 ⟧
 
   Tᵢₙᵢₜ : Tx 2 1
   Tᵢₙᵢₜ = record
-    { inputs  = tx↝ <$> Tᵃ ∷ Tᵇ ∷ []
+    { inputs  = tx↝ <$> [ Tᵃ ⨾ Tᵇ ]
     ; wit     = wit⊥
     ; relLock = V.replicate 0
-    ; outputs = V.[ _ , record { value = v ; validator = ƛ (e₁ `∨ e₂) }]
+    ; outputs = [ _ , record { value = v ; validator = ƛ (e₁ `∨ e₂) }]
     ; absLock = 0 }
   Tᵢₙᵢₜ♯ = (∃Tx ∋ -, -, Tᵢₙᵢₜ) ♯
 
   T′ : Tx 1 1
-  T′ = sig⋆ V.[ K⋆ 𝟘 ] record
-    { inputs  = V.[ Tᵢₙᵢₜ♯ at 0 ]
+  T′ = sig⋆ [ K⋆ 𝟘 ] record
+    { inputs  = [ Tᵢₙᵢₜ♯ at 0 ]
     ; wit     = wit⊥
     ; relLock = V.replicate 0
-    ; outputs = V.[ _ , record { value = v ; validator = ƛ e′ }]
+    ; outputs = [ _ , record { value = v ; validator = ƛ e′ }]
     ; absLock = 0 }
 
   T′ᵃ : Tx 1 1
-  T′ᵃ = sig⋆ V.[ K⋆ 𝟙 ] record
-    { inputs  = V.[ ((∃Tx ∋ -, -, T′) ♯) at 0 ]
+  T′ᵃ = sig⋆ [ K⋆ 𝟙 ] record
+    { inputs  = [ ((∃Tx ∋ -, -, T′) ♯) at 0 ]
     ; wit     = wit⊥
     ; relLock = V.replicate 0
-    ; outputs = V.[ Ctx 1 , record { value = v ; validator = ƛ versig [ K 𝟘 ] [ # 0 ] }]
+    ; outputs = [ 1 , record { value = v ; validator = ƛ versig [ K 𝟘 ] [ # 0 ] }]
     ; absLock = 0 }
 
   T′ᵇ : Tx 1 1
-  T′ᵇ = sig⋆ V.[ K⋆ 𝟚 ] record
-    { inputs  = V.[ Tᵢₙᵢₜ♯ at 0 ]
+  T′ᵇ = sig⋆ [ K⋆ 𝟚 ] record
+    { inputs  = [ Tᵢₙᵢₜ♯ at 0 ]
     ; wit     = wit⊥
     ; relLock = V.replicate 0
-    ; outputs = V.[ Ctx 1 , record { value = v ; validator = ƛ versig [ K 𝟙 ] [ # 0 ] }]
+    ; outputs = [ 1 , record { value = v ; validator = ƛ versig [ K 𝟙 ] [ # 0 ] }]
     ; absLock = t }
 
   out : ∃Tx¹ × (subtermsᵃ⁺ tc ↦′ ∃Txᶜ)
@@ -790,10 +788,10 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
   ℽ₀ = [txout: (λ where 𝟘 → Tᵃ; 𝟙 → Tᵇ) ∣sechash: (λ ()) ∣κ: (λ ()) ]
 
   rᶜ : C.Run
-  rᶜ = submit (-, -, T₀)
-     ∷ (A →∗∶ (Kᵖ A ∷ K̂ᵖ A ∷ []))
-     ∷ (B →∗∶ (Kᵖ B ∷ K̂ᵖ B ∷ []))
-     ∷ []
+  rᶜ = [ submit (-, -, T₀)
+       ⨾ (A →∗∶ [ Kᵖ A ⨾ K̂ᵖ A ])
+       ⨾ (B →∗∶ [ Kᵖ B ⨾ K̂ᵖ B ])
+       ]
 
   cinit : Initial rᶜ
   cinit = -, (λ where 𝟘 → 𝟘; 𝟙 → 𝟙) , refl
@@ -905,11 +903,10 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     ∷ (O→ A ∶ _)
     ∷ (A →O∶ _)
     ∷ (A →∗∶ _)
-    ∷ ( submit (-, -, T₀)
-      ∷ (A →∗∶ (Kᵖ A ∷ K̂ᵖ A ∷ []))
-      ∷ (B →∗∶ (Kᵖ B ∷ K̂ᵖ B ∷ []))
-      ∷ []
-      ) ∎⊣ (-, (λ where 𝟘 → 𝟘; 𝟙 → 𝟙) , refl)
+    ∷ [ submit (-, -, T₀)
+      ⨾ (A →∗∶ [ Kᵖ A ⨾ K̂ᵖ A ])
+      ⨾ (B →∗∶ [ Kᵖ B ⨾ K̂ᵖ B ])
+      ] ∎⊣ (-, (λ where 𝟘 → 𝟘; 𝟙 → 𝟙) , refl)
     ✓ ✓ ✓ ✓ ✓ ✓
     )
 -}
