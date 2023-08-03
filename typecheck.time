@@ -1,0 +1,11 @@
+TOTAL: 15m22s
+SymbolicModel/Run/Base: 14m2s
+SymbolicModel/Run/Properties: 0m2s
+SymbolicModel/Run/Example: 0m2s
+SymbolicModel/Run: 0m1s
+SymbolicModel/Collections: 0m6s
+SymbolicModel/Accessors: 0m16s
+SymbolicModel/Mappings/Base: 0m2s
+SymbolicModel/Mappings/Properties: 0m22s
+SymbolicModel/Mappings: 0m1s
+SecureCompilation/Compiler: 0m16s

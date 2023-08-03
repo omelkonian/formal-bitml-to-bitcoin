@@ -1,27 +1,32 @@
 <!DOCTYPE HTML>
-<html><head><meta charset="utf-8"><title>Prelude.Validity</title><link rel="stylesheet" href="css/Agda.css"></head><body><pre class="Agda"><a id="1" class="Keyword">module</a> <a id="8" href="Prelude.Validity.html" class="Module">Prelude.Validity</a> <a id="25" class="Keyword">where</a>
+<html><head><meta charset="utf-8"><title>Prelude.Validity</title><link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css'/><style>.github-fork-ribbon:before { background-color: #333; }</style><link rel="stylesheet" href="css/Agda.css"></head><body><a class='github-fork-ribbon'href='https://github.com/omelkonian/formal-bitml-to-bitcoin/tree/master/'data-ribbon='Source code on Github' title='Source code on Github'>Source code on Github</a><pre class="Agda"><a id="1" class="Symbol">{-#</a> <a id="5" class="Keyword">OPTIONS</a> <a id="13" class="Pragma">--safe</a> <a id="20" class="Symbol">#-}</a>
+<a id="24" class="Keyword">module</a> <a id="31" href="Prelude.Validity.html" class="Module">Prelude.Validity</a> <a id="48" class="Keyword">where</a>
 
-<a id="32" class="Keyword">open</a> <a id="37" class="Keyword">import</a> <a id="44" href="Prelude.Init.html" class="Module">Prelude.Init</a>
-<a id="57" class="Keyword">open</a> <a id="62" class="Keyword">import</a> <a id="69" href="Prelude.Decidable.html" class="Module">Prelude.Decidable</a>
+<a id="55" class="Keyword">open</a> <a id="60" class="Keyword">import</a> <a id="67" href="Prelude.Init.html" class="Module">Prelude.Init</a><a id="79" class="Symbol">;</a> <a id="81" class="Keyword">open</a> <a id="86" href="Prelude.Init.html#504" class="Module">SetAsType</a>
+<a id="96" class="Keyword">open</a> <a id="101" class="Keyword">import</a> <a id="108" href="Prelude.Decidable.html" class="Module">Prelude.Decidable</a>
 
-<a id="88" class="Comment">-- record DecValidable (A : Set ℓ) ⦃ _ : Validable A ⦄ : Set (lsuc ℓ) where</a>
-<a id="164" class="Comment">--   field Valid? : Decidable¹ Valid</a>
-<a id="201" class="Comment">-- open DecValidable ⦃ ... ⦄ public</a>
+<a id="127" class="Comment">-- record DecValidable (A : Type ℓ) ⦃ _ : Validable A ⦄ : Type (lsuc ℓ) where</a>
+<a id="205" class="Comment">--   field Valid? : Decidable¹ Valid</a>
+<a id="242" class="Comment">-- open DecValidable ⦃...⦄ public</a>
 
-<a id="238" class="Keyword">record</a> <a id="Validable"></a><a id="245" href="Prelude.Validity.html#245" class="Record">Validable</a> <a id="255" class="Symbol">(</a><a id="256" href="Prelude.Validity.html#256" class="Bound">A</a> <a id="258" class="Symbol">:</a> <a id="260" href="Agda.Primitive.html#326" class="Primitive">Set</a> <a id="264" href="Prelude.Init.html#330" class="Generalizable">ℓ</a><a id="265" class="Symbol">)</a> <a id="267" class="Symbol">:</a> <a id="269" href="Agda.Primitive.html#326" class="Primitive">Set</a> <a id="273" class="Symbol">(</a><a id="274" href="Prelude.Validity.html#264" class="Bound">ℓ</a> <a id="276" href="Agda.Primitive.html#810" class="Primitive Operator">⊔ₗ</a> <a id="279" href="Agda.Primitive.html#780" class="Primitive">lsuc</a> <a id="284" href="Prelude.Validity.html#284" class="Bound">ℓ′</a><a id="286" class="Symbol">)</a> <a id="288" class="Keyword">where</a>
-  <a id="296" class="Keyword">field</a> <a id="Validable.Valid"></a><a id="302" href="Prelude.Validity.html#302" class="Field">Valid</a> <a id="308" class="Symbol">:</a> <a id="310" href="Relation.Unary.html#1101" class="Function">Pred</a> <a id="315" href="Prelude.Validity.html#256" class="Bound">A</a> <a id="317" href="Prelude.Validity.html#284" class="Bound">ℓ′</a>
+<a id="277" class="Keyword">record</a> <a id="Validable"></a><a id="284" href="Prelude.Validity.html#284" class="Record">Validable</a> <a id="294" class="Symbol">(</a><a id="295" href="Prelude.Validity.html#295" class="Bound">A</a> <a id="297" class="Symbol">:</a> <a id="299" href="Agda.Primitive.html#320" class="Primitive">Type</a> <a id="304" href="Prelude.Init.html#261" class="Generalizable">ℓ</a><a id="305" class="Symbol">)</a> <a id="307" class="Symbol">:</a> <a id="309" href="Agda.Primitive.html#320" class="Primitive">Type</a> <a id="314" class="Symbol">(</a><a id="315" href="Prelude.Validity.html#304" class="Bound">ℓ</a> <a id="317" href="Agda.Primitive.html#804" class="Primitive Operator">⊔ₗ</a> <a id="320" href="Agda.Primitive.html#774" class="Primitive">lsuc</a> <a id="325" href="Prelude.Validity.html#325" class="Bound">ℓ′</a><a id="327" class="Symbol">)</a> <a id="329" class="Keyword">where</a>
+  <a id="337" class="Keyword">field</a> <a id="Validable.Valid"></a><a id="343" href="Prelude.Validity.html#343" class="Field">Valid</a> <a id="349" class="Symbol">:</a> <a id="351" href="Relation.Unary.html#1110" class="Function">Pred</a> <a id="356" href="Prelude.Validity.html#295" class="Bound">A</a> <a id="358" href="Prelude.Validity.html#325" class="Bound">ℓ′</a>
 
-  <a id="Validable.Valid?"></a><a id="323" href="Prelude.Validity.html#323" class="Function">Valid?</a> <a id="330" class="Symbol">:</a> <a id="332" class="Symbol">⦃</a> <a id="334" href="Prelude.Validity.html#302" class="Field">Valid</a> <a id="340" href="Prelude.Decidable.html#556" class="Function Operator">⁇¹</a> <a id="343" class="Symbol">⦄</a> <a id="345" class="Symbol">→</a> <a id="347" href="Relation.Unary.html#3536" class="Function">Decidable¹</a> <a id="358" href="Prelude.Validity.html#302" class="Field">Valid</a>
-  <a id="366" href="Prelude.Validity.html#323" class="Function">Valid?</a> <a id="373" class="Symbol">_</a> <a id="375" class="Symbol">=</a> <a id="377" href="Prelude.Decidable.html#197" class="Field">dec</a>
-<a id="381" class="Keyword">open</a> <a id="386" href="Prelude.Validity.html#245" class="Module">Validable</a> <a id="396" class="Symbol">⦃</a> <a id="398" class="Symbol">...</a> <a id="402" class="Symbol">⦄</a> <a id="404" class="Keyword">public</a>
+  <a id="Validable.Valid?"></a><a id="364" href="Prelude.Validity.html#364" class="Function">Valid?</a> <a id="371" class="Symbol">:</a> <a id="373" class="Symbol">⦃</a> <a id="375" href="Prelude.Validity.html#343" class="Field">Valid</a> <a id="381" href="Prelude.Decidable.Core.html#527" class="Function Operator">⁇¹</a> <a id="384" class="Symbol">⦄</a> <a id="386" class="Symbol">→</a> <a id="388" href="Relation.Unary.html#3545" class="Function">Decidable¹</a> <a id="399" href="Prelude.Validity.html#343" class="Field">Valid</a>
+  <a id="407" href="Prelude.Validity.html#364" class="Function">Valid?</a> <a id="414" class="Symbol">_</a> <a id="416" class="Symbol">=</a> <a id="418" href="Prelude.Decidable.Core.html#166" class="Field">dec</a>
 
-<a id="412" class="Comment">-- record DecValidable (A : Set ℓ) : Set (lsuc ℓ) where</a>
-<a id="468" class="Comment">--   field</a>
-<a id="479" class="Comment">--     overlap ⦃ super ⦄ : Validable A</a>
-<a id="518" class="Comment">--     Valid? : Decidable¹ Valid</a>
-<a id="551" class="Comment">-- open DecValidable ⦃ ... ⦄ public</a>
+<a id="423" class="Keyword">open</a> <a id="428" href="Prelude.Validity.html#284" class="Module">Validable</a> <a id="438" class="Symbol">⦃...⦄</a> <a id="444" class="Keyword">public</a>
 
-<a id="588" class="Comment">-- instance</a>
-<a id="600" class="Comment">--   DecValidable→Dec : ∀ {A : Set ℓ} ⦃ _ : DecValidable A ⦄ → {x : A} → (Valid x) ⁇</a>
-<a id="685" class="Comment">--   DecValidable→Dec .dec = Valid? _</a>
+<a id="452" class="Comment">-- record DecValidable (A : Type ℓ) : Type (lsuc ℓ) where</a>
+<a id="510" class="Comment">--   field</a>
+<a id="521" class="Comment">--     overlap ⦃ super ⦄ : Validable A</a>
+<a id="560" class="Comment">--     Valid? : Decidable¹ Valid</a>
+<a id="593" class="Comment">-- open DecValidable ⦃...⦄ public</a>
+
+<a id="628" class="Comment">-- instance</a>
+<a id="640" class="Comment">--   DecValidable→Dec : ∀ {A : Type ℓ} ⦃ _ : DecValidable A ⦄ → {x : A} → (Valid x) ⁇</a>
+<a id="726" class="Comment">--   DecValidable→Dec .dec = Valid? _</a>
+
+<a id="𝕍"></a><a id="765" href="Prelude.Validity.html#765" class="Function">𝕍</a> <a id="767" class="Symbol">:</a> <a id="769" class="Symbol">(</a><a id="770" href="Prelude.Validity.html#770" class="Bound">A</a> <a id="772" class="Symbol">:</a> <a id="774" href="Agda.Primitive.html#320" class="Primitive">Type</a> <a id="779" href="Prelude.Init.html#261" class="Generalizable">ℓ</a><a id="780" class="Symbol">)</a> <a id="782" class="Symbol">→</a> <a id="784" class="Symbol">⦃</a> <a id="786" href="Prelude.Validity.html#284" class="Record">Validable</a> <a id="796" class="Symbol">{</a><a id="797" class="Argument">ℓ′</a> <a id="800" class="Symbol">=</a> <a id="802" href="Prelude.Init.html#263" class="Generalizable">ℓ′</a><a id="804" class="Symbol">}</a> <a id="806" href="Prelude.Validity.html#770" class="Bound">A</a> <a id="808" class="Symbol">⦄</a> <a id="810" class="Symbol">→</a> <a id="812" href="Agda.Primitive.html#320" class="Primitive">Type</a> <a id="817" class="Symbol">_</a>
+<a id="819" href="Prelude.Validity.html#765" class="Function">𝕍</a> <a id="821" href="Prelude.Validity.html#821" class="Bound">A</a> <a id="823" class="Symbol">=</a> <a id="825" href="Data.Product.html#1378" class="Function">∃</a> <a id="827" class="Symbol">λ</a> <a id="829" class="Symbol">(</a><a id="830" href="Prelude.Validity.html#830" class="Bound">a</a> <a id="832" class="Symbol">:</a> <a id="834" href="Prelude.Validity.html#821" class="Bound">A</a><a id="835" class="Symbol">)</a> <a id="837" class="Symbol">→</a> <a id="839" href="Prelude.Validity.html#343" class="Field">Valid</a> <a id="845" href="Prelude.Validity.html#830" class="Bound">a</a>
 </pre></body></html>
