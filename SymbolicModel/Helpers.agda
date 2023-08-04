@@ -16,6 +16,7 @@ module SymbolicModel.Helpers (⋯ : ⋯) (let open ⋯ ⋯) where
 open import SymbolicModel.Run ⋯
   hiding ({-variables-} Γₜ; Γₜ′; Γₜ″; R′)
 open import SymbolicModel.Collections ⋯
+open import SecureCompilation.Mappings ⋯
 open import SymbolicModel.Mappings ⋯
 open import SymbolicModel.Accessors ⋯
 

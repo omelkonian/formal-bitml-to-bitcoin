@@ -34,8 +34,7 @@ module SecureCompilation.Compiler
 open import BitML ⋯ hiding (C; `_; _`+_; _`-_; `true)
 open Induction renaming (D to 𝔻)
 
-open import SymbolicModel.Collections ⋯
-open import SymbolicModel.Mappings ⋯
+open import SecureCompilation.Mappings ⋯
 
 -- single-output transactions
 Tx¹ : ℕ → Type

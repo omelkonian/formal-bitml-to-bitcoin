@@ -1,4 +1,4 @@
-open import Prelude.Init
+open import Prelude.Init; open SetAsType
 open import Prelude.DecEq
 open import Prelude.Lists
 open import Prelude.Validity
@@ -15,25 +15,10 @@ open import SymbolicModel.Run ⋯
 open import SymbolicModel.Accessors ⋯
 open import SymbolicModel.Collections ⋯
 
-private variable X : Set ℓ
-
-Txout : ⦃ X has Name ⦄ → Pred₀ X
-Txout x = namesʳ x ↦ TxInput′
-
-Sechash : ⦃ X has Name ⦄ → Pred₀ X
-Sechash x = namesˡ x ↦ ℤ
-
-𝕂 : Pred₀ Precondition
-𝕂 g = nub-participants g ↦ KeyPair
-
-𝕂²′ : Pred₀ Ad
-𝕂²′ (⟨ g ⟩ c) = subtermsᶜ′ c ↦ nub-participants g ↦ KeyPair
-
-𝕂² : ⦃ X has Ad ⦄ → Pred₀ X
-𝕂² x = advertisements x ↦′ 𝕂²′
+open import SecureCompilation.Mappings ⋯
 
 -- Well-formed terms, where we can provide mappings txout,sechash,κ.
-record 𝕎 ⦃ _ : X has Name ⦄ ⦃ _ : X has Ad ⦄ (x : X) : Set where
+record 𝕎 {X : Type} ⦃ _ : X has Name ⦄ ⦃ _ : X has Ad ⦄ (x : X) : Type where
   constructor [txout:_∣sechash:_∣κ:_]
   field
     txout   : Txout   x

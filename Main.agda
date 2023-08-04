@@ -1,14 +1,15 @@
 module Main where
 
+open import SecureCompilation.Mappings
 open import SecureCompilation.Compiler
--- open import SecureCompilation.Example
+open import SecureCompilation.ExampleCompilation
 
 open import SymbolicModel
 
-open import ComputationalModel.Strategy
-open import ComputationalModel.Lemmas
+open import ComputationalModel
 
-open import SecureCompilation.Coherence
+-- open import SecureCompilation.Coherence
+-- open import SecureCompilation.Example
 
 -- [WIP]
 -- open import SecureCompilation.Lemma6

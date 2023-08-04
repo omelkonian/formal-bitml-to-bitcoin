@@ -52,21 +52,6 @@ open import SecureCompilation.ComputationalContracts Participant Honest
 tx↝ : TxInput′ → TxInput
 tx↝ record {tx′ = tx; index′ = i} = record {txId = tx ♯; index = toℕ i}
 
-pattern 𝟘 = here refl
-pattern 𝟙 = there 𝟘
-pattern 𝟚 = there 𝟙
-pattern 𝟛 = there 𝟚
-pattern 𝟜 = there 𝟛
-pattern 𝟝 = there 𝟜
-pattern 𝟞 = there 𝟝
-pattern 𝟟 = there 𝟞
-pattern 𝟠 = there 𝟟
-pattern 𝟡 = there 𝟠
-
-pattern 𝟘⊥ = here ()
-pattern 𝟙⊥ = there (here ())
-pattern 𝟚⊥ = there (there (here ()))
-
 open import SymbolicModel.Run.Base Participant Honest as S
   hiding (Rˢ; Rˢ′)
 open import SymbolicModel.Helpers Participant Honest

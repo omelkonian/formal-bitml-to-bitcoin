@@ -21,6 +21,7 @@ open import SymbolicModel.Run ⋯ as S
   hiding (_∎; begin_)
 open import SymbolicModel.Accessors ⋯
 open import SymbolicModel.Collections ⋯
+open import SecureCompilation.Mappings ⋯
 open import SymbolicModel.Mappings ⋯
 
 open ≡-Reasoning

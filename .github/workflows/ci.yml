@@ -1,6 +1,6 @@
 name: CI
 on:
-  # schedule: [{cron: '0 0 * * *'}]
+  schedule: [{cron: '0 0 * * *'}]
   push: {branches: master}
 jobs:
   build-deploy:
@@ -12,10 +12,10 @@ jobs:
           agda-version: 2.6.3
           stdlib-version: 1.7.2
           libraries: |
-            omelkonian/formal-prelude#24f03e2
+            omelkonian/formal-prelude#d32c6d7
             omelkonian/formal-bitcoin#80bf272
-            omelkonian/formal-bitml#a753fbb
-          main: SecureCompilation/Compiler
+            omelkonian/formal-bitml#737bf39
+          main: Main
           token: ${{ secrets.GITHUB_TOKEN }}
           rts: -K256M -H1G -M8G -A128M
           measure-typechecking: true

@@ -19,6 +19,7 @@ open import SymbolicModel.Run ⋯′
   hiding (_∎; begin_)
 open import SymbolicModel.Collections ⋯′
 open import SymbolicModel.Accessors ⋯′
+open import SecureCompilation.Mappings ⋯′
 open import SymbolicModel.Mappings.Base ⋯′
 
 Txout≈ : _≈_ ⇒² _→⦅ Txout ⦆_
