@@ -1,8 +1,7 @@
 module Main where
 
-open import SecureCompilation.Mappings
-open import SecureCompilation.Compiler
-open import SecureCompilation.ExampleCompilation
+open import Compiler
+open import Compiler.Example
 
 open import SymbolicModel
 

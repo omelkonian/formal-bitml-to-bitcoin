@@ -41,7 +41,6 @@ open import BitML Participant Honest
          ; ∣_∣; `
          ; ⟦_⟧_; _`=_; _`∧_; `_; `true; _`<_; _∣_
          )
-open Induction using (CS)
 
 -- BitML compiler
 η = 1024
@@ -195,7 +194,7 @@ module Section7 where -- (see BitML paper, Section 7).
     {- A -} 𝟘 → Kᵃ
     {- B -} 𝟙 → Kᵇ
 
-  K² : subterms′ (CS $ ex-ad .C) ↦ (partG ↦ KeyPair)
+  K² : subterms′ (ex-ad .C) ↦ (partG ↦ KeyPair)
   K² = case_of λ where
     𝟘 → case_of λ where
       {- A -} 𝟘 → Kʷᵇ A
@@ -221,7 +220,7 @@ module Section7 where -- (see BitML paper, Section 7).
     ; outputs = [ 1 , record { value = 2; validator = ƛ versig [ K (there (here refl)) ] [ 0F ] }]
     ; absLock = 0 }
 
-  out : ∃Tx¹ × (subtermsᵃ⁺ ex-ad ↦′ ∃Txᶜ)
+  out : ∃Tx¹ × (subterms⁺ ex-ad ↦′ ∃Txᶜ)
   out = bitml-compiler {ad = ex-ad} auto sechash txout K K²
 
   outTxs : Tx 2 1 × Tx 1 1
@@ -681,7 +680,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     {- A -} 𝟘 → Kᵃ
     {- B -} 𝟙 → Kᵇ
 
-  K² : subterms′ (CS $ tc .C) ↦ (partG ↦ KeyPair)
+  K² : subterms′ (tc .C) ↦ (partG ↦ KeyPair)
   K² = case_of λ where
     {- reveal "a" ⇒ withdraw A -}
     𝟘 → case_of λ where
@@ -696,7 +695,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
       {- A -} 𝟘 → Kᵈ² A
       {- B -} 𝟙 → Kᵈ² B
 
-  K⋆ : subterms′ (CS $ tc .C) ↦ List KeyPair
+  K⋆ : subterms′ (tc .C) ↦ List KeyPair
   K⋆ = mapWith∈ partG ∘ K²
 
   module _ where
@@ -746,7 +745,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     ; outputs = [ 1 , record { value = v ; validator = ƛ versig [ K 𝟙 ] [ # 0 ] }]
     ; absLock = t }
 
-  out : ∃Tx¹ × (subtermsᵃ⁺ tc ↦′ ∃Txᶜ)
+  out : ∃Tx¹ × (subterms⁺ tc ↦′ ∃Txᶜ)
   out = bitml-compiler {ad = tc} auto sechash txout K K²
 
   outTxs : Tx 2 1 × Tx 1 1 × Tx 1 1 × Tx 1 1

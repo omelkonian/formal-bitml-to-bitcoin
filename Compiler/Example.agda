@@ -1,7 +1,7 @@
 ----------------------------------------------------------------------------
 -- Example contract compilation.
 ----------------------------------------------------------------------------
-module SecureCompilation.ExampleCompilation where
+module Compiler.Example where
 
 open import Prelude.Init hiding (T); open SetAsType
 open L.Mem using (mapWith∈)
@@ -17,15 +17,12 @@ import BitML.BasicTypes as BitML-params
 ⋯ = BitML-params.⋯_,_⋯ Participant Honest
 open import BitML ⋯
   hiding ( t; a; v; A; B; x; y; x′; y′; Γ₀; Γₜ₀; Δ; Γₜ; Γₜ′; as; α; Γ; Γ′
-         ; ∥_∥; ｀
          ; _`=_; _`∧_; _`∨_; `_; `true; _`<_
-         ; C
          )
-open Induction using (D; C; VCS)
 
 -- BitML compiler
 η = 1024
-open import SecureCompilation.Compiler ⋯ η
+open import Compiler ⋯ η
 
 finPart : Finite Participant
 finPart = 2 , Fun.mk↔
@@ -76,7 +73,7 @@ module Section7 where -- (see BitML paper, Section 7).
     {- A -} 𝟘 → Kᵃ
     {- B -} 𝟙 → Kᵇ
 
-  K² : subterms′ (C $ ex-ad .Ad.C) ↦ (partG ↦ KeyPair)
+  K² : subterms (ex-ad .C) ↦ (partG ↦ KeyPair)
   K² = case_of λ where
     𝟘 → case_of λ where
       {- A -} 𝟘 → Kʷᵇ A
@@ -102,7 +99,7 @@ module Section7 where -- (see BitML paper, Section 7).
     ; outputs = [ 1 , 2 locked-by ƛ versig [ K (there (here refl)) ] [ 0F ] ]
     ; absLock = 0 }
 
-  out : ∃Tx¹ × (subtermsᵃ⁺ ex-ad ↦′ ∃Txᶜ)
+  out : ∃Tx¹ × (subterms⁺ ex-ad ↦′ ∃Txᵈ)
   out = bitml-compiler {ad = ex-ad} auto sechash txout K K²
 
   outTxs : Tx 2 1 × Tx 1 1
@@ -151,7 +148,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     {- A -} 𝟘 → Kᵃ
     {- B -} 𝟙 → Kᵇ
 
-  K² : subterms′ (C $ TC .Ad.C) ↦ (partG ↦ KeyPair)
+  K² : subterms (TC .C) ↦ (partG ↦ KeyPair)
   K² = case_of λ where
     {- reveal "a" ⇒ withdraw A -}
     𝟘 → case_of λ where
@@ -166,7 +163,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
       {- A -} 𝟘 → Kᵈ² A
       {- B -} 𝟙 → Kᵈ² B
 
-  K⋆ : subterms′ (C $ TC .Ad.C) ↦ List KeyPair
+  K⋆ : subterms (TC .C) ↦ List KeyPair
   K⋆ = mapWith∈ partG ∘ K²
 
   Tᵢₙᵢₜ : Tx 2 1
@@ -213,7 +210,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     ; outputs = [ 1 , v locked-by ƛ versig [ K 𝟙 ] [ # 0 ] ]
     ; absLock = t }
 
-  out : ∃Tx¹ × (subtermsᵃ⁺ TC ↦′ ∃Txᶜ)
+  out : ∃Tx¹ × (subterms⁺ TC ↦′ ∃Txᵈ)
   out = bitml-compiler {ad = TC} auto sechash txout K K²
 
   outTxs : Tx 2 1 × Tx 1 1 × Tx 1 1 × Tx 1 1

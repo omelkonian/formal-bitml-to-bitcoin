@@ -15,11 +15,12 @@ open import BitML.BasicTypes using () renaming (⋯ to ⋯′)
 
 module SymbolicModel.Mappings.Properties (⋯′ : ⋯′) where
 
+open import Compiler.Mappings ⋯′
+
 open import SymbolicModel.Run ⋯′
   hiding (_∎; begin_)
 open import SymbolicModel.Collections ⋯′
 open import SymbolicModel.Accessors ⋯′
-open import SecureCompilation.Mappings ⋯′
 open import SymbolicModel.Mappings.Base ⋯′
 
 Txout≈ : _≈_ ⇒² _→⦅ Txout ⦆_

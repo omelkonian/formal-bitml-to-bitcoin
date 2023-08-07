@@ -181,26 +181,6 @@ rei′ {n} getId = go
         after t ∶ abs c
 -}
 
--- T0D0: move to formal-bitml/BitML.Contracts.Helpers
-ids-put≡ : ∀ {xs as} (p : Predicate) (cs : Contract) →
-  ids (Branch ∋ put xs &reveal as if p ⇒ cs) ≡ xs ++ ids cs
-ids-put≡ {xs}{as} p cs =
-  begin
-    ids (Branch ∋ put xs &reveal as if p ⇒ cs)
-  ≡⟨⟩
-    mapMaybe isInj₂ (map inj₂ xs ++ map inj₁ as ++ names cs)
-  ≡⟨ mapMaybe-++ isInj₂ (map inj₂ xs) _ ⟩
-    mapMaybe isInj₂ (map inj₂ xs) ++ mapMaybe isInj₂ (map inj₁ as ++ names cs)
-  ≡⟨ cong (_++ _) $ mapMaybeIsInj₂∘mapInj₂ xs ⟩
-    xs ++ mapMaybe isInj₂ (map inj₁ as ++ names cs)
-  ≡⟨ cong (xs ++_) $ mapMaybe-++ isInj₂ (map inj₁ as) _ ⟩
-    xs ++ mapMaybe isInj₂ (map inj₁ as) ++ ids cs
-  ≡⟨ cong (λ ◆ → xs ++ ◆ ++ _) $ mapMaybeIsInj₂∘mapInj₁ as ⟩
-    xs ++ [] ++ ids cs
-  ≡⟨ cong (xs ++_) $ sym $ L.++-identityˡ _ ⟩
-    xs ++ ids cs
-  ∎
-
 data TxBranch : Type
 TxContract  = List TxBranch
 TxVContracts = List (Value × TxContract)

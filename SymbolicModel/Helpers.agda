@@ -13,10 +13,10 @@ open import BitML.BasicTypes using (⋯)
 
 module SymbolicModel.Helpers (⋯ : ⋯) (let open ⋯ ⋯) where
 
+open import Compiler.Mappings ⋯
 open import SymbolicModel.Run ⋯
   hiding ({-variables-} Γₜ; Γₜ′; Γₜ″; R′)
 open import SymbolicModel.Collections ⋯
-open import SecureCompilation.Mappings ⋯
 open import SymbolicModel.Mappings ⋯
 open import SymbolicModel.Accessors ⋯
 
@@ -112,7 +112,7 @@ ANCESTOR : ∀ {c Γ} →
     ∃ λ ad
     → Valid ad
     × ad ∈ advertisements R
-    × c ⊆ subtermsᵃ′ ad
+    × c ⊆ subterms ad
     × ∃[ R ∋ʳ Ancestor⦅ ad ↝ c ⦆ ]
 ANCESTOR {R = R@(record {trace = _ , tr})} {Γ = Γ} R≈ c∈ =
   let ad , ∃H@(_ , _ , _ , _ , _ , _ , _ , ad↝c) = c∈≈⇒Ancestor {R}{Γ} R≈ c∈

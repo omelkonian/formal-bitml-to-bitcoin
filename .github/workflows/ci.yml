@@ -14,7 +14,7 @@ jobs:
           libraries: |
             omelkonian/formal-prelude#d32c6d7
             omelkonian/formal-bitcoin#80bf272
-            omelkonian/formal-bitml#737bf39
+            omelkonian/formal-bitml#8586c86
           main: Main
           token: ${{ secrets.GITHUB_TOKEN }}
           rts: -K256M -H1G -M8G -A128M

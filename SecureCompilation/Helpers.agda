@@ -44,7 +44,7 @@ open import SymbolicModel ⋯ as S
          )
 open import ComputationalModel Participant Honest finPart keypairs as C
   using (∃Tx; TxInput′; _∙value; K̂; CRun; oracleInteractionsᶜ; Message)
-open import SecureCompilation.Compiler Participant Honest η
+open import Compiler Participant Honest η
   using (∃Tx¹; ∃Txᶜ; bitml-compiler)
 open import SecureCompilation.ComputationalContracts Participant Honest
 
@@ -63,7 +63,7 @@ CheckOracleInteractions Rᶜ = let os = oracleInteractionsᶜ Rᶜ in
       hᵢ ∉ map (proj₂ ∘ proj₂) (filter ((η ≤?_) ∘ ∣_∣ᵐ ∘ proj₁ ∘ proj₂) os)
 
 -- Convenient wrapper for calling the BitML compiler.
-COMPILE : 𝔾 ad → ∃Tx¹ × (subtermsᵃ′ ad ↦′ ∃Txᶜ ∘ removeTopDecorations)
+COMPILE : 𝔾 ad → ∃Tx¹ × (subterms′ ad ↦′ ∃Txᶜ ∘ removeTopDecorations)
 COMPILE {ad = ad} (vad , txout₀ , sechash₀ , κ₀) =
   let
     K : 𝕂 (ad .G)
@@ -491,7 +491,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
             ⟨G⟩C , vad , ad∈ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
             ⟨ G ⟩ C = ⟨G⟩C; partG = G ∙partG
 
-            d∈ : d ∈ subtermsᵃ′ ⟨G⟩C
+            d∈ : d ∈ subterms′ ⟨G⟩C
             d∈ = c⊆ (L.Mem.∈-lookup i)
 
             A∈ : A ∈ partG
@@ -529,7 +529,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         ∃T : ∃Tx¹
         ∃T = let ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
                  ⟨ G ⟩ C″ = ⟨G⟩C″
-                 d∈ : d ∈ subtermsᵃ′ ⟨G⟩C″
+                 d∈ : d ∈ subterms′ ⟨G⟩C″
                  d∈ = c⊆ (L.Mem.∈-lookup i)
                  _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
             in ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
@@ -701,7 +701,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
             -- (ii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
             ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
 
-            d∈ : d ∈ subtermsᵃ′ ⟨G⟩C′
+            d∈ : d ∈ subterms′ ⟨G⟩C′
             d∈ = c⊆ (L.Mem.∈-lookup i)
 
             -- (iii) submit transaction T
@@ -817,7 +817,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
             ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
             ⟨ G ⟩ C′ = ⟨G⟩C′
 
-            d∈ : d ∈ subtermsᵃ′ ⟨G⟩C′
+            d∈ : d ∈ subterms′ ⟨G⟩C′
             d∈ = c⊆ (L.Mem.∈-lookup i)
 
             --   ∙ T′ at o = txout′(x)

@@ -15,7 +15,7 @@ open import SymbolicModel.Run ⋯
 open import SymbolicModel.Accessors ⋯
 open import SymbolicModel.Collections ⋯
 
-open import SecureCompilation.Mappings ⋯
+open import Compiler.Mappings ⋯
 
 -- Well-formed terms, where we can provide mappings txout,sechash,κ.
 record 𝕎 {X : Type} ⦃ _ : X has Name ⦄ ⦃ _ : X has Ad ⦄ (x : X) : Type where
