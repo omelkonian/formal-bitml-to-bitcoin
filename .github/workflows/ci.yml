@@ -12,7 +12,7 @@ jobs:
           agda-version: 2.6.3
           stdlib-version: 1.7.2
           libraries: |
-            omelkonian/formal-prelude#d32c6d7
+            omelkonian/formal-prelude#bcc2e14
             omelkonian/formal-bitcoin#80bf272
             omelkonian/formal-bitml#8586c86
           main: Main
