@@ -1,5 +1,5 @@
-TOTAL: 4m34s
-Compiler/Mappings: 3m15s
+TOTAL: 1m48s
+Compiler/Mappings: 0m31s
 Compiler/Outputs: 0m1s
 Compiler/Translation: 0m13s
 Compiler: 0m0s
@@ -10,13 +10,13 @@ SymbolicModel/Run/Example: 0m0s
 SymbolicModel/Run: 0m1s
 SymbolicModel/Collections: 0m5s
 SymbolicModel/Accessors: 0m12s
-SymbolicModel/Mappings/Base: 0m2s
+SymbolicModel/Mappings/Base: 0m1s
 SymbolicModel/Mappings/Properties: 0m11s
 SymbolicModel/Mappings: 0m1s
 SymbolicModel/ValuePreservation: 0m2s
-SymbolicModel/Helpers: 0m5s
+SymbolicModel/Helpers: 0m4s
 SymbolicModel/Stripping: 0m1s
-SymbolicModel/Strategy: 0m1s
+SymbolicModel/Strategy: 0m2s
 SymbolicModel: 0m1s
 ComputationalModel/KeyPairs: 0m0s
 ComputationalModel/Strategy: 0m5s
