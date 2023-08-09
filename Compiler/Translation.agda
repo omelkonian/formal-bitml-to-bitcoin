@@ -33,7 +33,7 @@ module Compiler.Translation
   (η : ℕ) -- public security nonce η, ensures adversaries cannot guess
   where
 
-open import BitML ⋯ hiding (`_; _`+_; _`-_; `true; _`∧_; _`<_; _`=_)
+open import BitML ⋯ hiding (`_; _`+_; _`-_; `true; _`∧_; _`<_; _`=_; xs; v′)
 open Induction hiding (D; C; V)
 
 open import Compiler.Mappings ⋯
@@ -54,7 +54,7 @@ bitml-compiler : let ⟨ g ⟩ c = ad in
 bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
   Tᵢₙᵢₜ , (≺-rec _ go) (ℂ.C C₀) record
     { T,o     = Tᵢₙᵢₜ♯ at 0
-    ; curV    = V₀
+    ; curV    = v₀
     ; P       = partG , ⊆-refl
     ; curT    = 0
     ; p⊆      = nub-⊆⁺ ∘ Valid⇒part⊆ vad
@@ -69,29 +69,27 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
 
     partG = nub-participants G₀
     ς     = length partG
-    V₀    = sum $ (proj₁ ∘ proj₂) <$> persistentDeposits G₀
+    v₀    = sum $ (proj₁ ∘ proj₂) <$> persistentDeposits G₀
 
     -- part: maps deposit names in G to the corresponding participant
-    part₀ : namesʳ G₀ ↦ ∃ (_∈ partG)
+    part₀ : ids G₀ ↦ ∃ (_∈ partG)
     part₀ = -,_ ∘ ∈-nub⁺ ∘ proj₂ ∘ getDeposit {g = G₀}
 
     -- val: maps deposit names in G to the value contained in the deposit
-    val₀ : namesʳ G₀ ↦ Value
+    val₀ : ids G₀ ↦ Value
     val₀ = proj₁ ∘ proj₂ ∘ proj₁ ∘ getDeposit {g = G₀}
 
-    -- Bout
-    Bout : subterms C₀ ↦ (∃[ ctx ] Script ctx `Bool)
-    Bout {D} D∈ with removeTopDecorations D | inspect removeTopDecorations D
+    -- Bₒᵤₜ
+    Bₒᵤₜ : subterms C₀ ↦ (∃[ ctx ] Script ctx `Bool)
+    Bₒᵤₜ {D} D∈ with removeTopDecorations D | inspect removeTopDecorations D
     ... | put zs &reveal as if p ⇒ _ | ≡[ eq ]
         = (ς + m)
-        , ( versig (mapWith∈ partG (K² D∈)) (inject+ m <$> allFin ς)
+        ,   versig (mapWith∈ partG $ K² D∈) (inject+ m <$> allFin ς)
          `∧ Bᵖʳ p p⊆as
-         `∧ ⋀ (mapEnumWith∈ as (λ i a a∈ → let bi = var (raise ς i) in
-                   (hash bi `= ` (sechash₀ $ as⊆ a∈))
-                `∧ (` (+ η) `< ∣ bi ∣)))
-          )
+         `∧ ⋀ (mapEnumWith∈ as $ λ i a a∈ → let bi = var (raise ς i) in
+                   hash bi `= ` (sechash₀ $ as⊆ a∈)
+                `∧ ` (+ η) `< ∣ bi ∣)
       where
-        m : ℕ
         m = length as
 
         p⊆ : putComponents D ⊆ putComponents C₀
@@ -106,7 +104,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
         p⊆as : secrets p ⊆ as
         p⊆as = lookup (vad .names-put) (p⊆ put∈) .proj₂ .unmk⊆
 
-        as⊆ : as ⊆ namesˡ G₀
+        as⊆ : as ⊆ secrets G₀
         as⊆ = (λ x → ∈-mapMaybe⁺ isInj₁ x refl) ∘ names⊆ ∘ n⊆ ∘ as⊆′ ∘ ∈-map⁺ inj₁
           where
             as⊆′ : map inj₁ as ⊆ names D
@@ -145,12 +143,22 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
         = ς , versig (mapWith∈ partG $ K² D∈) (allFin ς)
 
     Tᵢₙᵢₜ : ∃Tx¹
-    Tᵢₙᵢₜ = -, record
-      { inputs  = fromList $ (hashTxⁱ <$> codom txout₀)
+    Tᵢₙᵢₜ = -, sig⋆ (fromList∘mapWith∈ xs K⋆)
+      record
+      { inputs  = fromList∘mapWith∈ xs (hashTxⁱ ∘ txout₀ ∘ xs⊆)
       ; wit     = wit⊥
       ; relLock = replicate 0
-      ; outputs = [ -, V₀ locked-by ƛ proj₂ (⋁ (mapWith∈ C₀ (Bout ∘ subterms⊆ᶜ))) ]
+      ; outputs = [ -, v₀ locked-by ƛ ⋁ (mapWith∈ C₀ $ Bₒᵤₜ ∘ subterms⊆ᶜ) .proj₂ ]
       ; absLock = 0 }
+      where
+        xs = persistentIds G₀
+
+        xs⊆ : xs ⊆ ids G₀
+        xs⊆ = persistentIds⊆ {G₀}
+
+        K⋆ : xs ↦ List KeyPair
+        K⋆ = [_] ∘ K ∘ proj₂ ∘ part₀ ∘ xs⊆
+
     Tᵢₙᵢₜ♯ = (∃Tx ∋ -, -, Tᵢₙᵢₜ .proj₂) ♯
 
     infix 0 _&_&_&_&_&_&_&_&_&_&_
@@ -164,7 +172,6 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
         curT : Time
 
         p⊆ : participants c ⊆ partG
-
         s⊆ : subterms c ⊆ subterms C₀
         ∃s : case c of λ{ (ℂ.D _) → ∃ (_∈ subterms C₀) ; _ → ⊤}
 
@@ -178,7 +185,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
     Return c = subterms⁺ c ↦′ ∃Txᵈ
 
     go : ∀ c → (∀ c′ → c′ ≺ c → State c′ → Return c′) → State c → Return c
-    go (ℂ.D c) f
+    go (ℂ.D c) r
        (T,o & v & P , P⊆ & t & p⊆ & s⊆ & ∃s@(Dₚ , Dₚ∈) & sechash & txout & part & val)
       with c
     -- Bd
@@ -191,74 +198,67 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
          ; outputs = [ 1 , v locked-by ƛ versig [ K {A} (p⊆ 0) ] [ 0 ] ]
          ; absLock = t }
     ... | A ∶ d =
-      f (ℂ.D d) ≺-auth
+      r (ℂ.D d) ≺-auth
         (T,o & v & P \\ [ A ] , P⊆ ∘ \\-⊆ & t & p⊆ ∘ there
              & s⊆ & ∃s & sechash & txout & part & val)
     ... | after t′ ∶ d =
-      f (ℂ.D d) ≺-after
+      r (ℂ.D d) ≺-after
         (T,o & v & (P , P⊆) & t ⊔ t′ & p⊆ & s⊆ & ∃s & sechash & txout & part & val)
     -- Bc
-    ... | c′@(put zs &reveal as if p ⇒ cs) = λ where
-      (here refl) → -, Tc
-      (there x∈)  → f (ℂ.C cs) ≺-put
-        ( (Tc♯ at 0) & v & (partG , ⊆-refl) & 0
+    ... | c@(put zs &reveal as if p ⇒ cs) = λ where
+      (here refl) → -, Tᶜ
+      (there x∈)  → r (ℂ.C cs) ≺-put
+        ( (Tᶜ♯ at 0) & v′ & (partG , ⊆-refl) & 0
         & p⊆ & s⊆ & tt
         & sechash ∘ mapMaybe-⊆ isInj₁ n⊆ & txout ∘ mapMaybe-⊆ isInj₂ n⊆
         & part    ∘ mapMaybe-⊆ isInj₂ n⊆ & val   ∘ mapMaybe-⊆ isInj₂ n⊆
         ) x∈
        where
-        n⊆ : names cs ⊆ names c′
+        n⊆ : names cs ⊆ names c
         n⊆ = ∈-++⁺ʳ (inj₂ <$> zs) ∘ ∈-++⁺ʳ (inj₁ <$> as)
 
         cs⊆ : cs ⊆ subterms C₀
         cs⊆ = s⊆ ∘ subterms⊆ᶜ
 
-        zs⊆ : zs ⊆ namesʳ c′
+        zs⊆ : zs ⊆ ids c
         zs⊆ = (λ x∈ → ∈-mapMaybe⁺ isInj₂ x∈ refl) ∘ ∈-++⁺ˡ ∘ ∈-map⁺ inj₂
 
-        k = length zs
-
-        ins : Vec TxInput k
-        ins rewrite sym (length-mapWith∈ (hashTxⁱ ∘ txout ∘ zs⊆))
-                  = fromList (mapWith∈ zs (hashTxⁱ ∘ txout ∘ zs⊆))
+        v′ = v + sum (mapWith∈ zs $ val ∘ zs⊆)
 
         K⋆ : zs ↦ List KeyPair
         K⋆ = [_] ∘ K ∘ proj₂ ∘ part ∘ zs⊆
 
-        wits : Vec (List KeyPair) k
-        wits rewrite sym (length-mapWith∈ K⋆)
-                   = fromList (mapWith∈ zs K⋆)
-
-        Tc : Tx (suc k) 1
-        Tc = sig⋆ (mapWith∈ P (K² Dₚ∈ ∘ P⊆) ∷ wits) record
-          { inputs  = T,o ∷ ins
+        Tᶜ : Tx (suc $ length zs) 1
+        Tᶜ = sig⋆ (mapWith∈ P (K² Dₚ∈ ∘ P⊆) ∷ fromList∘mapWith∈ zs K⋆)
+          record
+          { inputs  = T,o ∷ fromList∘mapWith∈ zs (hashTxⁱ ∘ txout ∘ zs⊆)
           ; wit     = wit⊥
           ; relLock = replicate 0
-          ; outputs = [ _ , v locked-by ƛ proj₂ (⋁ (mapWith∈ cs (Bout ∘ cs⊆))) ]
+          ; outputs = [ _ , v′ locked-by ƛ ⋁ (mapWith∈ cs $ Bₒᵤₜ ∘ cs⊆) .proj₂ ]
           ; absLock = t }
-        Tc♯ = (∃Tx ∋ -, -, Tc) ♯
+        Tᶜ♯ = (∃Tx ∋ -, -, Tᶜ) ♯
     -- Bpar
-    ... | c′@(split vcs) = λ where
-      (here refl) → -, Tc
-      (there x∈)  → f (ℂ.V vcs) ≺-split
-        ( (Tc♯ at 0) & v & (partG , ⊆-refl) & 0
+    ... | c@(split vcs) = λ where
+      (here refl) → -, Tᶜ
+      (there x∈)  → r (ℂ.V vcs) ≺-split
+        ( (Tᶜ♯ at 0) & v & (partG , ⊆-refl) & 0
         & p⊆ & s⊆ & tt
         & sechash & txout & part & val
         ) x∈
        where
-        Tc : Txᵈ 1 c′
-        Tc = sig⋆ [ mapWith∈ P (K² Dₚ∈ ∘ P⊆) ] record
+        Tᶜ : Txᵈ 1 c
+        Tᶜ = sig⋆ [ mapWith∈ P (K² Dₚ∈ ∘ P⊆) ] record
           { inputs  = [ T,o ]
           ; wit     = wit⊥
           ; relLock = replicate 0
           ; outputs = V.Mem.mapWith∈ (fromList vcs) λ{ {vᵢ , Cᵢ} x∈ →
-              let eᵢ = mapWith∈ Cᵢ (Bout ∘ s⊆ ∘ subterms⊆ᵛ (fromList⁻ x∈))
+              let eᵢ = mapWith∈ Cᵢ $ Bₒᵤₜ ∘ s⊆ ∘ subterms⊆ᵛ (fromList⁻ x∈)
               in -, vᵢ locked-by ƛ proj₂ (⋁ eᵢ)
             }
           ; absLock = t }
-        Tc♯ = (∃Tx ∋ -, -, Tc) ♯
+        Tᶜ♯ = (∃Tx ∋ -, -, Tᶜ) ♯
 
-    go (ℂ.C _) f st = ↦-∈ λ {d} d∈ → f (ℂ.D d) (≺-∈ d∈) (↓ st d∈)
+    go (ℂ.C _) r st = ↦-∈ λ {d} d∈ → r (ℂ.D d) (≺-∈ d∈) (↓ st d∈)
       where
         ↓ : State (ℂ.C ds) → ds ↦′ (State ∘ ℂ.D)
         ↓ {ds = d ∷ ds}
@@ -282,7 +282,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
           & part    ∘ mapMaybe-⊆ isInj₂ n⊆ & val   ∘ mapMaybe-⊆ isInj₂ n⊆) x∈
           where n⊆ : names ds ⊆ names (d ∷ ds)
                 n⊆ = ∈-++⁺ʳ _
-    go (ℂ.V _) f st = ↦-∈ᵛ λ {c} c∈ → f (ℂ.C c) (≺-∈ᵛ c∈) (↓ᵛ st c∈)
+    go (ℂ.V _) r st = ↦-∈ᵛ λ {c} c∈ → r (ℂ.C c) (≺-∈ᵛ c∈) (↓ᵛ st c∈)
       where
         ↓ᵛ : State (ℂ.V vcs) → (proj₂ <$> vcs) ↦′ (State ∘ ℂ.C)
         ↓ᵛ {vcs = (v , c) ∷ vcs}
