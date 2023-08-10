@@ -50,7 +50,7 @@ bitml-compiler : let ⟨ g ⟩ c = ad in
   → (K : 𝕂 g)
   → (K² : 𝕂²′ ad)
     -- a set of transactions to be submitted
-  → ∃Tx¹ × (subterms⁺ c ↦′ ∃Txᵈ)
+  → InitTx g × (subterms⁺ c ↦′ BranchTx)
 bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
   Tᵢₙᵢₜ , (≺-rec _ go) (ℂ.C C₀) record
     { T,o     = Tᵢₙᵢₜ♯ at 0
@@ -66,6 +66,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
     ; val     = val₀     ∘ mapMaybe-⊆ isInj₂ names⊆ }
   where
     names⊆ = vad .names-⊆ .unmk⊆
+    xs = persistentIds G₀
 
     partG = nub-participants G₀
     ς     = length partG
@@ -142,8 +143,8 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
     ... | _ | _
         = ς , versig (mapWith∈ partG $ K² D∈) (allFin ς)
 
-    Tᵢₙᵢₜ : ∃Tx¹
-    Tᵢₙᵢₜ = -, sig⋆ (fromList∘mapWith∈ xs K⋆)
+    Tᵢₙᵢₜ : Tx (length xs) 1
+    Tᵢₙᵢₜ = sig⋆ (fromList∘mapWith∈ xs K⋆)
       record
       { inputs  = fromList∘mapWith∈ xs (hashTxⁱ ∘ txout₀ ∘ xs⊆)
       ; wit     = wit⊥
@@ -151,15 +152,13 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
       ; outputs = [ -, v₀ locked-by ƛ ⋁ (mapWith∈ C₀ $ Bₒᵤₜ ∘ subterms⊆ᶜ) .proj₂ ]
       ; absLock = 0 }
       where
-        xs = persistentIds G₀
-
         xs⊆ : xs ⊆ ids G₀
         xs⊆ = persistentIds⊆ {G₀}
 
         K⋆ : xs ↦ List KeyPair
         K⋆ = [_] ∘ K ∘ proj₂ ∘ part₀ ∘ xs⊆
 
-    Tᵢₙᵢₜ♯ = (∃Tx ∋ -, -, Tᵢₙᵢₜ .proj₂) ♯
+    Tᵢₙᵢₜ♯ = (∃Tx ∋ -, -, Tᵢₙᵢₜ) ♯
 
     infix 0 _&_&_&_&_&_&_&_&_&_&_
     record State (c : ℂ) : Type where
@@ -182,7 +181,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
     open State
 
     Return : ℂ → Type
-    Return c = subterms⁺ c ↦′ ∃Txᵈ
+    Return c = subterms⁺ c ↦′ BranchTx
 
     go : ∀ c → (∀ c′ → c′ ≺ c → State c′ → Return c′) → State c → Return c
     go (ℂ.D c) r
@@ -191,7 +190,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
     -- Bd
     ... | withdraw A = λ where
       (here refl) →
-       -, sig⋆ [ mapWith∈ P (K² Dₚ∈ ∘ P⊆) ] record
+       sig⋆ [ mapWith∈ P (K² Dₚ∈ ∘ P⊆) ] record
          { inputs  = [ T,o ]
          ; wit     = wit⊥
          ; relLock = [ 0 ]
@@ -206,7 +205,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
         (T,o & v & (P , P⊆) & t ⊔ t′ & p⊆ & s⊆ & ∃s & sechash & txout & part & val)
     -- Bc
     ... | c@(put zs &reveal as if p ⇒ cs) = λ where
-      (here refl) → -, Tᶜ
+      (here refl) → Tᶜ
       (there x∈)  → r (ℂ.C cs) ≺-put
         ( (Tᶜ♯ at 0) & v′ & (partG , ⊆-refl) & 0
         & p⊆ & s⊆ & tt
@@ -228,7 +227,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
         K⋆ : zs ↦ List KeyPair
         K⋆ = [_] ∘ K ∘ proj₂ ∘ part ∘ zs⊆
 
-        Tᶜ : Tx (suc $ length zs) 1
+        Tᶜ : BranchTx c
         Tᶜ = sig⋆ (mapWith∈ P (K² Dₚ∈ ∘ P⊆) ∷ fromList∘mapWith∈ zs K⋆)
           record
           { inputs  = T,o ∷ fromList∘mapWith∈ zs (hashTxⁱ ∘ txout ∘ zs⊆)
@@ -239,14 +238,14 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
         Tᶜ♯ = (∃Tx ∋ -, -, Tᶜ) ♯
     -- Bpar
     ... | c@(split vcs) = λ where
-      (here refl) → -, Tᶜ
+      (here refl) → Tᶜ
       (there x∈)  → r (ℂ.V vcs) ≺-split
         ( (Tᶜ♯ at 0) & v & (partG , ⊆-refl) & 0
         & p⊆ & s⊆ & tt
         & sechash & txout & part & val
         ) x∈
        where
-        Tᶜ : Txᵈ 1 c
+        Tᶜ : BranchTx c
         Tᶜ = sig⋆ [ mapWith∈ P (K² Dₚ∈ ∘ P⊆) ] record
           { inputs  = [ T,o ]
           ; wit     = wit⊥

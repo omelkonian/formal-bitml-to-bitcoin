@@ -1,6 +1,6 @@
 open import Prelude.Init; open SetAsType
 
-open import Bitcoin
+open import Bitcoin using (Tx)
 
 open import BitML.BasicTypes using (⋯)
 
@@ -8,19 +8,15 @@ module Compiler.Outputs (⋯ : ⋯) where
 
 open import BitML ⋯
 
--- single-output transactions
-Tx¹ : ℕ → Type
-Tx¹ i = Tx i 1
-∃Tx¹ = ∃ Tx¹
+-- type of initial transaction
+InitTx : Precondition → Type
+InitTx g = Tx (length $ persistentIds g) 1
 
--- contract-dependent outputs
-outputLen : Branch → ℕ
-outputLen = λ where
-  (split vcs) → length vcs
-  _           → 1
-
-Txᵈ : ℕ → Branch → Type
-Txᵈ i c = Tx i (outputLen c)
-
-∃Txᵈ : Branch → Type
-∃Txᵈ c = ∃ λ i → Txᵈ i c
+-- type of subterm transactions
+BranchTx : Branch → Type
+BranchTx d
+  with _ ← decorations∘remove≡[] {d}
+  with removeTopDecorations d
+... | put xs &reveal _ if _ ⇒ c = Tx (suc $ length xs) 1
+... | split vcs                 = Tx 1 (length vcs)
+... | withdraw _                = Tx 1 1
