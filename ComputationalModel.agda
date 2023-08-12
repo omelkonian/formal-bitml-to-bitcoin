@@ -3,11 +3,10 @@ open import Prelude.Lists
 open import Prelude.DecEq
 
 import Bitcoin.Crypto as BTC
+open import BitML.BasicTypes using (⋯)
 
 module ComputationalModel
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
+  (⋯ : ⋯) (let open ⋯ ⋯)
 
   (finPart : Finite Participant)
   (keypairs : ∀ (A : Participant) → BTC.KeyPair × BTC.KeyPair)

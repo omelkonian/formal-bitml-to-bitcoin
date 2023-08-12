@@ -3,19 +3,19 @@
 ----------------------------------------------------------------------------
 open import Prelude.Init; open SetAsType
 open L.SubS using (⊆-refl)
-open L.Mem
+open L.Mem hiding (mapWith∈)
 open L.Any using (index)
 open L.All using (lookup)
 open F using (inject+; raise)
 open V using (replicate)
 open V.Any using (fromList⁻)
 open import Prelude.General
+open import Prelude.DecEq
+open import Prelude.Functor
 open import Prelude.Lists
 open import Prelude.Lists.Dec
-open import Prelude.DecEq
-open import Prelude.Sets hiding (codom; _↦_; _↦′_)
 open import Prelude.Lists.Collections
-open import Prelude.Functor
+open import Prelude.Membership using (mapWith∈)
 open import Prelude.Validity
 open import Prelude.FromList
 open import Prelude.Num
@@ -82,8 +82,8 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
 
     -- Bₒᵤₜ
     Bₒᵤₜ : subterms C₀ ↦ (∃[ ctx ] Script ctx `Bool)
-    Bₒᵤₜ {D} D∈ with removeTopDecorations D | inspect removeTopDecorations D
-    ... | put zs &reveal as if p ⇒ _ | ≡[ eq ]
+    Bₒᵤₜ {D} D∈ with removeTopDecorations D in D≡
+    ... | put zs &reveal as if p ⇒ _
         = (ς + m)
         ,   versig (mapWith∈ partG $ K² D∈) (inject+ m <$> allFin ς)
          `∧ Bᵖʳ p p⊆as
@@ -100,7 +100,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
         n⊆ = subterms-names⊆ᶜ {d = D} {ds = C₀} D∈
 
         put∈ : (zs , as , p) ∈ putComponents D
-        put∈ rewrite remove-putComponents {D} | eq = 0
+        put∈ rewrite remove-putComponents {D} | D≡ = 0
 
         p⊆as : secrets p ⊆ as
         p⊆as = lookup (vad .names-put) (p⊆ put∈) .proj₂ .unmk⊆
@@ -109,7 +109,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
         as⊆ = (λ x → ∈-mapMaybe⁺ isInj₁ x refl) ∘ names⊆ ∘ n⊆ ∘ as⊆′ ∘ ∈-map⁺ inj₁
           where
             as⊆′ : map inj₁ as ⊆ names D
-            as⊆′ rewrite remove-names {D} | eq = ∈-++⁺ʳ (inj₂ <$> zs) ∘ ∈-++⁺ˡ
+            as⊆′ rewrite remove-names {D} | D≡ = ∈-++⁺ʳ (inj₂ <$> zs) ∘ ∈-++⁺ˡ
 
         Bᵃʳ : (e : Arith) → secrets e ⊆ as → Script (ς + m) `ℤ
         Bᵃʳ = λ where
@@ -140,7 +140,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
                Bᵃʳ x (⊆as ∘ ∈-mapMaybe-++⁺ˡ isInj₁ {names x} {names y})
             `< Bᵃʳ y (⊆as ∘ ∈-mapMaybe-++⁺ʳ isInj₁ (names x) {names y})
 
-    ... | _ | _
+    ... | _
         = ς , versig (mapWith∈ partG $ K² D∈) (allFin ς)
 
     Tᵢₙᵢₜ : Tx (length xs) 1
@@ -196,13 +196,11 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
          ; relLock = [ 0 ]
          ; outputs = [ 1 , v locked-by ƛ versig [ K {A} (p⊆ 0) ] [ 0 ] ]
          ; absLock = t }
-    ... | A ∶ d =
-      r (ℂ.D d) ≺-auth
-        (T,o & v & P \\ [ A ] , P⊆ ∘ \\-⊆ & t & p⊆ ∘ there
-             & s⊆ & ∃s & sechash & txout & part & val)
-    ... | after t′ ∶ d =
-      r (ℂ.D d) ≺-after
-        (T,o & v & (P , P⊆) & t ⊔ t′ & p⊆ & s⊆ & ∃s & sechash & txout & part & val)
+    ... | A ∶ d = r (ℂ.D d) ≺-auth
+      (T,o & v & P \\ [ A ] , P⊆ ∘ \\-⊆ & t & p⊆ ∘ there
+           & s⊆ & ∃s & sechash & txout & part & val)
+    ... | after t′ ∶ d = r (ℂ.D d) ≺-after
+      (T,o & v & (P , P⊆) & t ⊔ t′ & p⊆ & s⊆ & ∃s & sechash & txout & part & val)
     -- Bc
     ... | c@(put zs &reveal as if p ⇒ cs) = λ where
       (here refl) → Tᶜ
@@ -250,7 +248,7 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
           { inputs  = [ T,o ]
           ; wit     = wit⊥
           ; relLock = replicate 0
-          ; outputs = V.Mem.mapWith∈ (fromList vcs) λ{ {vᵢ , Cᵢ} x∈ →
+          ; outputs = mapWith∈ (fromList vcs) λ{ {vᵢ , Cᵢ} x∈ →
               let eᵢ = mapWith∈ Cᵢ $ Bₒᵤₜ ∘ s⊆ ∘ subterms⊆ᵛ (fromList⁻ x∈)
               in -, vᵢ locked-by ƛ proj₂ (⋁ eᵢ)
             }

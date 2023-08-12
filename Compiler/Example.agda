@@ -40,7 +40,7 @@ module Section7 where -- (see BitML paper, Section 7).
 
   module Withdraw where
     ex-ad : Ad
-    ex-ad = ⟨ A :! 1 at "x" ∣ B :! 1 at "y" ⟩ [ withdraw B ]
+    ex-ad = ⟨ A :! 1 𝐁 at "x" ∣ B :! 1 𝐁 at "y" ⟩ [ withdraw B ]
 
     open ∣K ex-ad
 
@@ -49,8 +49,8 @@ module Section7 where -- (see BitML paper, Section 7).
       { inputs  = []
       ; wit     = wit⊥
       ; relLock = V.replicate 0
-      ; outputs = [ (1 , 1 locked-by ƛ (versig [ K 0 ] [ 0 ]))
-                  ⨾ (1 , 1 locked-by ƛ (versig [ K 1 ] [ 0 ]))
+      ; outputs = [ (1 , 1 𝐁 locked-by ƛ (versig [ K 0 ] [ 0 ]))
+                  ⨾ (1 , 1 𝐁 locked-by ƛ (versig [ K 1 ] [ 0 ]))
                   ]
       ; absLock = 0 }
 
@@ -77,7 +77,7 @@ module Section7 where -- (see BitML paper, Section 7).
       { inputs  = hashTxⁱ <$> [ Tˣ ⨾ Tʸ ]
       ; wit     = wit⊥
       ; relLock = V.replicate 0
-      ; outputs = [ 2 , 2 locked-by ƛ versig (codom $ K² 0) [ 0 ⨾ 1 ] ]
+      ; outputs = [ 2 , 2 𝐁 locked-by ƛ versig (codom $ K² 0) [ 0 ⨾ 1 ] ]
       ; absLock = 0 }
     Tᵢₙᵢₜ♯ = (∃Tx ∋ -, -, Tᵢₙᵢₜ) ♯
 
@@ -86,7 +86,7 @@ module Section7 where -- (see BitML paper, Section 7).
       { inputs  = [ Tᵢₙᵢₜ♯ at 0 ]
       ; wit     = wit⊥
       ; relLock = V.replicate 0
-      ; outputs = [ 1 , 2 locked-by ƛ versig [ K 1 ] [ 0 ] ]
+      ; outputs = [ 1 , 2 𝐁 locked-by ƛ versig [ K 1 ] [ 0 ] ]
       ; absLock = 0 }
 
     _ = outTxs ≡ (Tᵢₙᵢₜ , Tᵇ)
@@ -94,8 +94,8 @@ module Section7 where -- (see BitML paper, Section 7).
 
   module Split where
     ex-ad : Ad
-    ex-ad = ⟨ A :! 2 at "x" ∣ B :! 1 at "y" ⟩
-            [ split (1 ⊸ withdraw A ⊗ 2 ⊸ withdraw B) ]
+    ex-ad = ⟨ A :! 2 𝐁 at "x" ∣ B :! 1 𝐁 at "y" ⟩
+            [ split (1 𝐁 ⊸ withdraw A ⊗ 2 𝐁 ⊸ withdraw B) ]
 
     open ∣K ex-ad
 
@@ -104,8 +104,8 @@ module Section7 where -- (see BitML paper, Section 7).
       { inputs  = []
       ; wit     = wit⊥
       ; relLock = V.replicate 0
-      ; outputs = [ (2 , 1 locked-by ƛ (versig [ K 0 ] [ 0 ]))
-                  ⨾ (1 , 1 locked-by ƛ (versig [ K 1 ] [ 0 ]))
+      ; outputs = [ (2 , 1 𝐁 locked-by ƛ (versig [ K 0 ] [ 0 ]))
+                  ⨾ (1 , 1 𝐁 locked-by ƛ (versig [ K 1 ] [ 0 ]))
                   ]
       ; absLock = 0 }
 
@@ -133,7 +133,7 @@ module Section7 where -- (see BitML paper, Section 7).
       { inputs  = hashTxⁱ <$> [ Tˣ ⨾ Tʸ ]
       ; wit     = wit⊥
       ; relLock = V.replicate 0
-      ; outputs = [ 2 , 3 locked-by ƛ versig (codom $ K² 0) [ 0 ⨾ 1 ] ]
+      ; outputs = [ 2 , 3 𝐁 locked-by ƛ versig (codom $ K² 0) [ 0 ⨾ 1 ] ]
       ; absLock = 0 }
     Tᵢₙᵢₜ♯ = (∃Tx ∋ -, -, Tᵢₙᵢₜ) ♯
 
@@ -142,8 +142,8 @@ module Section7 where -- (see BitML paper, Section 7).
       { inputs  = [ Tᵢₙᵢₜ♯ at 0 ]
       ; wit     = wit⊥
       ; relLock = V.replicate 0
-      ; outputs = [ 2 , 1 locked-by ƛ versig (codom $ K² 1) [ 0 ⨾ 1 ]
-                  ⨾ 2 , 2 locked-by ƛ versig (codom $ K² 2) [ 0 ⨾ 1 ]
+      ; outputs = [ 2 , 1 𝐁 locked-by ƛ versig (codom $ K² 1) [ 0 ⨾ 1 ]
+                  ⨾ 2 , 2 𝐁 locked-by ƛ versig (codom $ K² 2) [ 0 ⨾ 1 ]
                   ]
       ; absLock = 0 }
     Tₛₚₗᵢₜ♯ = (∃Tx ∋ -, -, Tₛₚₗᵢₜ) ♯
@@ -153,7 +153,7 @@ module Section7 where -- (see BitML paper, Section 7).
       { inputs  = [ Tₛₚₗᵢₜ♯ at 0 ]
       ; wit     = wit⊥
       ; relLock = V.replicate 0
-      ; outputs = [ 1 , 1 locked-by ƛ versig [ K 0 ] [ 0 ] ]
+      ; outputs = [ 1 , 1 𝐁 locked-by ƛ versig [ K 0 ] [ 0 ] ]
       ; absLock = 0 }
 
     Tᵇ : Tx 1 1
@@ -161,7 +161,7 @@ module Section7 where -- (see BitML paper, Section 7).
       { inputs  = [ Tₛₚₗᵢₜ♯ at 1 ]
       ; wit     = wit⊥
       ; relLock = V.replicate 0
-      ; outputs = [ 1 , 2 locked-by ƛ versig [ K 1 ] [ 0 ] ]
+      ; outputs = [ 1 , 2 𝐁 locked-by ƛ versig [ K 1 ] [ 0 ] ]
       ; absLock = 0 }
 
     _ = outTxs ≡ (Tᵢₙᵢₜ , Tₛₚₗᵢₜ , Tᵃ , Tᵇ)
@@ -169,7 +169,7 @@ module Section7 where -- (see BitML paper, Section 7).
 
   module Put where
     ex-ad : Ad
-    ex-ad = ⟨ A :? 1 at "x" ∣ A :! 1 at "y" ∣ B :! 1 at "z" ⟩
+    ex-ad = ⟨ A :? 1 𝐁 at "x" ∣ A :! 1 𝐁 at "y" ∣ B :! 1 𝐁 at "z" ⟩
             [ put "x" ． withdraw B ]
 
     open ∣K ex-ad
@@ -179,9 +179,9 @@ module Section7 where -- (see BitML paper, Section 7).
       { inputs  = []
       ; wit     = wit⊥
       ; relLock = V.replicate 0
-      ; outputs = [ (1 , 1 locked-by ƛ (versig [ K 0 ] [ 0 ]))
-                  ⨾ (1 , 1 locked-by ƛ (versig [ K 0 ] [ 0 ]))
-                  ⨾ (1 , 1 locked-by ƛ (versig [ K 1 ] [ 0 ]))
+      ; outputs = [ (1 , 1 𝐁 locked-by ƛ (versig [ K 0 ] [ 0 ]))
+                  ⨾ (1 , 1 𝐁 locked-by ƛ (versig [ K 0 ] [ 0 ]))
+                  ⨾ (1 , 1 𝐁 locked-by ƛ (versig [ K 1 ] [ 0 ]))
                   ]
       ; absLock = 0 }
 
@@ -211,7 +211,7 @@ module Section7 where -- (see BitML paper, Section 7).
       { inputs  = hashTxⁱ <$> [ Tʸ ⨾ Tᶻ ]
       ; wit     = wit⊥
       ; relLock = V.replicate 0
-      ; outputs = [ 2 , 2 locked-by ƛ versig (codom $ K² 0) [ 0 ⨾ 1 ]
+      ; outputs = [ 2 , 2 𝐁 locked-by ƛ versig (codom $ K² 0) [ 0 ⨾ 1 ]
                                       `∧ `true `∧ `true ]
       ; absLock = 0 }
     Tᵢₙᵢₜ♯ = (∃Tx ∋ -, -, Tᵢₙᵢₜ) ♯
@@ -221,7 +221,7 @@ module Section7 where -- (see BitML paper, Section 7).
       { inputs  = [ Tᵢₙᵢₜ♯ at 0 ⨾ hashTxⁱ Tˣ ]
       ; wit     = wit⊥
       ; relLock = V.replicate 0
-      ; outputs = [ 2 , 3 locked-by ƛ versig (codom $ K² 1) [ 0 ⨾ 1 ] ]
+      ; outputs = [ 2 , 3 𝐁 locked-by ƛ versig (codom $ K² 1) [ 0 ⨾ 1 ] ]
       ; absLock = 0 }
     Tₚᵤₜ♯ = (∃Tx ∋ -, -, Tₚᵤₜ) ♯
 
@@ -230,7 +230,7 @@ module Section7 where -- (see BitML paper, Section 7).
       { inputs  = [ Tₚᵤₜ♯ at 0 ]
       ; wit     = wit⊥
       ; relLock = V.replicate 0
-      ; outputs = [ 1 , 3 locked-by ƛ versig [ K 1 ] [ 0 ] ]
+      ; outputs = [ 1 , 3 𝐁 locked-by ƛ versig [ K 1 ] [ 0 ] ]
       ; absLock = 0 }
 
     _ = outTxs ≡ (Tᵢₙᵢₜ , Tₚᵤₜ , Tᵃ)
@@ -249,7 +249,7 @@ module TimedCommitment where -- (see BitML, Section 7 and Appendix A.5)
     { inputs  = []
     ; wit     = wit⊥
     ; relLock = V.replicate 0
-    ; outputs = [ (1 , 1 locked-by ƛ versig [ K 0 ] [ 0 ])
+    ; outputs = [ (1 , v locked-by ƛ versig [ K 0 ] [ 0 ])
                 ⨾ (1 , 0 locked-by ƛ versig [ K 1 ] [ 0 ])
                 ]
     ; absLock = 0 }

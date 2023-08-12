@@ -12,9 +12,9 @@ jobs:
           agda-version: 2.6.3
           stdlib-version: 1.7.2
           libraries: |
-            omelkonian/formal-prelude#d59bbfc
-            omelkonian/formal-bitcoin#e0e3a74
-            omelkonian/formal-bitml#9daeea8
+            omelkonian/formal-prelude#ab01ae5
+            omelkonian/formal-bitcoin#83f78ec
+            omelkonian/formal-bitml#a716f88
           main: Main
           token: ${{ secrets.GITHUB_TOKEN }}
           rts: -K256M -H1G -M8G -A128M
