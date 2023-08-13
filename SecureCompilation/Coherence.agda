@@ -21,40 +21,28 @@ open import Prelude.Setoid
 open import Prelude.Nary
 open import Prelude.Apartness
 open import Prelude.Split hiding (split)
-open import Prelude.Serializable
 open import Prelude.Views hiding (_▷_)
 open import Prelude.Null
 
-import Bitcoin.Crypto as BTC
+open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.Coherence
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
+module SecureCompilation.Coherence (⋯ : ⋯) (let open ⋯ ⋯) where
 
-  (finPart : Finite Participant)
-  (keypairs : ∀ (A : Participant) → BTC.KeyPair × BTC.KeyPair)
-
-  (η : ℕ) -- security parameter
-  where
-
-open import SymbolicModel Participant Honest as S
+open import SymbolicModel ⋯′ as S
   hiding (_∎; begin_; d; Γₜ″)
-
-open import ComputationalModel Participant Honest finPart keypairs as C
-  hiding (Hon; Σ
-         ; t; t′; `; ∣_∣; n)
-
-open import SecureCompilation.ComputationalContracts Participant Honest
-open import SecureCompilation.Compiler Participant Honest η
-open import SecureCompilation.Helpers  Participant Honest finPart keypairs η
+  renaming (_∶_♯_ to _∶_#_; ⟨_∶_♯_⟩ to ⟨_∶_#_⟩)
+open import ComputationalModel ⋯′ finPart keypairs as C
+  hiding (Σ; t; t′; `; ∣_∣; n)
+open import Compiler ⋯′ η
+open import SecureCompilation.ComputationalContracts ⋯′
+open import SecureCompilation.Helpers ⋯
 
 private variable
   ⟨G⟩C ⟨G⟩C′ ⟨G⟩C″ : Ad
   𝕣  : ℝ Rˢ
 
 _-redeemableWith-_ : S.Value → KeyPair → ∃TxOutput
-v -redeemableWith- k = Ctx 1 , record {value = v;  validator = ƛ (versig [ k ] [ # 0 ])}
+v -redeemableWith- k = 1 , record {value = v;  validator = ƛ (versig [ k ] [ # 0 ])}
 
 -- * Inductive case 1
 data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
@@ -88,7 +76,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
           let
             txoutΓ = Txout Γ ∋ Txout≈ {Rˢ ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_)
             txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
-            txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
+            txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad ∙names-⊆)
           in
             encodeAd ⟨G⟩C (txoutG , txoutC)
         λᶜ = A →∗∶ C
@@ -114,8 +102,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
 
         (as , ms) = unzip Δ
 
-        Δᶜ : Cfg
-        Δᶜ = || map (uncurry ⟨ A ∶_♯_⟩) Δ
+        Δᶜ = Cfg ∋ || map (uncurry ⟨ A ∶_#_⟩) Δ
 
         h̅ : List ℤ -- ≈ Message
         h̅ = map (proj₂ ∘ proj₂) Δ×h̅
@@ -252,7 +239,6 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
   [5] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
         ∀ {i : Index c} → let open ∣SELECT c i in
         let Γ = ⟨ c , v ⟩at x ∣ Γ₀; Γₜ = Γ at t in
-        ∀ {A} → -- [T0D0] fixed in Agda-HEAD, see issue #5683
 
       -- D ≡ A ∶ D′
       (D≡A:D′ : A ∈ authDecorations d)
@@ -279,15 +265,14 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
 
   -- ** Contract actions: put
   [6] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-        ∀ {ds : List (Participant × S.Value × Id)} {ss : List (Participant × Secret × ℕ)} →
+        ∀ {ds : DepositRefs} {ss : List (Participant × Secret × ℕ)} →
         ∀ {i : Index c} → let open ∣SELECT c i; As , ts = decorations d in
-        ∀ {v y} → -- [T0D0] fixed in Agda-HEAD, see issue #5683
       let
         -- (i) xs = x₁⋯xₖ
         (_ , vs , xs) = unzip₃ ds
         (_ , as , _)  = unzip₃ ss
         Γ₁  = || map (uncurry₃ ⟨_has_⟩at_) ds
-        Δ   = || map (uncurry₃ _∶_♯_) ss
+        Δ   = || map (uncurry₃ _∶_#_) ss
         Γ₂  = Δ ∣ Γ₀
         Γ₁₂ = Γ₁ ∣ Γ₂
         Γ   = ⟨ c , v ⟩at y ∣ (Γ₁ ∣ Γ₂)
@@ -309,7 +294,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
       -- Hypotheses from [C-PutRev]
       (fresh-y′ : y′ ∉ y L.∷ ids Γ₁₂)
-      (p⟦Δ⟧≡ : S.⟦ p ⟧ Δ ≡ just true)
+      (p⟦Δ⟧≡ : ⟦ p ⟧ᵖ Δ ≡ just true)
       -- Hypotheses from [Timeout]
       (As≡∅ : Null As)
     → let
@@ -331,8 +316,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
 
   -- ** Contract actions: authorize reveal
   [7] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-        ∀ {a} → -- [T0D0] fixed in Agda-HEAD, see issue #5683
-        let Γ = ⟨ A ∶ a ♯ just n ⟩ ∣ Γ₀; Γₜ = Γ at t in
+        let Γ = Cfg ∋ ⟨ A ∶ a # just n ⟩ ∣ Γ₀; Γₜ = Γ at t in
         ∀ {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)} {k⃗ : 𝕂²′ ⟨G⟩C} → let ⟨ G ⟩ C = ⟨G⟩C in
 
       ∣ m ∣ᵐ ≤ η
@@ -340,11 +324,11 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
 
     → let
         α   = auth-rev⦅ A , a ⦆
-        Γ′  = A ∶ a ♯ n ∣ Γ₀
+        Γ′  = Cfg ∋ A ∶ a # n ∣ Γ₀
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = Cfgᵗ ∋ ∃Γ≈ .proj₁ at t′ in
       let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] [C-AuthRev] refl
@@ -372,7 +356,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         C = encodeAd ⟨G⟩C (auth-commit∈⇒Txout ∃α 𝕣)
 
         -- T0D0: should we search for a signature of this message instead?
-        C,h̅,k̅ = encode (C , h̅ , k̅)
+        C,h̅,k̅ = encode {A = HashId × HashId × HashId} (C , h̅ , k̅)
 
         -- (i) some participant B broadcasts message m
         λᶜ = B →∗∶ m
@@ -389,8 +373,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
   -- ** Contract actions: split
   [8] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
         ∀ {i : Index c} → let open ∣SELECT c i; As , ts = decorations d in
-        ∀ {vcis : List (S.Value × Contracts × Id)} → let vs , cs , xs = unzip₃ vcis; v = sum vs in
-        ∀ {y Γ₀} → -- [T0D0] fixed in Agda-HEAD, see issue #5683
+        ∀ {vcis : VIContracts} → let vs , cs , xs = unzip₃ vcis; v = sum vs in
         let Γ = ⟨ c , v ⟩at y ∣ Γ₀; Γₜ = Γ at t in
 
       -- (i) in Rˢ, α consumes ⟨D+C,v⟩y to obtain ⟨C₀,v₀⟩ₓ₀ | ⋯ | ⟨Cₖ,vₖ⟩ₓₖ
@@ -428,7 +411,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       in
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
+{-
   -- ** Contract actions: withdraw
   [9] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
         ∀ {i : Index c} → let open ∣SELECT c i; As , ts = decorations d in
@@ -461,7 +444,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       in
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
+-}
   -- ** Deposits: authorize join
   [10] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
          let Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀; Γₜ = Γ at t in
@@ -486,7 +469,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
                 → (l ≡ B →∗∶ (T ♯))
                 × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ [])
-                × (outputs T ≡ [ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
+                × (outputs T ≡ [ 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
                 ) (toList Rᶜ))
     → let
         T : ∃Tx
@@ -727,7 +710,7 @@ data _~₁₂_ : ℝ∗ Rˢ → CRun → Set where
 
   -- ** Deposits: authorize destroy
   [16] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-         ∀ {ds : List (Participant × S.Value × Id)} {j : Index ds}
+         ∀ {ds : DepositRefs} {j : Index ds}
 
     → let
         k  = length ds
@@ -778,7 +761,7 @@ data _~₁₂_ : ℝ∗ Rˢ → CRun → Set where
 
   -- ** Deposits: destroy
   [17] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-         ∀ {ds : List (Participant × S.Value × Id)} {j : Index ds}
+         ∀ {ds : DepositRefs} {j : Index ds}
 
     → let
         xs = map (proj₂ ∘ proj₂) ds
@@ -839,6 +822,7 @@ _≁₁_ = ¬_ ∘₂ _~₁_
 
 -- * Inductive case 2
 data _~₂_∷ʳ_ (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) : C.Label → Set where
+
   [1] : ∀ {T} →
     let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
     T .proj₂ .proj₂ .inputs ♯ (hashTxⁱ <$> codom txout′)
@@ -912,7 +896,7 @@ private
   ... | [L] [6]  t≡ d≡ R≈ ∃Γ≈ fresh-y′ p⟦Δ⟧≡ As≡∅ = tt
   ... | [L] [7]  m≤ R≈ ∃Γ≈ ∃B ∃α a∈ ∃λ first-λᶜ = tt
   ... | [L] [8]  t≡ d≡ R≈ fresh-xs As≡∅ ∃Γ≈ = tt
-  ... | [L] [9]  d≡ R≈ ∃Γ≈ frsg-x As≡∅ ∀≤t = tt
+  -- ... | [L] [9]  d≡ R≈ ∃Γ≈ frsg-x As≡∅ ∀≤t = tt
   ... | [L] [10] R≈ ∃Γ≈ ∃λ first-λᶜ = tt
   ... | [L] [11] R≈ ∃Γ≈ fresh-y = tt
   ... | [L] [12] R≈ ∃Γ≈ ∃λ first-λᶜ = tt

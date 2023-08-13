@@ -16,36 +16,22 @@ open import Prelude.Decidable
 open import Prelude.Bitstring
 
 open import Bitcoin
-open import Prelude.Serializable HashId
+open import BitML.BasicTypes using (⋯)
 
 module ComputationalModel.Strategy
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-
+  (⋯ : ⋯) (let open ⋯ ⋯)
   (finPart : Finite Participant)
   (keypairs : Participant → KeyPair × KeyPair)
   where
-
-Hon : List Participant
-Hon = L.NE.toList Honest
 
 allParticipants : List Participant
 allParticipants = finList finPart
 
 open import ComputationalModel.KeyPairs Participant keypairs
+open import ComputationalModel.Serialization
 
 -- ** Serialization
 Message = HashId
-private variable X : Set ℓ; Y : Set ℓ′
-
-instance postulate
-  Serializable-ℕ : Serializable ℕ
-  Serializable-ℤ : Serializable ℤ
-  Serializable-Bool : Serializable Bool
-  Serializable-List : ⦃ Serializable X ⦄ → Serializable (List X)
-  Serializable-× : ⦃ Serializable X ⦄ → ⦃ Serializable Y ⦄ → Serializable (X × Y)
-  Serializable-⊎ : ⦃ Serializable X ⦄ → ⦃ Serializable Y ⦄ → Serializable (X ⊎ Y)
 
 -- Computational runs.
 

@@ -17,6 +17,7 @@ module SecureCompilation.ComputationalContracts (⋯ : ⋯) (let open ⋯ ⋯) w
 
 import SymbolicModel ⋯ as BitML
 open BitML hiding (A; B; begin_; _∎; Σ; _▷_; g′)
+open import Compiler.Mappings ⋯
 
 -- ** Computational contracts (transaction outputs instead of identifiers)
 Idᶜ  = TxInput′

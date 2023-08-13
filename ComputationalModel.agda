@@ -16,6 +16,7 @@ module ComputationalModel
 -- re-export all Bitcoin definitions
 open import Bitcoin public
 
+open import ComputationalModel.Serialization public
 open import ComputationalModel.KeyPairs Participant keypairs public
-open import ComputationalModel.Strategy Participant Honest finPart keypairs public
-open import ComputationalModel.Lemmas Participant Honest finPart keypairs public
+open import ComputationalModel.Strategy ⋯ finPart keypairs public
+open import ComputationalModel.Lemmas ⋯ finPart keypairs public

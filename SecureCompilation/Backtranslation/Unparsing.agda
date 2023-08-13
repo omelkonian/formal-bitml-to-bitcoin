@@ -25,28 +25,19 @@ open import Prelude.General
 open import Prelude.Tactics.Existentials
 
 open import Bitcoin using (KeyPair)
+open import SecureCompilation.ModuleParameters using (⋯)
 
 module SecureCompilation.Backtranslation.Unparsing
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-
-  (finPart : Finite Participant)
-  (keypairs : ∀ (A : Participant) → KeyPair × KeyPair)
-
-  (η : ℕ) -- security parameter
-
+  (⋯ : ⋯) (let open ⋯ : ⋯)
   (A₀ : Participant) -- whose strategy we are currently translating
   where
 
-open import SymbolicModel Participant Honest as S
+open import SymbolicModel ⋯′ as S
   hiding (Rˢ′; d)
-open import ComputationalModel Participant Honest finPart keypairs as C
-  hiding (Hon; Initial; Σ
-         ; t; t′; `; ∣_∣; n)
-
-open import SecureCompilation.Helpers  Participant Honest finPart keypairs η
-open import SecureCompilation.Coherence Participant Honest finPart keypairs η as SC
+open import ComputationalModel ⋯′ finPart keypairs as C
+  hiding (Initial; Σ; t; t′; `; ∣_∣; n)
+open import SecureCompilation.Helpers ⋯
+open import SecureCompilation.Coherence ⋯ as SC
 
 unparseMove :
   ∙ Rˢ ~ Rᶜ
@@ -267,7 +258,7 @@ unparseMove
     ∃λ : Any (λ l → ∃ λ B → ∃ λ T
          → (l ≡ B →∗∶ [ T ♯ ])
          × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ [])
-         × (outputs T ≡ [ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
+         × (outputs T ≡ [ 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
          ) (toList Rᶜ)
     ∃λ = {!!}
 

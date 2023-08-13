@@ -1,52 +1,36 @@
 -- {-# OPTIONS --auto-inline #-}
--- {-# OPTIONS --allow-unsolved-metas #-}
 open import Prelude.Init hiding (T)
-open import Prelude.General
+open L.Mem using (∈-++⁺ˡ; ∈-++⁺ʳ)
 open import Prelude.Lists
-open L.Mem using (∈-++⁻; ∈-++⁺ˡ; ∈-++⁺ʳ)
-open L.Perm using (Any-resp-↭; ∈-resp-↭)
-open import Prelude.Lists.PermutationsMeta using (↭-sym∘↭-reflexive)
-open import Prelude.Membership
-open import Prelude.DecEq
-open import Prelude.Sets hiding (_⊣_; _↦′_; _↦_; extend-↦; weaken-↦; cons-↦)
 open import Prelude.Lists.Collections
-open import Prelude.Bifunctor
-open import Prelude.Nary
-open import Prelude.Validity
-open import Prelude.Traces
-open import Prelude.Decidable
-open import Prelude.DecEq
 open import Prelude.Lists.Dec
-open import Prelude.Setoid
-open import Prelude.Coercions
-open import Prelude.InferenceRules
-open import Prelude.Irrelevance
-open import Prelude.Ord
+open import Prelude.Membership
 open import Prelude.Null
+open import Prelude.Ord
+open import Prelude.Setoid
+open import Prelude.General
+open import Prelude.InferenceRules
+open import Prelude.Decidable
+open import Prelude.Traces
+open import Prelude.Nary
+open import Prelude.DecEq
 
 open import Bitcoin.Crypto
 
-open import BitML.BasicTypes using (⋯)
+open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.Helpers
-  (⋯ : ⋯) (let open ⋯ ⋯)
+module SecureCompilation.Helpers (⋯ : ⋯) (let open ⋯ ⋯) where
 
-  (finPart : Finite Participant)
-  (keypairs : ∀ (A : Participant) → KeyPair × KeyPair)
-
-  (η : ℕ) -- security parameter
-  where
-
-open import SymbolicModel ⋯ as S
+open import SymbolicModel ⋯′ as S
   hiding ( _∎; begin_
-         ; {-variables-} t; t′; α; g; c; c′; ds; x; x′; y; y′; as; vs; xs
-         ; Γ₀; Γ; Γ′; Γ″; Γₜ; Γₜ′; Γₜ″; R; R′; Δ; d; v
+         ; {-variables-} t; t′; α; g; c; c′; cs; ds; x; x′; y; y′; as; vs; xs
+         ; Γ₀; Γ; Γ′; Γ″; Γₜ; Γₜ′; Γₜ″; R; R′; Δ; d; v; vcs
          )
-open import ComputationalModel Participant Honest finPart keypairs as C
-  using (∃Tx; TxInput′; _∙value; K̂; CRun; oracleInteractionsᶜ; Message)
-open import Compiler Participant Honest η
-  using (∃Tx¹; ∃Txᶜ; bitml-compiler)
-open import SecureCompilation.ComputationalContracts Participant Honest
+open import ComputationalModel ⋯′ finPart keypairs as C
+  using (Tx; ∃Tx; TxInput′; _∙value; K̂; CRun; oracleInteractionsᶜ; Message; _at_)
+open import Compiler ⋯′ η
+open import Compiler.Subterms ⋯′
+open import SecureCompilation.ComputationalContracts ⋯′
 
 postulate
   SIGᵖ : ∀ {A : Set} → ℤ {- public key -} → A → ℤ
@@ -63,7 +47,8 @@ CheckOracleInteractions Rᶜ = let os = oracleInteractionsᶜ Rᶜ in
       hᵢ ∉ map (proj₂ ∘ proj₂) (filter ((η ≤?_) ∘ ∣_∣ᵐ ∘ proj₁ ∘ proj₂) os)
 
 -- Convenient wrapper for calling the BitML compiler.
-COMPILE : 𝔾 ad → ∃Tx¹ × (subterms′ ad ↦′ ∃Txᶜ ∘ removeTopDecorations)
+
+COMPILE : 𝔾 ad → InitTx (ad .G) × (subterms ad ↦′ BranchTx ∘ _∗)
 COMPILE {ad = ad} (vad , txout₀ , sechash₀ , κ₀) =
   let
     K : 𝕂 (ad .G)
@@ -71,7 +56,7 @@ COMPILE {ad = ad} (vad , txout₀ , sechash₀ , κ₀) =
 
     T , ∀d = bitml-compiler {ad = ad} vad sechash₀ txout₀ K κ₀
   in
-    T , (∀d ∘ h-subᶜ {ds = ad .C})
+    T , weaken-sub {ad} ∀d -- ∘ h-subᶜ {ds = ad .C})
 
 -- Helpers for coherence, in order not to over-complicate the constructor definitions for `_~₁₁_`.
 -- Also we need the complete power of rewrites/with that let-only expressions in constructors do not give us.
@@ -91,7 +76,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
 
   -- [1]
   module _ Γ (R≈ : R ≈⋯ Γ at t) ad where
-    private Γ′ = ` ad ∣ Γ
+    private Γ′ = Cfg ∋ ` ad ∣ Γ
     module H₁ (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       private
         Γ″ = ∃Γ≈ .proj₁; Γ≈ = ∃Γ≈ .proj₂
@@ -147,7 +132,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
   -- [2]
   module _ Γ (R≈ : R ≈⋯ Γ at t) B A ad (Δ : List (Secret × Maybe ℕ)) where
     private
-      Γ′ = Γ ∣ || map (uncurry ⟨ B ∶_♯_⟩) Δ ∣ A auth[ ♯▷ ad ]
+      Γ′ = Cfg ∋ Γ ∣ || map (uncurry ⟨ B ∶_♯_⟩) Δ ∣ A auth[ ♯▷ ad ]
       as = proj₁ $ unzip Δ
     module H₂ (sechash⁺ : as ↦ ℤ) (k⃗ : 𝕂²′ ad) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       private
@@ -315,8 +300,8 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
   -- [3]
   module _ ad Γ₀ A x where
     private
-      Γ  = ` ad ∣ Γ₀
-      Γ′ = Γ ∣ A auth[ x ▷ˢ ad ]
+      Γ  = Cfg ∋ ` ad ∣ Γ₀
+      Γ′ = Cfg ∋ Γ ∣ A auth[ x ▷ˢ ad ]
     module H₃ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
               (committedA : nub-participants ad ⊆ committedParticipants ad Γ) where
       private
@@ -324,8 +309,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         𝕘 = LIFT₀ 𝕣 t Γ R≈ ad (here refl) committedA
       -- abstract
       T : ∃Tx
-      T = let (_ , Tᵢₙᵢₜ) , _ = COMPILE 𝕘
-          in -, -, Tᵢₙᵢₜ
+      T = -, -, COMPILE 𝕘 .proj₁
       private
         names≡ : Γ′ ≡⦅ names ⦆ Γ
         names≡ rewrite collectFromBase-++ {X = Name} Γ (A auth[ x ▷ˢ ad ]) = L.++-identityʳ _
@@ -363,11 +347,11 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       -- [WORKAROUND1] give it as module parameters (forgetting the fact that it's computed out of `g`
       -- [WORKAROUND2] instantiate and give non-instance version _∙partG
 
-      Γ₁ = ` ad ∣ Γ₀
-      Γ₂ = || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ] }) (ds)
-      Γ₃ = || map (_auth[ ♯▷ ad ]) partG
-      Γ  = Γ₁ ∣ Γ₂ ∣ Γ₃
-      Γ′ = ⟨ c , v ⟩at z ∣ Γ₀
+      Γ₁ = Cfg ∋ ` ad ∣ Γ₀
+      Γ₂ = Cfg ∋ || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ  ad ] }) (ds)
+      Γ₃ = Cfg ∋ || map (_auth[ ♯▷ ad ]) partG
+      Γ  = Cfg ∋ Γ₁ ∣ Γ₂ ∣ Γ₃
+      Γ′ = Cfg ∋ ⟨ c , v ⟩at z ∣ Γ₀
     module H₄ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       private
         committedA : partG ⊆ committedParticipants ad Γ
@@ -379,8 +363,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         𝕘 = LIFT₀ 𝕣 t Γ R≈ ad (here refl) committedA
 
         $T : ∃Tx
-        $T = let (_ , Tᵢₙᵢₜ) , _ = COMPILE 𝕘
-             in -, -, Tᵢₙᵢₜ
+        $T = -, -, COMPILE 𝕘 .proj₁
 
         tx : TxInput′
         tx = $T at 0F
@@ -479,8 +462,8 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
   module _ c v x Γ₀ A (i : Index c) where
     open ∣SELECT c i
     private
-      Γ  = ⟨ c , v ⟩at x ∣ Γ₀
-      Γ′ = ⟨ c , v ⟩at x ∣ A auth[ x ▷ d ] ∣ Γ₀
+      Γ  = Cfg ∋ ⟨ c , v ⟩at x ∣ Γ₀
+      Γ′ = Cfg ∋ ⟨ c , v ⟩at x ∣ A auth[ x ▷ d ] ∣ Γ₀
     module H₅ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
               (D≡A:D′ : A ∈ authDecorations d) where
       private
@@ -491,14 +474,15 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
             ⟨G⟩C , vad , ad∈ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
             ⟨ G ⟩ C = ⟨G⟩C; partG = G ∙partG
 
-            d∈ : d ∈ subterms′ ⟨G⟩C
+            d∈ : d ∈ subterms ⟨G⟩C
             d∈ = c⊆ (L.Mem.∈-lookup i)
 
             A∈ : A ∈ partG
-            A∈ = ∈-nub⁺ $ subterms′-part⊆ᵃ vad d∈ $ auth⊆part {d = d} D≡A:D′
+            A∈ = ∈-nub⁺ $ subterms-part⊆ᵃ vad d∈ $ auth⊆part {d = d} D≡A:D′
 
             _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
-            _ , Tᵈ = ∀d∗ d∈
+            Tᵈ : BranchTx (d ∗)
+            Tᵈ = ∀d∗ d∈
           in (-, -, Tᵈ) , (κ′ ad∈ d∈ {A} A∈ .pub)
       -- abstract
       T : ∃Tx
@@ -512,30 +496,27 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
 
   -- [6]
-  module _ c v y (ds : List (Participant × Value × Id)) (ss : List (Participant × Secret × ℕ))
+  module _ c v y (ds : DepositRefs) (ss : List (Participant × Secret × ℕ))
            Γ₀  c′ y′  (i : Index c) p where
     private
       vs = proj₁ $ proj₂ $ unzip₃ ds
       xs = proj₂ $ proj₂ $ unzip₃ ds
       as = proj₁ $ proj₂ $ unzip₃ ss
       Γ₁ = || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds
-      Γ  = ⟨ c , v ⟩at y ∣ (Γ₁ ∣ Γ₀)
-      Γ′ = ⟨ c′ , v + sum vs ⟩at y′ ∣ Γ₀
+      Γ  = Cfg ∋ ⟨ c , v ⟩at y ∣ (Γ₁ ∣ Γ₀)
+      Γ′ = Cfg ∋ ⟨ c′ , v + sum vs ⟩at y′ ∣ Γ₀
       open ∣SELECT c i
     module H₆ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
       (d≡ : d ≡⋯∶ put xs &reveal as if p ⇒ c′)
       where
       private
-        ∃T : ∃Tx¹
-        ∃T = let ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
+        $T : ∃Tx
+        $T = let ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
                  ⟨ G ⟩ C″ = ⟨G⟩C″
-                 d∈ : d ∈ subterms′ ⟨G⟩C″
+                 d∈ : d ∈ subterms ⟨G⟩C″
                  d∈ = c⊆ (L.Mem.∈-lookup i)
                  _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
-            in ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
-
-        $T : ∃Tx
-        $T = -, -, ∃T .proj₂
+            in -, -, (∀d∗ d∈ :~ d≡ ⟪ BranchTx ⟫)
 
         tx : TxInput′
         tx = $T at 0F
@@ -562,7 +543,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
           ≡˘⟨ mapMaybe∘collectFromBase-++ isInj₁ (⟨ c′ , v ⟩at y ∣ Γ₁) Γ₀ ⟩
             namesˡ Γ
           ∎ where
-            go : ∀ (ds : List (Participant × Value × Id)) →
+            go : ∀ (ds : DepositRefs) →
               Null $ namesˡ (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
             go [] = refl
             go (_ ∷ []) = refl
@@ -579,7 +560,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
           ≡⟨ sym $ collectFromBase-++ Γ₁ Γ₀ ⟩
             advertisements Γ
           ∎ where
-            go : ∀ (ds : List (Participant × Value × Id)) →
+            go : ∀ (ds : DepositRefs) →
               Null $ advertisements (|| map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ }) ds)
             go [] = refl
             go (_ ∷ []) = refl
@@ -675,25 +656,26 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
   -- [7]
   module _ A a n Γ₀ where
     private
-      Γ  = ⟨ A ∶ a ♯ just n ⟩ ∣ Γ₀
-      Γ′ = A ∶ a ♯ n ∣ Γ₀
+      Γ  = Cfg ∋ ⟨ A ∶ a ♯ just n ⟩ ∣ Γ₀
+      Γ′ = Cfg ∋ A ∶ a ♯ n ∣ Γ₀
     module H₇ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       -- abstract
       λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
       λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
 
   -- [8]
-  module _ c v y Γ₀ (i : Index c) (vcis : List (Value × Contracts × Id)) where
+  module _ c v y Γ₀ (i : Index c) (vcis : VIContracts) where
     open ∣SELECT c i
     private
-      Γ  = ⟨ c , v ⟩at y ∣ Γ₀
-      vs = unzip₃ vcis .proj₁
-      cs = unzip₃ vcis .proj₂ .proj₁
-      xs = unzip₃ vcis .proj₂ .proj₂
+      Γ = Cfg ∋ ⟨ c , v ⟩at y ∣ Γ₀
       Γ₁ = || map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis
-      Γ′ = Γ₁ ∣ Γ₀
+      Γ′ = Cfg ∋ Γ₁ ∣ Γ₀
+      vs  = unzip₃ vcis .proj₁
+      cs  = unzip₃ vcis .proj₂ .proj₁
+      vcs = zip vs cs
+      xs  = unzip₃ vcis .proj₂ .proj₂
     module H₈ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
-              (d≡ : d ≡⋯∶ split (zip vs cs)) where
+              (d≡ : d ≡⋯∶ split vcs) where
       private
         $T : ∃Tx
         $T =
@@ -701,7 +683,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
             -- (ii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
             ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
 
-            d∈ : d ∈ subterms′ ⟨G⟩C′
+            d∈ : d ∈ subterms ⟨G⟩C′
             d∈ = c⊆ (L.Mem.∈-lookup i)
 
             -- (iii) submit transaction T
@@ -709,21 +691,24 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
             --             ∙ T is the first transaction in Bpar(cs,d,T′,o,partG,t)
             --       i.e. the one corresponding to subterm `d∗ = split (zip vs cs)`
             _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
-            i , Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
+
+            Tᵈ : Tx 1 (length vcs)
+            Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ BranchTx ⟫
 
             open ≡-Reasoning
             vs≡ , cs≡ , xs≡ = length-unzip₃ vcis
 
             l≡ : length xs ≡ length (zip vs cs)
-            l≡ = sym
-              $ begin length (zip vs cs)    ≡⟨ L.length-zipWith _,_ vs cs ⟩
-                      length vs ⊓ length cs ≡⟨ Nat.m≥n⇒m⊓n≡n $ Nat.≤-reflexive $ trans cs≡ (sym vs≡) ⟩
-                      length cs             ≡⟨ cs≡ ⟩
-                      length vcis           ≡⟨ sym xs≡ ⟩
-                      length xs             ∎
+            l≡ = sym $
+              begin length (zip vs cs)    ≡⟨ L.length-zipWith _,_ vs cs ⟩
+                    length vs ⊓ length cs ≡⟨ Nat.m≥n⇒m⊓n≡n
+                                           $ Nat.≤-reflexive $ trans cs≡ (sym vs≡) ⟩
+                    length cs             ≡⟨ cs≡ ⟩
+                    length vcis           ≡⟨ sym xs≡ ⟩
+                    length xs             ∎
 
-            Tᵈ′ : Tx i (length xs)
-            Tᵈ′ = ⟪ Tx i ⟫ l≡ ~: Tᵈ
+            Tᵈ′ : Tx 1 (length xs)
+            Tᵈ′ = ⟪ Tx 1 ⟫ l≡ ~: Tᵈ
           in
             -, -, Tᵈ′
 
@@ -734,19 +719,20 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       T : ∃Tx
       T = $T
       private
-        hʳ : ∀ (vcis : List (Value × Contracts × Id)) →
-          namesʳ (|| map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis) ≡ (proj₂ $ proj₂ $ unzip₃ vcis)
+        hʳ : ∀ (vcis : VIContracts) →
+            namesʳ (|| map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis)
+          ≡ (proj₂ $ proj₂ $ unzip₃ vcis)
         hʳ [] = refl
         hʳ (_ ∷ []) = refl
         hʳ (_ ∷ xs@(_ ∷ _)) = cong (_ ∷_) (hʳ xs)
 
-        hˡ : ∀ (vcis : List (Value × Contracts × Id)) →
+        hˡ : ∀ (vcis : VIContracts) →
           Null $ namesˡ (|| map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis)
         hˡ [] = refl
         hˡ (_ ∷ []) = refl
         hˡ (_ ∷ xs@(_ ∷ _)) = hˡ xs
 
-        hᵃ : ∀ (vcis : List (Value × Contracts × Id)) →
+        hᵃ : ∀ (vcis : VIContracts) →
           Null $ advertisements (|| map (λ{ (vᵢ , cᵢ , xᵢ) → ⟨ cᵢ , vᵢ ⟩at xᵢ }) vcis)
         hᵃ [] = refl
         hᵃ (_ ∷ []) = refl
@@ -805,8 +791,8 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
   module _ c v y Γ₀ A x (i : Index c) where
     open ∣SELECT c i
     private
-      Γ  = ⟨ c , v ⟩at y ∣ Γ₀
-      Γ′ = ⟨ A has v ⟩at x ∣ Γ₀
+      Γ  = Cfg ∋ ⟨ c , v ⟩at y ∣ Γ₀
+      Γ′ = Cfg ∋ ⟨ A has v ⟩at x ∣ Γ₀
     module H₉ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
               (d≡ : d ≡⋯∶ withdraw A) where
       -- private
@@ -817,7 +803,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
             ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
             ⟨ G ⟩ C′ = ⟨G⟩C′
 
-            d∈ : d ∈ subterms′ ⟨G⟩C′
+            d∈ : d ∈ subterms ⟨G⟩C′
             d∈ = c⊆ (L.Mem.∈-lookup i)
 
             --   ∙ T′ at o = txout′(x)
@@ -828,7 +814,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
             --             ∙ T is the first transaction in Bd(d,d,T′,o,v,partG,0)
             --       i.e. the one corresponding to subterm `d∗ = withdraw A`
             _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
-            _ , Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ ∃Txᶜ ⟫
+            Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ BranchTx ⟫
           in
             -, -, Tᵈ
 
@@ -848,8 +834,8 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
   -- [10]
   module _ A v x v′ x′ Γ₀ where
     private
-      Γ  = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀
-      Γ′ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
+      Γ  = Cfg ∋ ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀
+      Γ′ = Cfg ∋ ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
     module H₁₀ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       -- abstract
       λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
@@ -858,8 +844,9 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
   -- [11]
   module _ A v x v′ x′ y Γ₀ where
     private
-      Γ  = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
-      Γ′ = ⟨ A has (v + v′) ⟩at y ∣ Γ₀
+      Γ  = Cfg
+         ∋ ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
+      Γ′ = Cfg ∋ ⟨ A has (v + v′) ⟩at y ∣ Γ₀
     module H₁₁ (R≈ : R ≈⋯ Γ at t) (tx : TxInput′) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       private
         txout↝ : Γ →⦅ Txout ⦆ Γ′
@@ -903,8 +890,8 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
   -- [12]
   module _ A v v′ x Γ₀ where
     private
-      Γ  = ⟨ A has (v + v′) ⟩at x ∣ Γ₀
-      Γ′ = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
+      Γ  = Cfg ∋ ⟨ A has (v + v′) ⟩at x ∣ Γ₀
+      Γ′ = Cfg ∋ ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
     module H₁₂ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       -- abstract
       λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
@@ -913,8 +900,8 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
   -- [13]
   module _ A v v′ x Γ₀ y y′ where
     private
-      Γ  = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
-      Γ′ = ⟨ A has v ⟩at y ∣ ⟨ A has v′ ⟩at y′ ∣ Γ₀
+      Γ  = Cfg ∋ ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
+      Γ′ = Cfg ∋ ⟨ A has v ⟩at y ∣ ⟨ A has v′ ⟩at y′ ∣ Γ₀
     module H₁₃ (R≈ : R ≈⋯ Γ at t) (tx tx′ : TxInput′) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       -- abstract
       λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
@@ -925,8 +912,8 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
   -- [14]
   module _ A v x Γ₀ B′ where
     private
-      Γ  = ⟨ A has v ⟩at x ∣ Γ₀
-      Γ′ = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
+      Γ  = Cfg ∋ ⟨ A has v ⟩at x ∣ Γ₀
+      Γ′ = Cfg ∋ ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
     module H₁₄ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       -- abstract
       λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
@@ -935,8 +922,8 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
   -- [15]
   module _ A v x B′ Γ₀ y where
     private
-      Γ  = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
-      Γ′ = ⟨ B′ has v ⟩at y ∣ Γ₀
+      Γ  = Cfg ∋ ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
+      Γ′ = Cfg ∋ ⟨ B′ has v ⟩at y ∣ Γ₀
     module H₁₅ (R≈ : R ≈⋯ Γ at t) (tx : TxInput′) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       -- abstract
       λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
@@ -945,13 +932,13 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
               txout↝ txout′ = cons-↦ y tx $ weaken-↦ txout′ there
 
   -- [16]
-  module _ (ds : List (Participant × Value × Id)) Γ₀ (j : Index ds) A y where
+  module _ (ds : DepositRefs) Γ₀ (j : Index ds) A y where
     private
       xs = map (proj₂ ∘ proj₂) ds
       Δ  = || map (uncurry₃ ⟨_has_⟩at_) ds
-      Γ  = Δ ∣ Γ₀
+      Γ  = Cfg ∋ Δ ∣ Γ₀
       j′ = Index xs ∋ ‼-map {xs = ds} j
-      Γ′ = Δ ∣ A auth[ xs , j′ ▷ᵈˢ y ] ∣ Γ₀
+      Γ′ = Cfg ∋ Δ ∣ A auth[ xs , j′ ▷ᵈˢ y ] ∣ Γ₀
     module H₁₆ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       -- ** name resolution
       abstract
@@ -997,12 +984,12 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ sechash↝ κ↝
 
   -- [17]
-  module _ (ds : List (Participant × Value × Id)) Γ₀ y where
+  module _ (ds : DepositRefs) Γ₀ y where
     private
       xs = map (proj₂ ∘ proj₂) ds
       Δ  = || map (λ{ (i , Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xs , ‼-map {xs = ds} i ▷ᵈˢ y ] })
                   (enumerate ds)
-      Γ  = Δ ∣ Γ₀
+      Γ  = Cfg ∋ Δ ∣ Γ₀
       Γ′ = Γ₀
     module H₁₇ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′)) where
       -- ** name resolution

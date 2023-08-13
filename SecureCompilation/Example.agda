@@ -194,7 +194,7 @@ module Section7 where -- (see BitML paper, Section 7).
     {- A -} 𝟘 → Kᵃ
     {- B -} 𝟙 → Kᵇ
 
-  K² : subterms′ (ex-ad .C) ↦ (partG ↦ KeyPair)
+  K² : subterms (ex-ad .C) ↦ (partG ↦ KeyPair)
   K² = case_of λ where
     𝟘 → case_of λ where
       {- A -} 𝟘 → Kʷᵇ A
@@ -680,7 +680,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
     {- A -} 𝟘 → Kᵃ
     {- B -} 𝟙 → Kᵇ
 
-  K² : subterms′ (tc .C) ↦ (partG ↦ KeyPair)
+  K² : subterms (tc .C) ↦ (partG ↦ KeyPair)
   K² = case_of λ where
     {- reveal "a" ⇒ withdraw A -}
     𝟘 → case_of λ where
@@ -695,7 +695,7 @@ module TimedCommitment where -- (see BitML, Appendix A.5)
       {- A -} 𝟘 → Kᵈ² A
       {- B -} 𝟙 → Kᵈ² B
 
-  K⋆ : subterms′ (tc .C) ↦ List KeyPair
+  K⋆ : subterms (tc .C) ↦ List KeyPair
   K⋆ = mapWith∈ partG ∘ K²
 
   module _ where

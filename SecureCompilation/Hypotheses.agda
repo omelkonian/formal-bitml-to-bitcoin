@@ -28,36 +28,18 @@ open import Prelude.Serializable
 open import Prelude.Views hiding (_▷_)
 open import Prelude.Null
 
-import Bitcoin.Crypto as BTC
+open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.Hypotheses
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
+module SecureCompilation.Hypotheses (⋯ : ⋯) (let open ⋯ : ⋯) where
 
-  (finPart : Finite Participant)
-  (keypairs : ∀ (A : Participant) → BTC.KeyPair × BTC.KeyPair)
-
-  (η : ℕ) -- security parameter
-  where
-
-open import SymbolicModel Participant Honest as S
+open import SymbolicModel ⋯′ as S
   hiding (_∎; begin_; d; Γₜ″)
+open import ComputationalModel ⋯′ finPart keypairs as C
+  hiding (Σ ; t; t′; `; ∣_∣; n)
 
-open import ComputationalModel Participant Honest finPart keypairs as C
-  hiding (Hon; Σ
-         ; t; t′; `; ∣_∣; n)
-
-open import SecureCompilation.ComputationalContracts Participant Honest
-open import SecureCompilation.Compiler Participant Honest η
-open import SecureCompilation.Helpers  Participant Honest finPart keypairs η
-
--- private variable
---   ⟨G⟩C ⟨G⟩C′ ⟨G⟩C″ : Ad
---   𝕣  : ℝ Rˢ
-
-_-redeemableWith-_ : S.Value → KeyPair → ∃TxOutput
-v -redeemableWith- k = Ctx 1 , record {value = v;  validator = ƛ (versig [ k ] [ # 0 ])}
+open import SecureCompilation.ComputationalContracts ⋯′
+open import Compiler ⋯′ η
+open import SecureCompilation.Helpers ⋯
 
 module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
   𝕣 = ℝ∗⇒ℝ 𝕣∗

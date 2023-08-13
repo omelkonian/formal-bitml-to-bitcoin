@@ -213,7 +213,7 @@ Last∈-end∈allCfgsᵗ R = go (R ∙trace′)
     Txout ad × Txout (ad .C)
 ℍ[C-Advertise]⇒Txout {Γ = Γ} {ad = ad} (_ , vad , _ , d⊆) txout =
   let txoutG = weaken-↦ txout (deposits⊆⇒namesʳ⊆ {ad}{Γ} d⊆)
-  in txoutG , weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆ .unmk⊆)
+  in txoutG , weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad ∙names-⊆)
 
 ℍ[C-Advertise]⇒TxoutG :
   ∙ ℍ[C-Advertise]⦅ Γ ↝ Γ′ ⦆⦅ ad ⦆

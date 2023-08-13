@@ -24,28 +24,17 @@ open import Prelude.Apartness
 open import Prelude.Split hiding (split)
 
 import Bitcoin.Crypto as BTC
+open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.DecidableCoherence
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
+module SecureCompilation.DecidableCoherence (⋯ : ⋯) (let open ⋯ : ⋯) where
 
-  (finPart : Finite Participant)
-  (keypairs : ∀ (A : Participant) → BTC.KeyPair × BTC.KeyPair)
-
-  (η : ℕ) -- security parameter
-  where
-
-open import SymbolicModel Participant Honest as S
+open import SymbolicModel ⋯ as S
   hiding (_∎; begin_; d; Γₜ″)
-
-open import ComputationalModel Participant Honest finPart keypairs as C
-  hiding (Hon; Σ
-         ; t; t′; `; ∣_∣; n)
-
-open import SecureCompilation.Compiler  Participant Honest η
-open import SecureCompilation.Helpers   Participant Honest finPart keypairs η
-open import SecureCompilation.Coherence Participant Honest finPart keypairs η
+open import ComputationalModel ⋯′ finPart keypairs as C
+  hiding (Σ; t; t′; `; ∣_∣; n)
+open import SecureCompilation.Compiler ⋯′ η
+open import SecureCompilation.Helpers ⋯
+open import SecureCompilation.Coherence ⋯
 
 private variable
   ⟨G⟩C ⟨G⟩C′ ⟨G⟩C″ : Ad
@@ -313,7 +302,7 @@ A ∈Hon⇒?All-Is-just ms
 --       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
 --       -- Hypotheses from [C-PutRev]
 --       (fresh-y′ : y′ ∉ y L.∷ ids Γ₁₂)
---       (p⟦Δ⟧≡ : S.⟦ p ⟧ Δ ≡ just true)
+--       (p⟦Δ⟧≡ : ⟦ p ⟧ᵖ Δ ≡ just true)
 --       -- Hypotheses from [Timeout]
 --       (As≡∅ : Null As)
 --     → let
@@ -493,7 +482,7 @@ A ∈Hon⇒?All-Is-just ms
 --       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
 --                 → (l ≡ B →∗∶ [ T ♯ ])
 --                 × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ [])
---                 × (outputs T ≡ [ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
+--                 × (outputs T ≡ [ 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
 --                 ) (toList Rᶜ))
 --     → let
 --         T : ∃Tx

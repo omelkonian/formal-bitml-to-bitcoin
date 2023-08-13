@@ -27,26 +27,18 @@ open import Prelude.Views
 
 open import Bitcoin using (KeyPair; HashId)
 open import Prelude.Serializable HashId
+open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.Backtranslation.Parsing.Views
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
+module SecureCompilation.Backtranslation.Parsing.Views (⋯ : ⋯) (let open ⋯ : ⋯) where
 
-  (finPart : Finite Participant)
-  (keypairs : ∀ (A : Participant) → KeyPair × KeyPair)
-
-  (η : ℕ) -- security parameter
-  where
-
-open import SymbolicModel Participant Honest as S
+open import SymbolicModel ⋯′ as S
   hiding (Rˢ′; d; Σ)
-open import ComputationalModel Participant Honest finPart keypairs as C
-  hiding (Hon; Σ; t; t′; `; ∣_∣; n)
+open import ComputationalModel ⋯′ finPart keypairs as C
+  hiding (Σ; t; t′; `; ∣_∣; n)
 
-open import SecureCompilation.ComputationalContracts Participant Honest
-open import SecureCompilation.Helpers  Participant Honest finPart keypairs η
-open import SecureCompilation.Coherence Participant Honest finPart keypairs η as SC
+open import SecureCompilation.ComputationalContracts ⋯′
+open import SecureCompilation.Helpers ⋯
+open import SecureCompilation.Coherence ⋯ as SC
 
 module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
   𝕣 = ℝ∗⇒ℝ 𝕣∗
@@ -502,7 +494,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
           ∃ λ (∃λ : Any (λ l → ∃ λ B → ∃ λ T
                     → (l ≡ B →∗∶ [ T ♯ ])
                     × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ [])
-                    × (outputs T ≡ [ Ctx 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
+                    × (outputs T ≡ [ 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
                     ) (toList Rᶜ))
         → let
             T : ∃Tx
@@ -885,7 +877,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
             Γₜ′ = Γ′ at t′
           in
           ∃ λ (fresh-y′ : y′ ∉ y L.∷ ids Γ₁₂)
-        → ∃ λ (p⟦Δ⟧≡ : S.⟦ p ⟧ Δ ≡ just true)
+        → ∃ λ (p⟦Δ⟧≡ : ⟦ p ⟧ᵖ Δ ≡ just true)
         → ∃ λ (As≡∅ : Null As)
         → let
             ∀≤t : All (_≤ t′) ts

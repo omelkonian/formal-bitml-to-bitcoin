@@ -1,4 +1,4 @@
-open import Prelude.Init; open SetAsType
+open import Prelude.Init
 
 open import BitML.BasicTypes using (⋯)
 

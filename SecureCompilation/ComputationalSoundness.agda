@@ -8,22 +8,14 @@ open import Prelude.InferenceRules
 open import Prelude.Validity
 
 open import Bitcoin
+open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.ComputationalSoundness
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
+module SecureCompilation.ComputationalSoundness (⋯ : ⋯) (let open ⋯ : ⋯) where
 
-  (finPart : Finite Participant)
-  (keypairs : ∀ (A : Participant) → KeyPair × KeyPair)
-
-  (η : ℕ) -- security parameter
-  where
-
-open import SymbolicModel Participant Honest as S
-open import ComputationalModel Participant Honest finPart keypairs as C
-open import SecureCompilation.Coherence Participant Honest finPart keypairs η as SC
-open import SecureCompilation.Backtranslation Participant Honest finPart keypairs η
+open import SymbolicModel ⋯′ as S
+open import ComputationalModel ⋯′ finPart keypairs as C
+open import SecureCompilation.Coherence ⋯ as SC
+open import SecureCompilation.Backtranslation ⋯
 
 module _ Adv (Adv∉ : Adv ∉ S.Hon) where
   open S.AdvM Adv Adv∉ renaming (_-conforms-to-_ to _~ˢ_; AdversaryStrategy to AdvStrategyˢ)

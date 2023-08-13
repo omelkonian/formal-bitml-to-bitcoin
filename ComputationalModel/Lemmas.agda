@@ -12,17 +12,15 @@ open import Prelude.ToList
 open import Prelude.InferenceRules
 
 open import Bitcoin.Crypto using (KeyPair)
+open import BitML.BasicTypes using (⋯)
 
 module ComputationalModel.Lemmas
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
-
+  (⋯ : ⋯) (let open ⋯ ⋯)
   (finPart : Finite Participant)
   (keypairs : ∀ (A : Participant) → KeyPair × KeyPair)
   where
 
-open import ComputationalModel.Strategy Participant Honest finPart keypairs
+open import ComputationalModel.Strategy ⋯ finPart keypairs
 
 ----------------------------------------
 -- Lemma 5

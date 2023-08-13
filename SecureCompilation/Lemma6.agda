@@ -16,27 +16,18 @@ open import Prelude.Sets
 open import Prelude.Accessors
 open import Prelude.Nary
 
-import Bitcoin.Crypto as BTC
+open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.Lemma6
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
+module SecureCompilation.Lemma6 (⋯ : ⋯) (let open ⋯ : ⋯) where
 
-  (finPart : Finite Participant)
-  (keypairs : ∀ (A : Participant) → BTC.KeyPair × BTC.KeyPair)
-
-  (η : ℕ) -- security parameter
-  where
-
-open import SymbolicModel Participant Honest as S
+open import SymbolicModel ⋯′ as S
   hiding (d; α; Γ; Γ′; Γ″; Γₜ; Γₜ′; t; t′)
-open import ComputationalModel Participant Honest finPart keypairs as C
+open import ComputationalModel ⋯′ finPart keypairs as C
   hiding (∣_∣; `; t; t′)
-open import SecureCompilation.Args      Participant Honest
-open import SecureCompilation.Compiler  Participant Honest η
-open import SecureCompilation.Helpers   Participant Honest finPart keypairs η
-open import SecureCompilation.Coherence Participant Honest finPart keypairs η
+open import Compiler ⋯′ η
+-- open import SecureCompilation.Args ⋯′
+open import SecureCompilation.Helpers ⋯
+open import SecureCompilation.Coherence ⋯
 
 txout-preserves-value : ∀ {𝕣∗ : ℝ∗ Rˢ} →
   ∙ 𝕣∗ ~′ Rᶜ

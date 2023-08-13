@@ -60,12 +60,11 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
     ; p⊆      = nub-⊆⁺ ∘ Valid⇒part⊆ vad
     ; s⊆      = id
     ; ∃s      = tt
-    ; sechash = sechash₀ ∘ mapMaybe-⊆ isInj₁ names⊆
-    ; txout   = txout₀   ∘ mapMaybe-⊆ isInj₂ names⊆
-    ; part    = part₀    ∘ mapMaybe-⊆ isInj₂ names⊆
-    ; val     = val₀     ∘ mapMaybe-⊆ isInj₂ names⊆ }
+    ; sechash = sechash₀ ∘ mapMaybe-⊆ isInj₁ (vad ∙names-⊆)
+    ; txout   = txout₀   ∘ mapMaybe-⊆ isInj₂ (vad ∙names-⊆)
+    ; part    = part₀    ∘ mapMaybe-⊆ isInj₂ (vad ∙names-⊆)
+    ; val     = val₀     ∘ mapMaybe-⊆ isInj₂ (vad ∙names-⊆) }
   where
-    names⊆ = vad .names-⊆ .unmk⊆
     xs = persistentIds G₀
 
     partG = nub-participants G₀
@@ -106,7 +105,8 @@ bitml-compiler {ad = ⟨ G₀ ⟩ C₀} vad sechash₀ txout₀ K K² =
         p⊆as = lookup (vad .names-put) (p⊆ put∈) .proj₂ .unmk⊆
 
         as⊆ : as ⊆ secrets G₀
-        as⊆ = (λ x → ∈-mapMaybe⁺ isInj₁ x refl) ∘ names⊆ ∘ n⊆ ∘ as⊆′ ∘ ∈-map⁺ inj₁
+        as⊆ = (λ x → ∈-mapMaybe⁺ isInj₁ x refl)
+            ∘ (vad ∙names-⊆) ∘ n⊆ ∘ as⊆′ ∘ ∈-map⁺ inj₁
           where
             as⊆′ : map inj₁ as ⊆ names D
             as⊆′ rewrite remove-names {D} | D≡ = ∈-++⁺ʳ (inj₂ <$> zs) ∘ ∈-++⁺ˡ

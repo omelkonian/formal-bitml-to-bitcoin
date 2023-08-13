@@ -24,36 +24,23 @@ open import Prelude.General
 open import Prelude.Tactics.Existentials
 
 open import Bitcoin using (KeyPair)
+open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.Backtranslation
-  (Participant : Set)
-  ⦃ _ : DecEq Participant ⦄
-  (Honest : List⁺ Participant)
+module SecureCompilation.Backtranslation (⋯ : ⋯) (let open ⋯ : ⋯) where
 
-  (finPart : Finite Participant)
-  (keypairs : ∀ (A : Participant) → KeyPair × KeyPair)
-
-  (η : ℕ) -- security parameter
-  where
-
-open import SymbolicModel Participant Honest as S
+open import SymbolicModel ⋯′ as S
   hiding (Rˢ′; d)
-open import SymbolicModel.Stripping Participant Honest
-open import ComputationalModel Participant Honest finPart keypairs as C
-  hiding (Hon; Initial; Σ
-         ; t; t′; `; ∣_∣; n)
-
-open import SecureCompilation.Helpers  Participant Honest finPart keypairs η
-open import SecureCompilation.Coherence Participant Honest finPart keypairs η as SC
-
-open import SecureCompilation.Backtranslation.Parsing
-  Participant Honest finPart keypairs η
+open import SymbolicModel.Stripping ⋯′
+open import ComputationalModel ⋯′ finPart keypairs as C
+  hiding (Initial; Σ; t; t′; `; ∣_∣; n)
+open import SecureCompilation.Helpers ⋯
+open import SecureCompilation.Coherence ⋯ as SC
+open import SecureCompilation.Backtranslation.Parsing ⋯
   using (parseRun)
 
 module _ {A} (A∈ : A ∈ S.Hon) where
 
-  open import SecureCompilation.Backtranslation.Unparsing
-    Participant Honest finPart keypairs η A
+  open import SecureCompilation.Backtranslation.Unparsing ⋯ A
     using (unparseMoves)
 
   ℵ : 𝕍 (S.ParticipantStrategy A) → 𝕍 (C.ParticipantStrategy A)
