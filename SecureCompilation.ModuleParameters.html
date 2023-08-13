@@ -1,0 +1,24 @@
+<!DOCTYPE HTML>
+<html><head><meta charset="utf-8"><title>SecureCompilation.ModuleParameters</title><link rel='stylesheet' href='https://cdnjs.cloudflare.com/ajax/libs/github-fork-ribbon-css/0.2.3/gh-fork-ribbon.min.css'/><style>.github-fork-ribbon:before { background-color: #333; }</style><link rel="stylesheet" href="css/Agda.css"></head><body><a class='github-fork-ribbon'href='https://github.com/omelkonian/formal-bitml-to-bitcoin/tree/master/SecureCompilation/ModuleParameters.agda'data-ribbon='Source code on Github' title='Source code on Github'>Source code on Github</a><pre class="Agda"><a id="1" class="Keyword">module</a> <a id="8" href="SecureCompilation.ModuleParameters.html" class="Module">SecureCompilation.ModuleParameters</a> <a id="43" class="Keyword">where</a>
+
+<a id="50" class="Keyword">open</a> <a id="55" class="Keyword">import</a> <a id="62" href="Prelude.Init.html" class="Module">Prelude.Init</a><a id="74" class="Symbol">;</a> <a id="76" class="Keyword">open</a> <a id="81" href="Prelude.Init.html#504" class="Module">SetAsType</a>
+<a id="91" class="Keyword">open</a> <a id="96" class="Keyword">import</a> <a id="103" href="Prelude.Lists.Finite.html" class="Module">Prelude.Lists.Finite</a>
+
+<a id="125" class="Keyword">open</a> <a id="130" class="Keyword">import</a> <a id="137" href="Bitcoin.Crypto.html" class="Module">Bitcoin.Crypto</a> <a id="152" class="Keyword">using</a> <a id="158" class="Symbol">(</a><a id="159" href="Bitcoin.Crypto.html#346" class="Record">KeyPair</a><a id="166" class="Symbol">)</a>
+<a id="168" class="Keyword">import</a> <a id="175" href="BitML.BasicTypes.html" class="Module">BitML.BasicTypes</a> <a id="192" class="Symbol">as</a> <a id="195" class="Module">BitML</a>
+
+<a id="202" class="Keyword">record</a> <a id="⋯"></a><a id="209" href="SecureCompilation.ModuleParameters.html#209" class="Record">⋯</a> <a id="211" class="Symbol">:</a> <a id="213" href="Agda.Primitive.html#320" class="Primitive">Type₁</a> <a id="219" class="Keyword">where</a>
+  <a id="227" class="Keyword">constructor</a> <a id="⋯_,_,_,_⋯"></a><a id="239" href="SecureCompilation.ModuleParameters.html#239" class="InductiveConstructor Operator">⋯_,_,_,_⋯</a>
+  <a id="251" class="Comment">-- ** BitML parameters</a>
+  <a id="276" class="Keyword">field</a> <a id="⋯.⋯′"></a><a id="282" href="SecureCompilation.ModuleParameters.html#282" class="Field">⋯′</a> <a id="285" class="Symbol">:</a> <a id="287" href="BitML.BasicTypes.html#631" class="Record">BitML.⋯</a>
+  <a id="297" class="Keyword">open</a> <a id="302" href="BitML.BasicTypes.html#631" class="Module">BitML.⋯</a> <a id="310" href="SecureCompilation.ModuleParameters.html#282" class="Field">⋯′</a> <a id="313" class="Keyword">public</a>
+
+  <a id="323" class="Comment">-- ** Compiler parameters</a>
+  <a id="351" class="Keyword">field</a> <a id="⋯.η"></a><a id="357" href="SecureCompilation.ModuleParameters.html#357" class="Field">η</a> <a id="359" class="Symbol">:</a> <a id="361" href="Agda.Builtin.Nat.html#186" class="Datatype">ℕ</a> <a id="363" class="Comment">-- security parameters for hash lengths</a>
+
+  <a id="406" class="Comment">-- ** Secure compilation parameters</a>
+  <a id="444" class="Keyword">field</a> <a id="⋯.finPart"></a><a id="450" href="SecureCompilation.ModuleParameters.html#450" class="Field">finPart</a> <a id="458" class="Symbol">:</a> <a id="460" href="Prelude.Lists.Finite.html#338" class="Function">Finite</a> <a id="467" href="BitML.BasicTypes.html#675" class="Function">Participant</a>
+        <a id="⋯.keypairs"></a><a id="487" href="SecureCompilation.ModuleParameters.html#487" class="Field">keypairs</a> <a id="496" class="Symbol">:</a> <a id="498" href="BitML.BasicTypes.html#675" class="Function">Participant</a> <a id="510" class="Symbol">→</a> <a id="512" href="Bitcoin.Crypto.html#346" class="Record">KeyPair</a> <a id="520" href="Data.Product.html#1176" class="Function Operator">×</a> <a id="522" href="Bitcoin.Crypto.html#346" class="Record">KeyPair</a>
+
+<a id="531" class="Keyword">open</a> <a id="536" href="SecureCompilation.ModuleParameters.html#209" class="Module">⋯</a> <a id="538" class="Keyword">public</a>
+</pre></body></html>
