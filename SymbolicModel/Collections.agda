@@ -27,7 +27,10 @@ instance
 
 -- [BUG] instantiated `advertisements ⦃ HAʳ ⦄`, to aid Agda's type inference
 authorizedHonAdsʳ : Run → List Ad
-authorizedHonAdsʳ = collect
+authorizedHonAdsʳ = advertisements
+
+labelsʳ : Run → Labels
+labelsʳ = labels
 
 ads⦅end⦆⊆ : ∀ R → advertisements (R .end) ⊆ advertisements R
 ads⦅end⦆⊆ R

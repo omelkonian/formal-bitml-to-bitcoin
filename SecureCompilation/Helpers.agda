@@ -15,6 +15,8 @@ open import Prelude.Traces
 open import Prelude.Nary
 open import Prelude.DecEq
 
+open import Bitcoin.BasicTypes using (HashId)
+open import Prelude.Serializable HashId
 open import Bitcoin.Crypto
 
 open import SecureCompilation.ModuleParameters using (⋯)
@@ -512,7 +514,6 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       private
         $T : ∃Tx
         $T = let ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
-                 ⟨ G ⟩ C″ = ⟨G⟩C″
                  d∈ : d ∈ subterms ⟨G⟩C″
                  d∈ = c⊆ (L.Mem.∈-lookup i)
                  _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
@@ -662,6 +663,22 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       -- abstract
       λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
       λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ id id id
+  module H₇′
+    (Δ : List (Secret × Maybe ℕ))
+    (h̅ : List HashId)
+    {ad} (k⃗ : 𝕂²′ ad)
+    {A} (∃α : auth-commit⦅ A , ad , Δ ⦆ ∈ labelsʳ R) where
+    private
+      txoutᶜ : Txout ad × Txout (ad .C)
+      txoutᶜ = auth-commit∈⇒Txout ∃α 𝕣
+    abstract
+      -- T0D0: should we search for a signature of this message instead?
+      C,h̅,k̅ : HashId
+      C,h̅,k̅ = encode {A = HashId × HashId × HashId}
+                ( encodeAd ad txoutᶜ
+                , encode h̅
+                , encode (concatMap (map pub ∘ codom) (codom k⃗))
+                )
 
   -- [8]
   module _ c v y Γ₀ (i : Index c) (vcis : VIContracts) where
@@ -795,13 +812,19 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       Γ′ = Cfg ∋ ⟨ A has v ⟩at x ∣ Γ₀
     module H₉ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
               (d≡ : d ≡⋯∶ withdraw A) where
-      -- private
+  -- module H₉ c v y Γ₀ A x (i : Index c)
+  --   (let open ∣SELECT c i
+  --        Γ  = ⟨ c , v ⟩at y ∣ Γ₀
+  --        Γ′ = ⟨ A has v ⟩at x ∣ Γ₀)
+  --   (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
+  --   (d≡ : d ≡⋯∶ withdraw A)
+  --   where
+      -- abstract
       T : ∃Tx
       T =
           let
             -- (ii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
             ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
-            ⟨ G ⟩ C′ = ⟨G⟩C′
 
             d∈ : d ∈ subterms ⟨G⟩C′
             d∈ = c⊆ (L.Mem.∈-lookup i)
@@ -817,16 +840,10 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
             Tᵈ = ∀d∗ d∈ :~ d≡ ⟪ BranchTx ⟫
           in
             -, -, Tᵈ
-
-      tx : TxInput′
-      tx = T at 0F
-      -- abstract
-      --   T : ∃Tx
-      --   T = $T
       private
         -- (iv) extend txout′ with {x ↦ (T,0)}, sechash = sechash′, κ = κ′
         txout↝ : Γ →⦅ Txout ⦆ Γ′
-        txout↝  txout′ = cons-↦ x tx $ weaken-↦ txout′ there
+        txout↝  txout′ = cons-↦ x (T at 0F) $ weaken-↦ txout′ there
       -- abstract
       λˢ : 𝕃 R (∃Γ≈ .proj₁ at t′)
       λˢ = LIFTˢ 𝕣 t α t′ Γ R≈ Γ′ Γ→Γ′ ∃Γ≈ txout↝ id id

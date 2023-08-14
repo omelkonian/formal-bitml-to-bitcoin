@@ -1,35 +1,32 @@
 {-# OPTIONS --no-forcing #-}
-open import Prelude.Init hiding (T)
+open import Prelude.Init hiding (T); open SetAsType
 open L.Mem
-open import Prelude.Lists
+open import Prelude.Lists.Core
+open import Prelude.Lists.Indexed
+open import Prelude.Lists.Collections
+open import Prelude.Lists.Mappings
+open import Prelude.Lists.Membership
+open import Prelude.Lists.MapMaybe
 open import Prelude.General
+open import Prelude.InferenceRules
 open import Prelude.Lists.Dec
 open import Prelude.DecEq
-open import Prelude.InferenceRules
-
-open import Prelude.Lists.Collections
-open import Prelude.Monoid
-
-open import Prelude.Functor
-open import Prelude.Bifunctor
 open import Prelude.Ord
-open import Prelude.ToN
-open import Prelude.ToList
-open import Prelude.Validity
 open import Prelude.Traces
+open import Prelude.Null
 open import Prelude.Setoid
 open import Prelude.Nary
 open import Prelude.Apartness
-open import Prelude.Split hiding (split)
-open import Prelude.Views hiding (_▷_)
-open import Prelude.Null
+open import Prelude.ToList
+open import Prelude.Functor
+open import Prelude.Membership.Patterns
 
 open import SecureCompilation.ModuleParameters using (⋯)
 
 module SecureCompilation.Coherence (⋯ : ⋯) (let open ⋯ ⋯) where
 
 open import SymbolicModel ⋯′ as S
-  hiding (_∎; begin_; d; Γₜ″)
+  hiding (_∎; begin_; d; Γₜ″; G; C)
   renaming (_∶_♯_ to _∶_#_; ⟨_∶_♯_⟩ to ⟨_∶_#_⟩)
 open import ComputationalModel ⋯′ finPart keypairs as C
   hiding (Σ; t; t′; `; ∣_∣; n)
@@ -41,18 +38,17 @@ private variable
   ⟨G⟩C ⟨G⟩C′ ⟨G⟩C″ : Ad
   𝕣  : ℝ Rˢ
 
-_-redeemableWith-_ : S.Value → KeyPair → ∃TxOutput
-v -redeemableWith- k = 1 , record {value = v;  validator = ƛ (versig [ k ] [ # 0 ])}
+_redeemable-by_ : S.Value → KeyPair → ∃TxOutput
+v redeemable-by k = 1 , v locked-by ƛ versig [ k ] [ # 0 ]
 
 -- * Inductive case 1
-data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
+data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
 
   -- ** Stipulation: advertisting a contract
-  [1] : ∀ {⟨G⟩C : Ad} {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-      let
-        ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G
-        Γₜ = Γ at t
-      in
+  [1] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+      {⟨G⟩C : Ad} (let open ∣AD ⟨G⟩C)
+      (let Γₜ = Γ at t)
       (R≈ : Rˢ ≈⋯ Γₜ)
     → let
         α   = advertise⦅ ⟨G⟩C ⦆
@@ -60,9 +56,9 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
       -- Hypotheses from [C-Advertise]
-      (vad : Valid ⟨G⟩C)
+      (vad : ValidAd ⟨G⟩C)
       (hon : Any (_∈ Hon) partG)
       (d⊆  : ⟨G⟩C ⊆⦅ deposits ⦆ Γ)
     → let
@@ -85,17 +81,17 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Stipulation: committing secrets
-  [2] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-        ∀ {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)} {k⃗ : 𝕂²′ ⟨G⟩C}
-
+  [2] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+      {⟨G⟩C} (open ∣AD ⟨G⟩C)
+      {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)} {k⃗ : 𝕂²′ ⟨G⟩C}
     → let
-        ⟨ G ⟩ C = ⟨G⟩C
         Γ = ` ⟨G⟩C ∣ Γ₀
         Γₜ = Γ at t
       in
       (R≈ : Rˢ ≈⋯ Γₜ)
     → let
-        C = encodeAd ⟨G⟩C (ad∈⇒Txout {⟨G⟩C}{Γ}{Rˢ} (here refl) R≈ txout′)
+        C = encodeAd ⟨G⟩C (ad∈⇒Txout {⟨G⟩C}{Γ}{Rˢ} 𝟘 R≈ txout′)
 
         Δ : List (Secret × Maybe ℕ)
         Δ = map drop₃ Δ×h̅
@@ -105,7 +101,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         Δᶜ = Cfg ∋ || map (uncurry ⟨ A ∶_#_⟩) Δ
 
         h̅ : List ℤ -- ≈ Message
-        h̅ = map (proj₂ ∘ proj₂) Δ×h̅
+        h̅ = map select₃ Δ×h̅
 
         k̅ : List ℤ -- ≈ Message
         k̅ = concatMap (map pub ∘ codom) (codom k⃗)
@@ -161,10 +157,13 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Stipulation: authorizing deposits
-  [3] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-        let ⟨ G ⟩ C = ⟨G⟩C ; partG = G ∙partG in
-        let Γ = ` ⟨G⟩C ∣ Γ₀; Γₜ = Γ at t in
-
+  [3] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+      {⟨G⟩C} (let open ∣AD ⟨G⟩C)
+    → let
+        Γ = ` ⟨G⟩C ∣ Γ₀
+        Γₜ = Γ at t
+      in
       (R≈ : Rˢ ≈⋯ Γₜ)
     → let
         α   = auth-init⦅ A , ⟨G⟩C , x ⦆
@@ -172,7 +171,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
       -- Hypotheses from [C-AuthInit]
       (committedA : partG ⊆ committedParticipants ⟨G⟩C Γ₀)
       (A∈per : (A , v , x) ∈ persistentDeposits G)
@@ -186,7 +185,6 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         -- (i) broadcast Tᵢₙᵢₜ , signed with A's private key
         m = SIG (K̂ A) T
         λᶜ = B →∗∶ m
-
       in
       -- (ii) Tᵢₙᵢₜ occurs as a message in Rᶜ
     ∀ (∃λ : ∃ λ B → (B →∗∶ (T ♯)) ∈ toList Rᶜ) →
@@ -198,16 +196,18 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Stipulation: activating the contract
-  [4] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-      let
-        ⟨ G ⟩ C = ⟨G⟩C; partG = G ∙partG
+  [4] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+      {⟨G⟩C} (let open ∣AD ⟨G⟩C)
+    → let
         toSpend = persistentDeposits G
         vs      = map select₂ toSpend
         xs      = map select₃ toSpend
         v       = sum vs
 
         Γ = ` ⟨G⟩C ∣ Γ₀
-          ∣ || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ ⟨G⟩C ] }) toSpend
+          ∣ || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ ⟨G⟩C ] })
+                   toSpend
           ∣ || map (_auth[ ♯▷ ⟨G⟩C ]) partG
         Γₜ = Γ at t
       in
@@ -219,7 +219,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
       -- Hypotheses from [C-Init]
       (fresh-z : z ∉ xs ++ ids Γ₀) →
       let
@@ -236,10 +236,13 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Contract actions: authorize control
-  [5] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-        ∀ {i : Index c} → let open ∣SELECT c i in
-        let Γ = ⟨ c , v ⟩at x ∣ Γ₀; Γₜ = Γ at t in
-
+  [5] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+      {i : Index c} (let open ∣SELECT c i)
+    → let
+        Γ = ⟨ c , v ⟩at x ∣ Γ₀
+        Γₜ = Γ at t
+      in
       -- D ≡ A ∶ D′
       (D≡A:D′ : A ∈ authDecorations d)
       -- (i) Rˢ contains ⟨C , v⟩ₓ with C = D + ∑ᵢ Dᵢ
@@ -250,9 +253,9 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
       -- Hypotheses from [C-AuthControl], already in hypothesis `D≡A:D′`
-      let
+    → let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] ([C-AuthControl] D≡A:D′) refl
 
@@ -264,13 +267,13 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Contract actions: put
-  [6] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-        ∀ {ds : DepositRefs} {ss : List (Participant × Secret × ℕ)} →
-        ∀ {i : Index c} → let open ∣SELECT c i; As , ts = decorations d in
-      let
+  [6] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+      {ds : DepositRefs} (let (_ , vs , xs) = unzip₃ ds)
+      {ss : List (Participant × Secret × ℕ)} (let (_ , as , _)  = unzip₃ ss)
+      {i : Index c} (let open ∣SELECT c i; As , ts = decorations d)
+    → let
         -- (i) xs = x₁⋯xₖ
-        (_ , vs , xs) = unzip₃ ds
-        (_ , as , _)  = unzip₃ ss
         Γ₁  = || map (uncurry₃ ⟨_has_⟩at_) ds
         Δ   = || map (uncurry₃ _∶_#_) ss
         Γ₂  = Δ ∣ Γ₀
@@ -291,7 +294,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
       -- Hypotheses from [C-PutRev]
       (fresh-y′ : y′ ∉ y L.∷ ids Γ₁₂)
       (p⟦Δ⟧≡ : ⟦ p ⟧ᵖ Δ ≡ just true)
@@ -302,7 +305,8 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         ∀≤t = ⟪ (λ ◆ → All (_≤ ◆) ts) ⟫ t≡ ~: ∀≤max t ts
 
         put→ : ⟨ [ d∗ ] , v ⟩at y ∣ Γ₁₂ —[ α ]→ Γ′
-        put→ = ⟪ (λ ◆ → (⟨ [ ◆ ] , v ⟩at y ∣ (Γ₁ ∣ Γ₂) —[ α ]→ Γ′)) ⟫ d≡ ~: [C-PutRev] {ds = ds} {ss = ss} fresh-y′ p⟦Δ⟧≡
+        put→ = ⟪ (λ ◆ → (⟨ [ ◆ ] , v ⟩at y ∣ (Γ₁ ∣ Γ₂) —[ α ]→ Γ′)) ⟫ d≡
+               ~: [C-PutRev] {ds = ds} {ss = ss} fresh-y′ p⟦Δ⟧≡
 
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Timeout] As≡∅ ∀≤t put→ refl
@@ -315,67 +319,64 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Contract actions: authorize reveal
-  [7] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-        let Γ = Cfg ∋ ⟨ A ∶ a # just n ⟩ ∣ Γ₀; Γₜ = Γ at t in
-        ∀ {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)} {k⃗ : 𝕂²′ ⟨G⟩C} → let ⟨ G ⟩ C = ⟨G⟩C in
-
+  [7] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+      {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)}
+      (let Δ = map drop₃   Δ×h̅
+           h̅ = map select₃ Δ×h̅)
+      {⟨G⟩C} (let open ∣AD ⟨G⟩C) {k⃗ : 𝕂²′ ⟨G⟩C}
+    → let
+        Γ = ⟨ A ∶ a # just n ⟩ ∣ Γ₀
+        Γₜ = Γ at t
+      in
       ∣ m ∣ᵐ ≤ η
     → (R≈ : Rˢ ≈⋯ Γₜ)
-
     → let
         α   = auth-rev⦅ A , a ⦆
-        Γ′  = Cfg ∋ A ∶ a # n ∣ Γ₀
+        Γ′  = A ∶ a # n ∣ Γ₀
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = Cfgᵗ ∋ ∃Γ≈ .proj₁ at t′ in
-      let
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
+    → let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] [C-AuthRev] refl
 
-        a∈ : a ∈ namesˡ Rˢ
+        a∈ : a ∈ secrets Rˢ
         a∈ = namesˡ⦅end⦆⊆ Rˢ
-           $ ∈namesˡ-resp-≈ a {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈) (here refl)
-
-        -- (iii) txout = txout′, sechash = sechash′, κ = κ′
-        open H₇ 𝕣 t α t′ A a n Γ₀ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
-
-        Δ : List (Secret × Maybe ℕ)
-        Δ = map drop₃ Δ×h̅
-
-        h̅ = encode $ map (proj₂ ∘ proj₂) Δ×h̅
-        k̅ = encode $ concatMap (map pub ∘ codom) (codom k⃗)
+           $ ∈namesˡ-resp-≈ a {Γ}{cfg (Rˢ .end)} (↭-sym $ R≈ .proj₂) 𝟘
       in
       -- (ii) in Rᶜ we find ⋯ (B → O ∶ m) (O → B : sechash′(a)) for some B ⋯
       (∃ λ B → (B , m , sechash′ {a} a∈) ∈ oracleInteractionsᶜ Rᶜ)
 
       -- (iv) in Rˢ, we find an A:{G}C,∆ action, with a in G
-    → (∃α : auth-commit⦅ A , ⟨G⟩C , Δ ⦆ ∈ labels Rˢ)
-    → a ∈ namesˡ G
+    → (∃α : auth-commit⦅ A , ⟨G⟩C , Δ ⦆ ∈ labelsʳ Rˢ)
+    → a ∈ secrets G
     → let
-        C = encodeAd ⟨G⟩C (auth-commit∈⇒Txout ∃α 𝕣)
-
-        -- T0D0: should we search for a signature of this message instead?
-        C,h̅,k̅ = encode {A = HashId × HashId × HashId} (C , h̅ , k̅)
+        -- (iii) txout = txout′, sechash = sechash′, κ = κ′
+        open H₇ 𝕣 t α t′ A a n Γ₀ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
 
         -- (i) some participant B broadcasts message m
+        open H₇′ 𝕣 t α t′ Δ h̅ k⃗ ∃α using (C,h̅,k̅)
         λᶜ = B →∗∶ m
       in
-
       -- ... with a corresponding broadcast of m′=(C,h̅,k̅) in Rᶜ
-    ∀ (∃λ : Any (λ l → ∃ λ B → l ≡ B →∗∶ C,h̅,k̅) (toList Rᶜ)) →
+    ∀ (∃λ : ∃ λ B → B →∗∶ C,h̅,k̅ ∈ toList Rᶜ) →
 
       -- (v) λᶜ is the first broadcast of m after the first broadcast of m′
-    ∙ All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-front ∃λ)
+    ∙ All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-front $ ∃λ .proj₂)
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Contract actions: split
-  [8] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-        ∀ {i : Index c} → let open ∣SELECT c i; As , ts = decorations d in
-        ∀ {vcis : VIContracts} → let vs , cs , xs = unzip₃ vcis; v = sum vs in
-        let Γ = ⟨ c , v ⟩at y ∣ Γ₀; Γₜ = Γ at t in
-
+  [8] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+      {i : Index c} (let open ∣SELECT c i; As , ts = decorations d)
+      {vcis : VIContracts} (let vs , cs , xs = unzip₃ vcis; v = sum vs)
+    → let
+        Γ = ⟨ c , v ⟩at y ∣ Γ₀
+        Γₜ = Γ at t
+      in
       -- (i) in Rˢ, α consumes ⟨D+C,v⟩y to obtain ⟨C₀,v₀⟩ₓ₀ | ⋯ | ⟨Cₖ,vₖ⟩ₓₖ
       --     where D = ⋯ : split vs → cs
       --     let t be the maximum deadline in an `after` in front of D
@@ -393,8 +394,8 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
-      let
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
+    → let
         ∀≤t : All (_≤ t′) ts
         ∀≤t = ⟪ (λ ◆ → All (_≤ ◆) ts) ⟫ t≡ ~: ∀≤max t ts
 
@@ -411,12 +412,15 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       in
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-{-
-  -- ** Contract actions: withdraw
-  [9] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-        ∀ {i : Index c} → let open ∣SELECT c i; As , ts = decorations d in
-        let Γ = ⟨ c , v ⟩at y ∣ Γ₀; Γₜ = Γ at t in
 
+  -- ** Contract actions: withdraw
+  [9] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+      {i : Index c} (let open ∣SELECT c i; As , ts = decorations d)
+    → let
+        Γ = ⟨ c , v ⟩at y ∣ Γ₀
+        Γₜ = Γ at t
+      in
       -- (i) in Rˢ, α consumes ⟨D+C,v⟩y to obtain ⟨A,v⟩ₓ (where D = ⋯ : withdraw A)
       (d≡ : d ≡⋯∶ withdraw A)
       (R≈ : Rˢ ≈⋯ Γₜ)
@@ -426,7 +430,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
       -- Hypotheses from [C-Withdraw]
       (fresh-x : x ∉ y L.∷ ids Γ₀)
       -- Hypotheses from [Timeout]
@@ -444,11 +448,14 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       in
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
--}
-  -- ** Deposits: authorize join
-  [10] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-         let Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀; Γₜ = Γ at t in
 
+  -- ** Deposits: authorize join
+  [10] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    → let
+        Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀
+        Γₜ = Γ at t
+      in
       (R≈ : Rˢ ≈⋯ Γₜ)
     → let
         α   = auth-join⦅ A , x ↔ x′ ⦆
@@ -456,24 +463,21 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
-      let
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
+    → let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] [DEP-AuthJoin] refl
 
-        n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
-        n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
-        x∈  = n⊆ (here refl)
-        x∈′ = n⊆ (there $′ here refl)
+        n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
+        n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
       in
-      (∃λ : Any (λ l → ∃ λ B → ∃ λ T
-                → (l ≡ B →∗∶ (T ♯))
-                × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ [])
-                × (outputs T ≡ [ 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
-                ) (toList Rᶜ))
+      (∃λ : ∃ λ B → ∃ λ T → flip Any (toList Rᶜ) $ λ l →
+          (l ≡ B →∗∶ (T ♯))
+        × (inputs  T ≡ (hashTxⁱ <$> [ txout′ {x} (n⊆ 𝟘) ⨾ txout′ {x′} (n⊆ 𝟙) ]))
+        × (outputs T ≡ [ (v + v′) redeemable-by K̂ A ]))
     → let
         T : ∃Tx
-        T = 2 , 1 , L.Any.satisfied ∃λ .proj₂ .proj₂ .proj₁
+        T = 2 , 1 , ∃λ .proj₂ .proj₁
 
         -- (iii) broadcast transaction T, signed by A
         m′ = SIG (K̂ A) T
@@ -483,14 +487,18 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         open H₁₀ {Rˢ} 𝕣 t α t′ A v x v′ x′ Γ₀ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
       in
       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
-    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front ∃λ)
+    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front $ ∃λ .proj₂ .proj₂)
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Deposits: join
-  [11] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-         let Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀; Γₜ = Γ at t in
-
+  [11] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    → let
+        Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′
+          ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
+        Γₜ = Γ at t
+      in
       (R≈ : Rˢ ≈⋯ Γₜ)
     → let
         α   = join⦅ x ↔ x′ ⦆
@@ -498,25 +506,22 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
       -- Hypotheses from [DEP-Join]
       (fresh-y : y ∉ x L.∷ x′ ∷ ids Γ₀)
     → let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] ([DEP-Join] fresh-y) refl
 
-        n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
-        n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
-        x∈  = n⊆ (here refl)
-        x∈′ = n⊆ (there $′ here refl)
-
+        n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
+        n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
         -- (ii) submit transaction T
         T : ∃Tx
         T  = 2 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
-          { inputs  = hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ []
+          { inputs  = hashTxⁱ <$> [ txout′ {x} (n⊆ 𝟘) ⨾ txout′ {x′} (n⊆ 𝟙) ]
           ; wit     = wit⊥
           ; relLock = V.replicate 0
-          ; outputs = [ (v + v′) -redeemableWith- K̂ A ]
+          ; outputs = [ (v + v′) redeemable-by K̂ A ]
           ; absLock = 0 }
         λᶜ = submit T
 
@@ -527,9 +532,12 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Deposits: authorize divide (similar to [10])
-  [12] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-         let Γ = ⟨ A has (v + v′) ⟩at x ∣ Γ₀; Γₜ = Γ at t in
-
+  [12] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    → let
+        Γ = ⟨ A has (v + v′) ⟩at x ∣ Γ₀
+        Γₜ = Γ at t
+      in
       (R≈ : Rˢ ≈⋯ Γₜ)
     → let
         α   = auth-divide⦅ A , x ▷ v , v′ ⦆
@@ -537,23 +545,22 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
-      let
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
+    → let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] [DEP-AuthDivide] refl
 
-        n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
-        n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
-        x∈  = n⊆ (here refl)
+        n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
+        n⊆  = namesʳ⦅end⦆⊆ Rˢ
+            ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
       in
-      (∃λ : Any (λ l → ∃ λ B → ∃ λ T
-                → (l ≡ B →∗∶ (T ♯))
-                × (inputs  T ≡ [ hashTxⁱ (txout′ {x} x∈) ])
-                × (outputs T ≡ (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ [])
-                ) (toList Rᶜ))
+      (∃λ : ∃ λ B → ∃ λ T → flip Any (toList Rᶜ) $ λ l →
+          (l ≡ B →∗∶ (T ♯))
+        × (inputs  T ≡ [ hashTxⁱ (txout′ {x} $ n⊆ 𝟘) ])
+        × (outputs T ≡ [ v redeemable-by K̂ A ⨾ v′ redeemable-by K̂ A ]))
     → let
         T : ∃Tx
-        T = 1 , 2 , L.Any.satisfied ∃λ .proj₂ .proj₂ .proj₁
+        T = 1 , 2 , ∃λ .proj₂ .proj₁
 
         -- (iii) broadcast transaction T, signed by A
         m′ = SIG (K̂ A) T
@@ -563,14 +570,17 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         open H₁₂ {Rˢ} 𝕣 t α t′ A v v′ x Γ₀ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
       in
       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
-    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front ∃λ)
+    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front $ ∃λ .proj₂ .proj₂)
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Deposits: divide (similar to [11])
-  [13] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-         let Γ = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀; Γₜ = Γ at t in
-
+  [13] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    → let
+        Γ = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
+        Γₜ = Γ at t
+      in
       (R≈ : Rˢ ≈⋯ Γₜ)
     → let
         α   = divide⦅ x ▷ v , v′ ⦆
@@ -578,23 +588,22 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
       -- Hypotheses from [DEP-Divide]
-      (fresh-ys : All (_∉ x L.∷ ids Γ₀ ) (y ∷ y′ ∷ []))
+      (fresh-ys : All (_∉ x L.∷ ids Γ₀ ) [ y ⨾ y′ ])
     → let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] ([DEP-Divide] fresh-ys) refl
 
-        n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
-        n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
-        x∈  = n⊆ (here refl)
+        n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
+        n⊆ = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
 
         -- (iii) submit transaction T
         T  = 1 , 2 , sig⋆ (V.replicate [ K̂ A ]) record
-          { inputs  = [ hashTxⁱ (txout′ {x} x∈) ]
+          { inputs  = [ hashTxⁱ (txout′ {x} $ n⊆ 𝟘) ]
           ; wit     = wit⊥
           ; relLock = V.replicate 0
-          ; outputs = (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ []
+          ; outputs = [ v redeemable-by K̂ A ⨾ v′ redeemable-by K̂ A ]
           ; absLock = 0 }
         λᶜ = submit T
 
@@ -605,9 +614,12 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Deposits: authorize donate (similar to [10])
-  [14] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-         let Γ = ⟨ A has v ⟩at x ∣ Γ₀; Γₜ = Γ at t in
-
+  [14] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    → let
+        Γ = ⟨ A has v ⟩at x ∣ Γ₀
+        Γₜ = Γ at t
+      in
       (R≈ : Rˢ ≈⋯ Γₜ)
     → let
         α   = auth-donate⦅ A , x ▷ᵈ B′ ⦆
@@ -615,23 +627,21 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
-      let
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
+    → let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] [DEP-AuthDonate] refl
 
-        n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
-        n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
-        x∈  = n⊆ (here refl)
+        n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
+        n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
       in
-      (∃λ : Any (λ l → ∃ λ B → ∃ λ T
-                → (l ≡ B →∗∶ (T ♯))
-                × (inputs  T ≡ [ hashTxⁱ (txout′ {x} x∈) ])
-                × (outputs T ≡ [ v -redeemableWith- K̂ B′ ])
-                ) (toList Rᶜ))
+      (∃λ : ∃ λ B → ∃ λ T → flip Any (toList Rᶜ) $ λ l →
+          (l ≡ B →∗∶ (T ♯))
+        × (inputs  T ≡ [ hashTxⁱ (txout′ {x} $ n⊆ 𝟘) ])
+        × (outputs T ≡ [ v redeemable-by K̂ B′ ]))
     → let
         T : ∃Tx
-        T = 1 , 1 , L.Any.satisfied ∃λ .proj₂ .proj₂ .proj₁
+        T = 1 , 1 , ∃λ .proj₂ .proj₁
 
         -- (iii) broadcast transaction T, signed by A
         m′ = SIG (K̂ A) T
@@ -641,14 +651,17 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         open H₁₄ {Rˢ} 𝕣 t α t′ A v x Γ₀ B′ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
       in
       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
-    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front ∃λ)
+    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front $ ∃λ .proj₂ .proj₂)
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Deposits: donate (similar to [11])
-  [15] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-         let Γ = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀; Γₜ = Γ at t in
-
+  [15] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    → let
+        Γ = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
+        Γₜ = Γ at t
+      in
       (R≈ : Rˢ ≈⋯ Γₜ)
     → let
         α   = donate⦅ x ▷ᵈ B′ ⦆
@@ -656,23 +669,22 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
       -- Hypotheses from [DEP-Donate]
       (fresh-y : y ∉ x L.∷ ids Γ₀)
     → let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] ([DEP-Donate] fresh-y) refl
 
-        n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
-        n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
-        x∈  = n⊆ (here refl)
+        n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
+        n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
 
         -- (iii) submit transaction T
         T  = 1 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
-          { inputs  = [ hashTxⁱ (txout′ {x} x∈) ]
+          { inputs  = [ hashTxⁱ (txout′ {x} $ n⊆ 𝟘) ]
           ; wit     = wit⊥
           ; relLock = V.replicate 0
-          ; outputs = [ v -redeemableWith- K̂ B′ ]
+          ; outputs = [ v redeemable-by K̂ B′ ]
           ; absLock = 0 }
         λᶜ = submit T
 
@@ -683,8 +695,8 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
   -- ** After
-  [18] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-
+  [18] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
       (δ>0 : δ > 0)
     → let
         Γₜ@(Γ at t) = Rˢ .end
@@ -693,8 +705,8 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
         Γₜ′ = Γ at t′
         λᶜ  = delay δ
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
-      let
+      (∃Γ≈ : ∃ (_≈ᶜ Γ)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
+    → let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Delay] δ>0
 
@@ -703,20 +715,18 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Set where
       ─────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
-_≁₁₁_ : ℝ∗ Rˢ → CRun → Set
+
+_≁₁₁_ : ℝ∗ Rˢ → CRun → Type
 _≁₁₁_ = ¬_ ∘₂ _~₁₁_
 
-data _~₁₂_ : ℝ∗ Rˢ → CRun → Set where
+data _~₁₂_ : ℝ∗ Rˢ → CRun → Type where
 
   -- ** Deposits: authorize destroy
-  [16] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-         ∀ {ds : DepositRefs} {j : Index ds}
-
+  [16] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+      {ds : DepositRefs} (let k = length ds; xs = map (proj₂ ∘ proj₂) ds)
+      {j : Index ds} (let A = (ds ‼ j) .proj₁; j′ = ‼-map {xs = ds} j)
     → let
-        k  = length ds
-        xs = map (proj₂ ∘ proj₂) ds
-        A  = proj₁ (ds ‼ j)
-        j′ = ‼-map {xs = ds} j
         Δ  = || map (uncurry₃ ⟨_has_⟩at_) ds
         Γ  = Δ ∣ Γ₀
         Γₜ = Γ at t
@@ -729,7 +739,7 @@ data _~₁₂_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
       -- Hypotheses from [DEP-AuthDestroy]
       (fresh-y : y ∉ ids Γ₀)
     → let
@@ -739,11 +749,11 @@ data _~₁₂_ : ℝ∗ Rˢ → CRun → Set where
         -- (vii) txout = txout′, sechash = sechash′, κ = κ′
         open H₁₆ {Rˢ} 𝕣 t α t′ ds Γ₀  j A y R≈ Γ→Γ′ ∃Γ≈ using (λˢ; xs↦)
       in
-      -- (iii) in Rᶜ we find B → ∗ ∶ T, for some T having txout′(yᵢ) as inputs (+ possibly others)
+      -- (iii) in Rᶜ we find B → ∗ ∶ T
+      --       for some T having txout′(yᵢ) as inputs (+ possibly others)
       (T : Tx i 0)
     → (hashTxⁱ <$> codom xs↦) ⊆ V.toList (inputs T)
     → (T∈ : Any (λ l → ∃ λ B → l ≡ B →∗∶ (T ♯)) (toList Rᶜ))
-
     → let
         -- (iv) broadcast transaction T, signed by A
         m = SIG (K̂ A) T
@@ -751,7 +761,6 @@ data _~₁₂_ : ℝ∗ Rˢ → CRun → Set where
       in
       -- (v) λᶜ is the first broadcast of m in Rᶜ after the first broadcast of T
     ∙ All (λ l → ∀ B → l ≢ B →∗∶ m) (Any-front T∈)
-
       -- (vi) λᶜ does not correspond to any *other* symbolic move
     ∙ (∀ Γₜ′ (λˢ′ : 𝕃 Rˢ Γₜ′)
         → λˢ′ .proj₁ .proj₁ ≢ λˢ .proj₁ .proj₁
@@ -760,13 +769,13 @@ data _~₁₂_ : ℝ∗ Rˢ → CRun → Set where
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₂ (λᶜ ∷ Rᶜ ✓)
 
   -- ** Deposits: destroy
-  [17] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-         ∀ {ds : DepositRefs} {j : Index ds}
-
+  [17] :
+    ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+      {ds : DepositRefs} (let xs = map (proj₂ ∘ proj₂) ds)
+      {j : Index ds}
     → let
-        xs = map (proj₂ ∘ proj₂) ds
-        Δ  = || map (λ{ (i , Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xs , ‼-map {xs = ds} i ▷ᵈˢ y ] })
-                    (enumerate ds)
+        Δ  = || flip map (enumerate ds) (λ{ (i , Aᵢ , vᵢ , xᵢ) →
+                  ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xs , ‼-map {xs = ds} i ▷ᵈˢ y ] })
         Γ  = Δ ∣ Γ₀
         Γₜ = Γ at t
       in
@@ -778,8 +787,8 @@ data _~₁₂_ : ℝ∗ Rˢ → CRun → Set where
         t′  = t
         Γₜ′ = Γ′ at t′
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
-      let
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
+    → let
         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
         Γ→Γ′ = [Action] [DEP-Destroy] refl
 
@@ -789,12 +798,10 @@ data _~₁₂_ : ℝ∗ Rˢ → CRun → Set where
       in
       (T : Tx i 0)
     → (hashTxⁱ <$> codom xs↦) ⊆ V.toList (inputs T)
-
     → let
         -- (iii) submit transaction T
         λᶜ = submit (_ , _ , T)
       in
-
       -- (iv) λᶜ does not correspond to any *other* symbolic move
       (∀ Γₜ′ (λˢ′ : 𝕃 Rˢ Γₜ′)
         → λˢ′ .proj₁ .proj₁ ≢ λˢ .proj₁ .proj₁
@@ -802,10 +809,10 @@ data _~₁₂_ : ℝ∗ Rˢ → CRun → Set where
       ─────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₂ (λᶜ ∷ Rᶜ ✓)
 
-_≁₁₂_ : ℝ∗ Rˢ → CRun → Set
+_≁₁₂_ : ℝ∗ Rˢ → CRun → Type
 _≁₁₂_ = ¬_ ∘₂ _~₁₂_
 
-data _~₁_ : ℝ∗ Rˢ → CRun → Set where
+data _~₁_ : ℝ∗ Rˢ → CRun → Type where
 
   [L]_ : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} {λˢ : 𝕃 Rˢ Γₜ} →
     (Γₜ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
@@ -817,14 +824,13 @@ data _~₁_ : ℝ∗ Rˢ → CRun → Set where
     ──────────────────────────────
     (Γₜ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁  (λᶜ ∷ Rᶜ ✓)
 
-_≁₁_ : ℝ∗ Rˢ → CRun → Set
+_≁₁_ : ℝ∗ Rˢ → CRun → Type
 _≁₁_ = ¬_ ∘₂ _~₁_
 
 -- * Inductive case 2
-data _~₂_∷ʳ_ (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) : C.Label → Set where
+data _~₂_∷ʳ_ (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) : C.Label → Type where
 
-  [1] : ∀ {T} →
-    let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
+  [1] : ∀ {T} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣) →
     T .proj₂ .proj₂ .inputs ♯ (hashTxⁱ <$> codom txout′)
     ────────────────────────────────────────────────────
     𝕣∗ ~₂ Rᶜ ∷ʳ submit T
@@ -841,21 +847,21 @@ data _~₂_∷ʳ_ (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) : C.Label → Set where
     ──────────────────────────────────────────────────────────
     𝕣∗ ~₂ Rᶜ ∷ʳ λᶜ
 
-data _~′_ : ℝ∗ Rˢ → CRun → Set where
+data _~′_ : ℝ∗ Rˢ → CRun → Type where
 
   -- * Base case
-  base : ∀ {ℽ : ℾᵗ Γₜ₀} → let open ℾᵗ ℽ; Γ₀ = Γₜ₀ .cfg in
-
+  base :
+    ∀ {ℽ : ℾᵗ Γₜ₀} (let open ℾᵗ ℽ; Γ₀ = Γₜ₀ .cfg)
       -- (i) Rˢ = Γ₀ ∣ 0, with Γ₀ initial
-    ∀ (init : Initial Γₜ₀) →
+      (init : Initial Γₜ₀)
       -- (ii) Rᶜ = T₀ ⋯ initial
-    ∀ (cinit : Initial Rᶜ) →
+      (cinit : Initial Rᶜ) →
      -- (iii) generation of public keys, we do not consider that here
       -- (iv) ⟨A,v⟩ₓ ∈ Γ₀ ⇒ txout{ x ↦ (v$ spendable with K̂(A)(rₐ)) ∈ T₀ }
     ∙ (∀ {A v x} (d∈ : ⟨ A has v ⟩at x ∈ᶜ Γ₀) →
         let ∃T₀ , _ = cinit; _ , o , T₀ = ∃T₀ in
         ∃ λ oᵢ → (txoutΓ (deposit∈Γ⇒namesʳ {Γ = Γ₀} d∈) ≡ ∃T₀ at oᵢ)
-               × (T₀ ‼ᵒ oᵢ ≡ v -redeemableWith- K̂ A))
+               × (T₀ ‼ᵒ oᵢ ≡ v redeemable-by K̂ A))
       -- (v)  dom sechash = ∅
       -- (vi) dom κ       = ∅
       -- by definition of Initial/ℝ
@@ -876,7 +882,7 @@ data _~′_ : ℝ∗ Rˢ → CRun → Set where
       ───────────────
       𝕣∗ ~′ (λᶜ ∷ Rᶜ ✓)
 
-_~_ _≁_ : S.Run → CRun → Set
+_~_ _≁_ : S.Run → CRun → Type
 Rˢ ~ Rᶜ = ∃ λ (𝕣∗ : ℝ∗ Rˢ) → 𝕣∗ ~′ Rᶜ
 _≁_ = ¬_ ∘₂ _~_
 
@@ -889,14 +895,14 @@ private
   ... | step₂ _ ([3] ¬p) = tt
   ... | step₁ _ p with p
   ... | [L] [1]  R≈ ∃Γ≈ vad hon d⊆ = tt
-  ... | [L] [2]  R≈ ∃Γ≈ as≡ All∉ Hon⇒ ∃B first-∃B h≡ first-λᶜ h∈O unique-h h♯sechash = tt
+  ... | [L] [2]  R≈ ∃Γ≈ as≡ All∉ Hon⇒ ∃B first-∃B h≡ first-λᶜ h∈O unique-h h♯ = tt
   ... | [L] [3]  R≈ ∃Γ≈ committedA A∈per ∃B first-∃B = tt
   ... | [L] [4]  R≈ ∃Γ≈ fresh-z = tt
   ... | [L] [5]  d≡ R≈ ∃Γ≈ = tt
   ... | [L] [6]  t≡ d≡ R≈ ∃Γ≈ fresh-y′ p⟦Δ⟧≡ As≡∅ = tt
   ... | [L] [7]  m≤ R≈ ∃Γ≈ ∃B ∃α a∈ ∃λ first-λᶜ = tt
   ... | [L] [8]  t≡ d≡ R≈ fresh-xs As≡∅ ∃Γ≈ = tt
-  -- ... | [L] [9]  d≡ R≈ ∃Γ≈ frsg-x As≡∅ ∀≤t = tt
+  ... | [L] [9]  d≡ R≈ ∃Γ≈ frsg-x As≡∅ ∀≤t = tt
   ... | [L] [10] R≈ ∃Γ≈ ∃λ first-λᶜ = tt
   ... | [L] [11] R≈ ∃Γ≈ fresh-y = tt
   ... | [L] [12] R≈ ∃Γ≈ ∃λ first-λᶜ = tt
