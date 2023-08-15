@@ -1,88 +1,84 @@
 {-# OPTIONS --no-forcing #-}
-open import Prelude.Init hiding (T)
+open import Prelude.Init
+  renaming (toWitness to _¡)
+  hiding (T)
+open SetAsType
 open L.Mem
-open import Prelude.Lists
+open L.All using (lookup; ¬Any⇒All¬)
+open L.Any using (satisfied; lookup-index)
+open import Prelude.Lists.Core
+open import Prelude.Lists.Indexed
+open import Prelude.Lists.Collections
+open import Prelude.Lists.Mappings
+open import Prelude.Lists.Membership
+open import Prelude.Lists.MapMaybe
+open import Prelude.Lists.Subsets
 open import Prelude.General
+open import Prelude.InferenceRules
 open import Prelude.Lists.Dec
 open import Prelude.DecEq
-open import Prelude.Decidable
-open import Prelude.InferenceRules
-
-open import Prelude.Lists.Collections
-open import Prelude.Monoid
-
-open import Prelude.Functor
-open import Prelude.Bifunctor
 open import Prelude.Ord
-open import Prelude.ToN
-open import Prelude.ToList
-open import Prelude.Validity
 open import Prelude.Traces
+open import Prelude.Null
 open import Prelude.Setoid
 open import Prelude.Nary
 open import Prelude.Apartness
-open import Prelude.Split hiding (split)
+open import Prelude.ToList
+open import Prelude.Functor
+open import Prelude.Membership.Patterns
+open import Prelude.Membership using (_∈?_; _∉?_)
+open import Prelude.Decidable
 
-import Bitcoin.Crypto as BTC
 open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.DecidableCoherence (⋯ : ⋯) (let open ⋯ : ⋯) where
+module SecureCompilation.DecidableCoherence (⋯ : ⋯) (let open ⋯ ⋯) where
 
-open import SymbolicModel ⋯ as S
-  hiding (_∎; begin_; d; Γₜ″)
+open import SymbolicModel ⋯′ as S
+  hiding (d; Γₜ″; G; C)
+  renaming (_∶_♯_ to _∶_#_; ⟨_∶_♯_⟩ to ⟨_∶_#_⟩)
 open import ComputationalModel ⋯′ finPart keypairs as C
-  hiding (Σ; t; t′; `; ∣_∣; n)
-open import SecureCompilation.Compiler ⋯′ η
+  hiding (t; t′; `; ∣_∣; n)
+open import Compiler ⋯′ η
+open import SecureCompilation.ComputationalContracts ⋯′
 open import SecureCompilation.Helpers ⋯
 open import SecureCompilation.Coherence ⋯
 
-private variable
-  ⟨G⟩C ⟨G⟩C′ ⟨G⟩C″ : Ad
-  𝕣  : ℝ Rˢ
-
-private _¡ = toWitness
-
-[1]⋯ : ∀ {⟨G⟩C : Ad} {Γ : Cfg} {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-    let
-      ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G
-      Γₜ = Γ at t
-    in
-    {R≈? : auto∶ Rˢ ≈⋯ Γₜ}
+[1]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    {⟨G⟩C : Ad} (let open ∣AD ⟨G⟩C)
+    (let Γₜ = Γ at t)
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
   → let
       α   = advertise⦅ ⟨G⟩C ⦆
       Γ′  = ` ⟨G⟩C ∣ Γ
       t′  = t
       Γₜ′ = Γ′ at t′
     in
-  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} → let Γₜ″ = Γ″ at t′ in
-    {vad? : auto∶ Valid ⟨G⟩C}
-    {hon? : auto∶ Any (_∈ Hon) partG}
+  ∀ Γ″  {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′}  (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+    {vad? : auto∶ ValidAd ⟨G⟩C} (let vad = vad? ¡)
+    {hon? : auto∶ Any (_∈ Hon) partG} (let hon = hon? ¡)
     {d⊆?  : auto∶ ⟨G⟩C ⊆⦅ deposits ⦆ Γ}
+    (let d⊆ : deposits ⟨G⟩C ⊆ deposits Γ
+         d⊆ x = (d⊆? ¡) x)
   → let
-      R≈  = R≈? ¡
-      ∃Γ≈ = Γ″ , Γ≈? ¡
-      vad = vad? ¡
-      hon = hon? ¡
-      d⊆ : deposits ⟨G⟩C ⊆ deposits Γ
-      d⊆ x = (d⊆? ¡) x
-
       Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
       Γ→Γ′ = [Action] ([C-Advertise] vad hon d⊆) refl
 
       open H₁ 𝕣 t α t′ Γ R≈ ⟨G⟩C Γ→Γ′ ∃Γ≈ using (λˢ)
 
-      txoutΓ = Txout Γ ∋ Txout≈ {Rˢ ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_)
-      txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
-
-      C  = encode ⟨G⟩C txoutG
+      C =
+        let
+          txoutΓ = Txout Γ ∋ Txout≈ {Rˢ ∙cfg}{Γ} (R≈ .proj₂) (𝕣 ∙txoutEnd_)
+          txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
+          txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad ∙names-⊆)
+        in
+          encodeAd ⟨G⟩C (txoutG , txoutC)
       λᶜ = A →∗∶ C
     in
     ────────────────────────────────────────────────────
     (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 [1]⋯ {R≈? = R≈} _ {Γ≈}{vad}{hon}{d⊆} =
   [1] (R≈ ¡) (-, Γ≈ ¡) (vad ¡) (hon ¡) (d⊆ ¡)
-
-open import Prelude.Membership using (_∈?_)
 
 _∈Hon⇒?All-Is-just_ : ∀ A ms → Dec (A ∈ Hon → All (Is-just {A = ℕ}) ms)
 A ∈Hon⇒?All-Is-just ms
@@ -93,38 +89,50 @@ A ∈Hon⇒?All-Is-just ms
 ... | no ¬p = no λ p → ¬p (p A∈)
 ... | yes p = yes λ _ → p
 
-[2]⋯ : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-      ∀ {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)} {k⃗ : 𝕂²′ ⟨G⟩C}
+instance
+  Dec-≢-→∗∶ : (∀ A → λᶜ ≢ A →∗∶ m) ⁇
+  Dec-≢-→∗∶ {λᶜ}{m} .dec
+    with λᶜ in eq
+  ... | submit _ = yes λ _ ()
+  ... | delay _  = yes λ _ ()
+  ... | _ →O∶ _  = yes λ _ ()
+  ... | O→ _ ∶ _ = yes λ _ ()
+  ... | A →∗∶ m′
+    with m ≟ m′
+  ... | yes refl = no λ ¬eq → ¬eq A refl
+  ... | no m≢    = yes λ where _ refl → m≢ refl
 
+  Dec-CheckOracle : ∀ {os} → CheckInteractions os ⁇¹
+  Dec-CheckOracle {os} {x} .dec
+    with x
+  ... | _ , nothing , hᵢ = hᵢ ∉? map select₃ (filter ((η ≤?_) ∘ ∣_∣ᵐ ∘ select₂) os)
+  ... | _ , just Nᵢ , hᵢ
+    with ¿ Any (λ (_ , m , h) → (h ≡ hᵢ) × (∣ m ∣ᵐ ≡ η + Nᵢ)) os ¿
+  ... | no  x∉ = no λ (_ , _ , x∈ , m≡) → L.All.lookup (¬Any⇒All¬ os x∉) x∈ (refl , m≡)
+  ... | yes x∈
+    with L.Any.lookup x∈ | ∈-lookup {xs = os} (L.Any.index x∈) | lookup-index x∈
+  ... | A , m , _ | x∈ | refl , q = yes (A , m , x∈ , q)
+
+[2]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    {⟨G⟩C} (open ∣AD ⟨G⟩C)
+    {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)}
+    (let h̅ = map select₃ Δ×h̅
+         Δ = map drop₃   Δ×h̅
+         (as , ms) = unzip Δ)
+    {k⃗ : 𝕂²′ ⟨G⟩C} (let k̅ = concatMap (map pub ∘ codom) $ codom k⃗)
   → let
-      ⟨ G ⟩ C = ⟨G⟩C
       Γ = ` ⟨G⟩C ∣ Γ₀
       Γₜ = Γ at t
     in
-    {R≈? : auto∶ Rˢ ≈⋯ Γₜ}
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
   → let
       R≈  = R≈? ¡
 
-      txoutG : Txout G
-      txoutG = ad∈⇒TxoutG {⟨G⟩C}{Γ}{Rˢ} (here refl) R≈ txout′
+      Δᶜ = || map (uncurry ⟨ A ∶_#_⟩) Δ
 
-      C = encode ⟨G⟩C txoutG
-
-      Δ : List (Secret × Maybe ℕ)
-      Δ = map drop₃ Δ×h̅
-
-      (as , ms) = unzip Δ
-
-      Δᶜ : Cfg
-      Δᶜ = || map (uncurry ⟨ A ∶_♯_⟩) Δ
-
-      h̅ : List ℤ -- ≈ Message
-      h̅ = map (proj₂ ∘ proj₂) Δ×h̅
-
-      k̅ : List ℤ -- ≈ Message
-      k̅ = concatMap (map pub ∘ codom) (codom k⃗)
-
-      C,h̅,k̅ = encode (C , h̅ , k̅)
+      C      = encodeAd ⟨G⟩C (ad∈⇒Txout {⟨G⟩C}{Γ}{Rˢ} 𝟘 R≈ txout′)
+      C,h̅,k̅  = encode (C , h̅ , k̅)
       C,h̅,k̅ₐ = SIG (K A) C,h̅,k̅
 
       α   = auth-commit⦅ A , ⟨G⟩C , Δ ⦆
@@ -133,16 +141,11 @@ A ∈Hon⇒?All-Is-just ms
       Γₜ′ = Γ′ at t′
       λᶜ  = B →∗∶ C,h̅,k̅ₐ
     in
-  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} → let Γₜ″ = Γ″ at t′ in
-    {as≡?  : auto∶ as ≡ secretsOfᵖ A G}
-    {All∉? : auto∶ All (_∉ secretsOfᶜᶠ A Γ₀) as}
-    {Hon⇒? : True $ A ∈Hon⇒?All-Is-just ms}
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , (Γ≈? ¡))
+    {as≡?  : auto∶ as ≡ secretsOfᵖ A G} (let as≡  = as≡? ¡)
+    {All∉? : auto∶ All (_∉ secretsOfᶜᶠ A Γ₀) as} (let All∉ = All∉? ¡)
+    {Hon⇒? : True $ A ∈Hon⇒?All-Is-just ms} (let Hon⇒ = Hon⇒? ¡)
   → let
-      ∃Γ≈  = Γ″ , Γ≈? ¡
-      as≡  = as≡? ¡
-      All∉ = All∉? ¡
-      Hon⇒ = Hon⇒? ¡
-
       Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
       Γ→Γ′ = [Action] ([C-AuthCommit] as≡ All∉ Hon⇒) refl
 
@@ -154,722 +157,643 @@ A ∈Hon⇒?All-Is-just ms
 
       open H₂ {Rˢ} 𝕣 t α t′ Γ R≈ A A ⟨G⟩C Δ sechash⁺ k⃗ Γ→Γ′ ∃Γ≈ using (λˢ)
     in
-  ∀ B {B∈? : auto∶ (B →∗∶ C) ∈ toList Rᶜ} → let B∈ = B∈? ¡ in
-  ∀ {unique-h? : auto∶ Unique h̅}
-    {h♯sechash : auto∶ Disjoint h̅ (codom sechash′)} →
-  ∙ All (λ l → ∀ X → l ≢ X →∗∶ C) (Any-tail B∈)
-  ∙ All (λ hᵢ → ∣ hᵢ ∣ᶻ ≡ η) h̅
-  ∙ All (λ l → ∀ X → l ≢ X →∗∶ C,h̅,k̅ₐ) (Any-front B∈)
-  ∙ CheckOracleInteractions Rᶜ Δ×h̅
+  ∀ B {B∈? : auto∶ (B →∗∶ C) ∈ toList Rᶜ} (let B∈ = B∈? ¡)
+    {_ : auto∶ All (λ l → ∀ X → l ≢ X →∗∶ C) (Any-tail B∈)}
+    {_ : auto∶ All (λ hᵢ → ∣ hᵢ ∣ᶻ ≡ η) h̅}
+    {_ : auto∶ All (λ l → ∀ X → l ≢ X →∗∶ C,h̅,k̅ₐ) (Any-front B∈)}
+    {_ : auto∶ CheckOracleInteractions Rᶜ Δ×h̅}
+    {_ : auto∶ Unique h̅}
+    {_ : auto∶ Disjoint h̅ (codom sechash′)} →
     ────────────────────────────────────────────────────
     (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-[2]⋯ {R≈? = R≈} _ {Γ≈}{as≡}{All∉}{Hon⇒} B {B∈} {p₅} {p₆} p₁ p₂ p₃ p₄ =
-  [2] (R≈ ¡) (-, Γ≈ ¡) (as≡ ¡) (All∉ ¡) (Hon⇒ ¡) (-, B∈ ¡) p₁ p₂ p₃ p₄ (p₅ ¡) (p₆ ¡)
-
---   -- ** Stipulation: authorizing deposits
---   [3] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---         let ⟨ G ⟩ C = ⟨G⟩C ; partG = G ∙partG in
---         let Γ = ` ⟨G⟩C ∣ Γ₀; Γₜ = Γ at t in
-
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = auth-init⦅ A , ⟨G⟩C , x ⦆
---         Γ′  = Γ ∣ A auth[ x ▷ˢ ⟨G⟩C ]
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       -- Hypotheses from [C-AuthInit]
---       (committedA : partG ⊆ committedParticipants ⟨G⟩C Γ₀)
---       (A∈per : (A , v , x) ∈ persistentDeposits G)
---     → let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] ([C-AuthInit] committedA A∈per) refl
-
---         -- (iv) txout = txout′, sechash = sechash′, κ = κ′
---         open H₃ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ A x R≈ Γ→Γ′ ∃Γ≈ committedA using (λˢ; T)
-
---         -- (i) broadcast Tᵢₙᵢₜ , signed with A's private key
---         m = [ SIG (K̂ A) T ]
---         λᶜ = B →∗∶ m
-
---       in
---       -- (ii) Tᵢₙᵢₜ occurs as a message in Rᶜ
---     ∀ (∃λ : ∃ λ B → (B →∗∶ [ T ♯ ]) ∈ toList Rᶜ) →
-
---       -- (iii) broadcast message in Rᶜ
---       -- ∘ λᶜ is the first occurrence of such a message after Tinit in Rᶜ
---     ∙ All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-front $ ∃λ .proj₂)
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Stipulation: activating the contract
---   [4] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---       let
---         ⟨ G ⟩ C = ⟨G⟩C; partG = G ∙partG
---         toSpend = persistentDeposits G
---         vs      = map select₂ toSpend
---         xs      = map select₃ toSpend
---         v       = sum vs
-
---         Γ = ` ⟨G⟩C ∣ Γ₀
---           ∣ || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ ⟨G⟩C ] }) toSpend
---           ∣ || map (_auth[ ♯▷ ⟨G⟩C ]) partG
---         Γₜ = Γ at t
---       in
---       -- (i) consume {G}C and its persistent deposits from Rˢ
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = init⦅ G , C ⦆
---         Γ′  = ⟨ C , v ⟩at z ∣ Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       -- Hypotheses from [C-Init]
---       (fresh-z : z ∉ xs ++ ids Γ₀) →
---       let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] ([C-Init] fresh-z) refl
-
---         -- (iii) sechash = sechash′, κ = κ′, txout extends txout′ with (z ↦ Tᵢₙᵢₜ)
---         open H₄ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ toSpend v z R≈ Γ→Γ′ ∃Γ≈ using (λˢ; T)
-
---         -- (ii) append Tᵢₙᵢₜ to the blockchain
---         λᶜ = submit T
---       in
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Contract actions: authorize control
---   [5] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---         ∀ {i : Index c} → let open ∣SELECT c i in
---         let Γ = ⟨ c , v ⟩at x ∣ Γ₀; Γₜ = Γ at t in
---         ∀ {A} → -- [T0D0] fixed in Agda-HEAD, see issue #5683
-
---       -- D ≡ A ∶ D′
---       (D≡A:D′ : A ∈ authDecorations d)
---       -- (i) Rˢ contains ⟨C , v⟩ₓ with C = D + ∑ᵢ Dᵢ
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = auth-control⦅ A , x ▷ d ⦆
---         Γ′  = ⟨ c , v ⟩at x ∣ A auth[ x ▷ d ] ∣ Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       -- Hypotheses from [C-AuthControl], already in hypothesis `D≡A:D′`
---       let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] ([C-AuthControl] D≡A:D′) refl
-
---         open H₅ {Rˢ} 𝕣 t α t′ c v x Γ₀ A i R≈ Γ→Γ′ ∃Γ≈ D≡A:D′ using (λˢ; T; pubK)
-
---         λᶜ = B →∗∶ [ SIGᵖ pubK T ]
---       in
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Contract actions: put
---   [6] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---         ∀ {ds : List (Participant × S.Value × Id)} {ss : List (Participant × Secret × ℕ)} →
---         ∀ {i : Index c} → let open ∣SELECT c i; As , ts = decorations d in
---         ∀ {v y} → -- [T0D0] fixed in Agda-HEAD, see issue #5683
---       let
---         -- (i) xs = x₁⋯xₖ
---         (_ , vs , xs) = unzip₃ ds
---         (_ , as , _)  = unzip₃ ss
---         Γ₁  = || map (uncurry₃ ⟨_has_⟩at_) ds
---         Δ   = || map (uncurry₃ _∶_♯_) ss
---         Γ₂  = Δ ∣ Γ₀
---         Γ₁₂ = Γ₁ ∣ Γ₂
---         Γ   = ⟨ c , v ⟩at y ∣ (Γ₁ ∣ Γ₂)
---         Γₜ  = Γ at t
---       in
---       -- ii) in Rˢ, α consumes ⟨D+C,v⟩y and the deposits ⟨Aᵢ,vᵢ⟩ₓᵢ to produce ⟨C′,v′⟩y′
---       --     where D = ⋯ : put⋯reveal⋯.C′
---       --     let t be the maximum deadline in an `after` in front of D
---       --     T0D0: what should t′ be in case there are no `after` decorations? (currently any value)
---       (t≡ : t ≡ maximum t ts)
---       (d≡ : d ≡⋯∶ put xs &reveal as if p ⇒ c′)
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = put⦅ xs , as , y ⦆
---         Γ′  = ⟨ c′ , v + sum vs ⟩at y′ ∣ Γ₂
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       -- Hypotheses from [C-PutRev]
---       (fresh-y′ : y′ ∉ y L.∷ ids Γ₁₂)
---       (p⟦Δ⟧≡ : ⟦ p ⟧ᵖ Δ ≡ just true)
---       -- Hypotheses from [Timeout]
---       (As≡∅ : Null As)
---     → let
---         ∀≤t : All (_≤ t′) ts
---         ∀≤t = ⟪ (λ ◆ → All (_≤ ◆) ts) ⟫ t≡ ~: ∀≤max t ts
-
---         put→ : ⟨ [ d∗ ] , v ⟩at y ∣ Γ₁₂ —[ α ]→ Γ′
---         put→ = ⟪ (λ ◆ → (⟨ [ ◆ ] , v ⟩at y ∣ (Γ₁ ∣ Γ₂) —[ α ]→ Γ′)) ⟫ d≡ ~: [C-PutRev] {ds = ds} {ss = ss} fresh-y′ p⟦Δ⟧≡
-
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Timeout] As≡∅ ∀≤t put→ refl
-
---         open H₆ {Rˢ} 𝕣 t α t′ c v y ds ss Γ₂ c′ y′ i p R≈ Γ→Γ′ ∃Γ≈ d≡ using (λˢ; T)
-
---         λᶜ = submit T
---       in
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Contract actions: authorize reveal
---   [7] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---         ∀ {a} → -- [T0D0] fixed in Agda-HEAD, see issue #5683
---         let Γ = ⟨ A ∶ a ♯ just n ⟩ ∣ Γ₀; Γₜ = Γ at t in
---         ∀ {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)} {k⃗ : 𝕂²′ ⟨G⟩C} → let ⟨ G ⟩ C = ⟨G⟩C in
-
---       ∣ m ∣ᵐ ≤ η
---     → (R≈ : Rˢ ≈⋯ Γₜ)
-
---     → let
---         α   = auth-rev⦅ A , a ⦆
---         Γ′  = A ∶ a ♯ n ∣ Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] [C-AuthRev] refl
-
---         a∈ : a ∈ namesˡ Rˢ
---         a∈ = namesˡ⦅end⦆⊆ Rˢ
---            $ ∈namesˡ-resp-≈ a {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈) (here refl)
-
---         -- (iii) txout = txout′, sechash = sechash′, κ = κ′
---         open H₇ 𝕣 t α t′ A a n Γ₀ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
-
---         Δ : List (Secret × Maybe ℕ)
---         Δ = map drop₃ Δ×h̅
-
---         h̅ = map (proj₂ ∘ proj₂) Δ×h̅
---         k̅ = concatMap (map pub ∘ codom) (codom k⃗)
---       in
---       -- (ii) in Rᶜ we find ⋯ (B → O ∶ m) (O → B : sechash′(a)) for some B ⋯
---       (∃ λ B → (B , m , [ sechash′ {a} a∈ ]) ∈ oracleInteractionsᶜ Rᶜ)
-
---       -- (iv) in Rˢ, we find an A:{G}C,∆ action, with a in G
---     → (∃α : auth-commit⦅ A , ⟨G⟩C , Δ ⦆ ∈ labels Rˢ)
---     → a ∈ namesˡ G
---     → let
---         txoutG : Txout G
---         txoutG = auth-commit∈⇒TxoutG ∃α 𝕣
-
---         C = encode ⟨G⟩C txoutG
-
---         -- T0D0: should we search for a signature of this message instead?
---         C,h̅,k̅ = encode (C , h̅ , k̅)
-
---         -- (i) some participant B broadcasts message m
---         λᶜ = B →∗∶ m
---       in
-
---       -- ... with a corresponding broadcast of m′=(C,h̅,k̅) in Rᶜ
---     ∀ (∃λ : Any (λ l → ∃ λ B → l ≡ B →∗∶ C,h̅,k̅) (toList Rᶜ)) →
-
---       -- (v) λᶜ is the first broadcast of m after the first broadcast of m′
---     ∙ All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-front ∃λ)
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Contract actions: split
---   [8] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---         ∀ {i : Index c} → let open ∣SELECT c i; As , ts = decorations d in
---         ∀ {vcis : List (S.Value × Contracts × Id)} → let vs , cs , xs = unzip₃ vcis; v = sum vs in
---         ∀ {y Γ₀} → -- [T0D0] fixed in Agda-HEAD, see issue #5683
---         let Γ = ⟨ c , v ⟩at y ∣ Γ₀; Γₜ = Γ at t in
-
---       -- (i) in Rˢ, α consumes ⟨D+C,v⟩y to obtain ⟨C₀,v₀⟩ₓ₀ | ⋯ | ⟨Cₖ,vₖ⟩ₓₖ
---       --     where D = ⋯ : split vs → cs
---       --     let t be the maximum deadline in an `after` in front of D
---       --     T0D0: what should t′ be in case there are not after decorations? (currently any value)
---       (t≡ : t ≡ maximum t ts)
---       (d≡ : d ≡⋯∶ split (zip vs cs))
---       (R≈ : Rˢ ≈⋯ Γₜ)
---       -- Hypotheses from [C-Split]
---       (fresh-xs : All (_∉ y L.∷ ids Γ₀) xs)
---       -- Hypotheses from [Timeout]
---       (As≡∅ : Null As)
---     → let
---         α   = split⦅ y ⦆
---         Γ′  = || map (uncurry₃ $ flip ⟨_,_⟩at_) vcis ∣ Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       let
---         ∀≤t : All (_≤ t′) ts
---         ∀≤t = ⟪ (λ ◆ → All (_≤ ◆) ts) ⟫ t≡ ~: ∀≤max t ts
-
---         split→ : ⟨ [ d∗ ] , v ⟩at y ∣ Γ₀ —[ α ]→ Γ′
---         split→ = ⟪ (λ ◆ → ⟨ [ ◆ ] , v ⟩at y ∣ Γ₀ —[ α ]→ Γ′) ⟫ d≡
---               ~: [C-Split] {vcis = vcis} fresh-xs
-
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Timeout] As≡∅ ∀≤t split→ refl
-
---         open H₈ {Rˢ} 𝕣 t α t′ c v y Γ₀ i vcis R≈ Γ→Γ′ ∃Γ≈ d≡ using (λˢ; T)
-
---         λᶜ = submit T
---       in
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Contract actions: withdraw
---   [9] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---         ∀ {i : Index c} → let open ∣SELECT c i; As , ts = decorations d in
---         let Γ = ⟨ c , v ⟩at y ∣ Γ₀; Γₜ = Γ at t in
-
---       -- (i) in Rˢ, α consumes ⟨D+C,v⟩y to obtain ⟨A,v⟩ₓ (where D = ⋯ : withdraw A)
---       (d≡ : d ≡⋯∶ withdraw A)
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = withdraw⦅ A , v , y ⦆
---         Γ′  = ⟨ A has v ⟩at x ∣ Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       -- Hypotheses from [C-Withdraw]
---       (fresh-x : x ∉ y L.∷ ids Γ₀)
---       -- Hypotheses from [Timeout]
---       (As≡∅ : Null As)
---       (∀≤t : All (_≤ t) ts)
---     → let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Timeout] As≡∅ ∀≤t
---           (⟪ (λ ◆ → ⟨ [ ◆ ] , v ⟩at y ∣ Γ₀ —[ α ]→ Γ′) ⟫ d≡ ~: [C-Withdraw] fresh-x)
---           refl
-
---         open H₉ {Rˢ} 𝕣 t α t′ c v y Γ₀ A x i R≈ Γ→Γ′ ∃Γ≈ d≡ using (λˢ; T)
-
---         λᶜ = submit T
---       in
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Deposits: authorize join
---   [10] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---          let Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀; Γₜ = Γ at t in
-
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = auth-join⦅ A , x ↔ x′ ⦆
---         Γ′  = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] [DEP-AuthJoin] refl
-
---         n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
---         n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
---         x∈  = n⊆ (here refl)
---         x∈′ = n⊆ (there $′ here refl)
---       in
---       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
---                 → (l ≡ B →∗∶ [ T ♯ ])
---                 × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ [])
---                 × (outputs T ≡ [ 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
---                 ) (toList Rᶜ))
---     → let
---         T : ∃Tx
---         T = 2 , 1 , L.Any.satisfied ∃λ .proj₂ .proj₂ .proj₁
-
---         -- (iii) broadcast transaction T, signed by A
---         m′ = [ SIG (K̂ A) T ]
---         λᶜ = B →∗∶ m′
-
---         -- (v) txout = txout′, sechash = sechash′, κ = κ′
---         open H₁₀ {Rˢ} 𝕣 t α t′ A v x v′ x′ Γ₀ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
---       in
---       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
---     ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front ∃λ)
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Deposits: join
---   [11] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---          let Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀; Γₜ = Γ at t in
-
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = join⦅ x ↔ x′ ⦆
---         Γ′  = ⟨ A has (v + v′) ⟩at y ∣ Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       -- Hypotheses from [DEP-Join]
---       (fresh-y : y ∉ x L.∷ x′ ∷ ids Γ₀)
---     → let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] ([DEP-Join] fresh-y) refl
-
---         n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
---         n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
---         x∈  = n⊆ (here refl)
---         x∈′ = n⊆ (there $′ here refl)
-
---         -- (ii) submit transaction T
---         T : ∃Tx
---         T  = 2 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
---           { inputs  = hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ []
---           ; wit     = wit⊥
---           ; relLock = V.replicate 0
---           ; outputs = [ (v + v′) -redeemableWith- K̂ A ]
---           ; absLock = 0 }
---         λᶜ = submit T
-
---         -- (iii) extend txout′ with y↦T₀ (removing {x↦_;x′↦_}), sechash = sechash′, κ = κ′
---         open H₁₁ {Rˢ} 𝕣 t α t′ A v x v′ x′ y Γ₀ R≈ (T at 0F) Γ→Γ′ ∃Γ≈ using (λˢ)
---       in
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Deposits: authorize divide (similar to [10])
---   [12] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---          let Γ = ⟨ A has (v + v′) ⟩at x ∣ Γ₀; Γₜ = Γ at t in
-
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = auth-divide⦅ A , x ▷ v , v′ ⦆
---         Γ′  = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] [DEP-AuthDivide] refl
-
---         n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
---         n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
---         x∈  = n⊆ (here refl)
---       in
---       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
---                 → (l ≡ B →∗∶ [ T ♯ ])
---                 × (inputs  T ≡ [ hashTxⁱ (txout′ {x} x∈) ])
---                 × (outputs T ≡ (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ [])
---                 ) (toList Rᶜ))
---     → let
---         T : ∃Tx
---         T = 1 , 2 , L.Any.satisfied ∃λ .proj₂ .proj₂ .proj₁
-
---         -- (iii) broadcast transaction T, signed by A
---         m′ = [ SIG (K̂ A) T ]
---         λᶜ = B →∗∶ m′
-
---         -- (v) txout = txout′, sechash = sechash′, κ = κ′
---         open H₁₂ {Rˢ} 𝕣 t α t′ A v v′ x Γ₀ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
---       in
---       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
---     ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front ∃λ)
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Deposits: divide (similar to [11])
---   [13] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---          let Γ = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀; Γₜ = Γ at t in
-
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = divide⦅ x ▷ v , v′ ⦆
---         Γ′  = ⟨ A has v ⟩at y ∣ ⟨ A has v′ ⟩at y′ ∣ Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       -- Hypotheses from [DEP-Divide]
---       (fresh-ys : All (_∉ x L.∷ ids Γ₀ ) (y ∷ y′ ∷ []))
---     → let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] ([DEP-Divide] fresh-ys) refl
-
---         n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
---         n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
---         x∈  = n⊆ (here refl)
-
---         -- (iii) submit transaction T
---         T  = 1 , 2 , sig⋆ (V.replicate [ K̂ A ]) record
---           { inputs  = [ hashTxⁱ (txout′ {x} x∈) ]
---           ; wit     = wit⊥
---           ; relLock = V.replicate 0
---           ; outputs = (v -redeemableWith- K̂ A) ∷ (v′ -redeemableWith- K̂ A) ∷ []
---           ; absLock = 0 }
---         λᶜ = submit T
-
---         -- (v) extend txout′ with {y↦T₀, y′↦T₁} (removing x↦T₀), sechash = sechash′, κ = κ′
---         open H₁₃ {Rˢ} 𝕣 t α t′ A v v′ x Γ₀ y y′ R≈ (T at 0F) (T at 1F) Γ→Γ′ ∃Γ≈ using (λˢ)
---       in
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Deposits: authorize donate (similar to [10])
---   [14] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---          let Γ = ⟨ A has v ⟩at x ∣ Γ₀; Γₜ = Γ at t in
-
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = auth-donate⦅ A , x ▷ᵈ B′ ⦆
---         Γ′  = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] [DEP-AuthDonate] refl
-
---         n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
---         n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
---         x∈  = n⊆ (here refl)
---       in
---       (∃λ : Any (λ l → ∃ λ B → ∃ λ T
---                 → (l ≡ B →∗∶ [ T ♯ ])
---                 × (inputs  T ≡ [ hashTxⁱ (txout′ {x} x∈) ])
---                 × (outputs T ≡ [ v -redeemableWith- K̂ B′ ])
---                 ) (toList Rᶜ))
---     → let
---         T : ∃Tx
---         T = 1 , 1 , L.Any.satisfied ∃λ .proj₂ .proj₂ .proj₁
-
---         -- (iii) broadcast transaction T, signed by A
---         m′ = [ SIG (K̂ A) T ]
---         λᶜ = B →∗∶ m′
-
---         -- (v) txout = txout′, sechash = sechash′, κ = κ′
---         open H₁₄ {Rˢ} 𝕣 t α t′ A v x Γ₀ B′ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
---       in
---       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
---     ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front ∃λ)
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Deposits: donate (similar to [11])
---   [15] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---          let Γ = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀; Γₜ = Γ at t in
-
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = donate⦅ x ▷ᵈ B′ ⦆
---         Γ′  = ⟨ B′ has v ⟩at y ∣ Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       -- Hypotheses from [DEP-Donate]
---       (fresh-y : y ∉ x L.∷ ids Γ₀)
---     → let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] ([DEP-Donate] fresh-y) refl
-
---         n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
---         n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
---         x∈  = n⊆ (here refl)
-
---         -- (iii) submit transaction T
---         T  = 1 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
---           { inputs  = [ hashTxⁱ (txout′ {x} x∈) ]
---           ; wit     = wit⊥
---           ; relLock = V.replicate 0
---           ; outputs = [ v -redeemableWith- K̂ B′ ]
---           ; absLock = 0 }
---         λᶜ = submit T
-
---         -- (v) extend txout′ with y↦T₀ (removing x↦T₀), sechash = sechash′, κ = κ′
---         open H₁₅ {Rˢ} 𝕣 t α t′ A v x B′ Γ₀ y R≈ (T at 0F) Γ→Γ′ ∃Γ≈ using (λˢ)
---       in
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** After
---   [18] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
-
---       (δ>0 : δ > 0)
---     → let
---         Γₜ@(Γ at t) = Rˢ .end
---         α   = delay⦅ δ ⦆
---         t′  = t + δ
---         Γₜ′ = Γ at t′
---         λᶜ  = delay δ
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Delay] δ>0
-
---         open H₁₈ {Rˢ} 𝕣 t α t′ Γ (≈ᵗ-refl {Γₜ}) Γ→Γ′ ∃Γ≈ using (λˢ)
---       in
---       ─────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
-
--- _≁₁₁_ : ℝ∗ Rˢ → CRun → Set
--- _≁₁₁_ = ¬_ ∘₂ _~₁₁_
-
--- data _~₁₂_ : ℝ∗ Rˢ → CRun → Set where
-
---   -- ** Deposits: authorize destroy
---   [16] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---          ∀ {ds : List (Participant × S.Value × Id)} {j : Index ds}
-
---     → let
---         k  = length ds
---         xs = map (proj₂ ∘ proj₂) ds
---         A  = proj₁ (ds ‼ j)
---         j′ = ‼-map {xs = ds} j
---         Δ  = || map (uncurry₃ ⟨_has_⟩at_) ds
---         Γ  = Δ ∣ Γ₀
---         Γₜ = Γ at t
---       in
---       -- (ii) in Rˢ we find ⟨Bᵢ,vᵢ⟩yᵢ for i ∈ 1..k
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = auth-destroy⦅ A , xs , j′ ⦆
---         Γ′  = Δ ∣ A auth[ xs , j′ ▷ᵈˢ y ] ∣ Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       -- Hypotheses from [DEP-AuthDestroy]
---       (fresh-y : y ∉ ids Γ₀)
---     → let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] ([DEP-AuthDestroy] fresh-y) refl
-
---         -- (vii) txout = txout′, sechash = sechash′, κ = κ′
---         open H₁₆ {Rˢ} 𝕣 t α t′ ds Γ₀  j A y R≈ Γ→Γ′ ∃Γ≈ using (λˢ; xs↦)
---       in
---       -- (iii) in Rᶜ we find B → ∗ ∶ T, for some T having txout′(yᵢ) as inputs (+ possibly others)
---       (T : Tx i 0)
---     → (hashTxⁱ <$> codom xs↦) ⊆ V.toList (inputs T)
---     → (T∈ : Any (λ l → ∃ λ B → l ≡ B →∗∶ [ T ♯ ]) (toList Rᶜ))
-
---     → let
---         -- (iv) broadcast transaction T, signed by A
---         m = [ SIG (K̂ A) T ]
---         λᶜ = B →∗∶ m
---       in
---       -- (v) λᶜ is the first broadcast of m in Rᶜ after the first broadcast of T
---     ∙ All (λ l → ∀ B → l ≢ B →∗∶ m) (Any-front T∈)
-
---       -- (vi) λᶜ does not correspond to any *other* symbolic move
---     ∙ (∀ Γₜ′ (λˢ′ : 𝕃 Rˢ Γₜ′)
---         → λˢ′ .proj₁ .proj₁ ≢ λˢ .proj₁ .proj₁
---         → (Γₜ′ ∷ 𝕣∗ ⊣ λˢ′ ✓) ≁₁₁ (λᶜ ∷ Rᶜ ✓))
---       ──────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₂ (λᶜ ∷ Rᶜ ✓)
-
---   -- ** Deposits: destroy
---   [17] : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} → let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---          ∀ {ds : List (Participant × S.Value × Id)} {j : Index ds}
-
---     → let
---         xs = map (proj₂ ∘ proj₂) ds
---         Δ  = || map (λ{ (i , Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xs , ‼-map {xs = ds} i ▷ᵈˢ y ] })
---                     (enumerate ds)
---         Γ  = Δ ∣ Γ₀
---         Γₜ = Γ at t
---       in
---       -- (ii) in Rˢ, α assumes ⟨Aᵢ,vᵢ⟩xᵢ to obtain 0
---       (R≈ : Rˢ ≈⋯ Γₜ)
---     → let
---         α   = destroy⦅ xs ⦆
---         Γ′  = Γ₀
---         t′  = t
---         Γₜ′ = Γ′ at t′
---       in
---       (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
---       let
---         Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
---         Γ→Γ′ = [Action] [DEP-Destroy] refl
-
---         -- (v) txout = txout′, sechash = sechash′, κ = κ′
---         -- remove {⋯ xᵢ ↦ (Tᵢ,j) ⋯} from txout′
---         open H₁₇ {Rˢ} 𝕣 t α t′ ds Γ₀ y R≈ Γ→Γ′ ∃Γ≈ using (λˢ; xs↦)
---       in
---       (T : Tx i 0)
---     → (hashTxⁱ <$> codom xs↦) ⊆ V.toList (inputs T)
-
---     → let
---         -- (iii) submit transaction T
---         λᶜ = submit (_ , _ , T)
---       in
-
---       -- (iv) λᶜ does not correspond to any *other* symbolic move
---       (∀ Γₜ′ (λˢ′ : 𝕃 Rˢ Γₜ′)
---         → λˢ′ .proj₁ .proj₁ ≢ λˢ .proj₁ .proj₁
---         → (Γₜ′ ∷ 𝕣∗ ⊣ λˢ′ ✓) ≁₁₁ (λᶜ ∷ Rᶜ ✓))
---       ─────────────────────────────────────────────────────────────
---       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₂ (λᶜ ∷ Rᶜ ✓)
-
--- _≁₁₂_ : ℝ∗ Rˢ → CRun → Set
--- _≁₁₂_ = ¬_ ∘₂ _~₁₂_
-
--- data _~₁_ : ℝ∗ Rˢ → CRun → Set where
-
---   [L]_ : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} {λˢ : 𝕃 Rˢ Γₜ} →
---     (Γₜ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
---     ──────────────────────────────
---     (Γₜ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁  (λᶜ ∷ Rᶜ ✓)
-
---   [R]_ : ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} {λˢ : 𝕃 Rˢ Γₜ} →
---     (Γₜ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₂ (λᶜ ∷ Rᶜ ✓)
---     ──────────────────────────────
---     (Γₜ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁  (λᶜ ∷ Rᶜ ✓)
-
--- _≁₁_ : ℝ∗ Rˢ → CRun → Set
--- _≁₁_ = ¬_ ∘₂ _~₁_
-
--- -- * Inductive case 2
--- data _~₂_∷ʳ_ (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) : C.Label → Set where
---   [1] : ∀ {T} →
---     let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣 in
---     T .proj₂ .proj₂ .inputs ♯ (hashTxⁱ <$> codom txout′)
---     ────────────────────────────────────────────────────
---     𝕣∗ ~₂ Rᶜ ∷ʳ submit T
-
---   [2] :
---     (λᶜ ≡ A →O∶ m) ⊎ (λᶜ ≡ O→ A ∶ m)
---     ────────────────────────────────
---     𝕣∗ ~₂ Rᶜ ∷ʳ λᶜ
-
---   [3] :
---     let λᶜ = A →∗∶ m in
---     -- λᶜ does not correspond to any symbolic move
---     (∀ {Γₜ} (λˢ : 𝕃 Rˢ Γₜ) → (Γₜ ∷ 𝕣∗ ⊣ λˢ ✓) ≁₁ (λᶜ ∷ Rᶜ ✓))
---     ──────────────────────────────────────────────────────────
---     𝕣∗ ~₂ Rᶜ ∷ʳ λᶜ
-
--- data _~′_ : ℝ∗ Rˢ → CRun → Set where
-
---   -- * Base case
---   base : ∀ {ℽ : ℾᵗ Γₜ₀} → let open ℾᵗ ℽ; Γ₀ = Γₜ₀ .cfg in
-
---       -- (i) Rˢ = Γ₀ ∣ 0, with Γ₀ initial
---     ∀ (init : Initial Γₜ₀) →
---       -- (ii) Rᶜ = T₀ ⋯ initial
---     ∀ (cinit : Initial Rᶜ) →
---       -- (iii) generation of public keys, we do not consider that here
---       -- (iv) ⟨A,v⟩ₓ ∈ Γ₀ ⇒ txout{ x ↦ (v$ spendable with K̂(A)(rₐ)) ∈ T₀ }
---     ∙ (∀ {A v x} (d∈ : ⟨ A has v ⟩at x ∈ᶜ Γ₀) →
---         let ∃T₀ , _ = cinit; _ , o , T₀ = ∃T₀ in
---         ∃ λ oᵢ → (txoutΓ (deposit∈Γ⇒namesʳ {Γ = Γ₀} d∈) ≡ ∃T₀ at oᵢ)
---                × (T₀ ‼ᵒ oᵢ ≡ v -redeemableWith- K̂ A))
---       -- (v)  dom sechash = ∅
---       -- (vi) dom κ       = ∅
---       -- by definition of Initial/ℝ
---       ──────────────────────────────────────────────────────────────────────
---       (ℽ ∎⊣ init ✓) ~′ Rᶜ
+[2]⋯ {R≈? = R≈} _ {Γ≈}{as≡}{All∉}{Hon⇒} B {B∈} {p₁} {p₂} {p₃} {p₄} {p₅} {p₆} =
+  [2] (R≈ ¡) (-, Γ≈ ¡) (as≡ ¡) (All∉ ¡) (Hon⇒ ¡) (-, B∈ ¡)
+             (p₁ ¡) (p₂ ¡) (p₃ ¡) (p₄ ¡) (p₅ ¡) (p₆ ¡)
+
+[3]⋯ :
+  ∀ {Γ₀}{t}{A}{x}{v}{B}{Rᶜ}
+    {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    {⟨G⟩C} (let open ∣AD ⟨G⟩C)
+
+  → let
+      Γ = ` ⟨G⟩C ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = auth-init⦅ A , ⟨G⟩C , x ⦆
+      Γ′  = Γ ∣ A auth[ x ▷ˢ ⟨G⟩C ]
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+    {p₁ : auto∶ partG ⊆′ committedParticipants ⟨G⟩C Γ₀}
+    (let committedA = (p₁ ¡) .unmk⊆)
+    {p₂ : auto∶ (A , v , x) ∈ persistentDeposits G} (let A∈per = p₂ ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Action] ([C-AuthInit] committedA A∈per) refl
+
+      open H₃ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ A x R≈ Γ→Γ′ ∃Γ≈ committedA using (λˢ; T)
+
+      m = SIG (K̂ A) T
+      λᶜ = B →∗∶ m
+    in
+  ∀ B {p₃ : auto∶ (B →∗∶ (T ♯)) ∈ toList Rᶜ}
+    (let ∃B = (∃ λ B → (B →∗∶ (T ♯)) ∈ toList Rᶜ) ∋ B , (p₃ ¡))
+    {p₄ : auto∶ All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-front $ ∃B .proj₂)} →
+    -- (let B∈ = p₃ ¡)
+    -- {p₄ : auto∶ All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-front B∈)} →
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[3]⋯ {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} {R≈? = R≈} Γ″ {Γ≈}{p₁}{p₂} ∃B {p₃}{p₄} =
+  [3] {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} (R≈ ¡) (Γ″ , Γ≈ ¡) ((p₁ ¡) .unmk⊆) (p₂ ¡) (∃B , p₃ ¡) (p₄ ¡)
+
+[4]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    {⟨G⟩C} (let open ∣AD ⟨G⟩C)
+  → let
+      toSpend = persistentDeposits G
+      vs      = map select₂ toSpend
+      xs      = map select₃ toSpend
+      v       = sum vs
+
+      Γ = ` ⟨G⟩C ∣ Γ₀
+        ∣ || map (λ{ (Aᵢ , vᵢ , xᵢ) → ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xᵢ ▷ˢ ⟨G⟩C ] })
+                  toSpend
+        ∣ || map (_auth[ ♯▷ ⟨G⟩C ]) partG
+      Γₜ = Γ at t
+    in
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = init⦅ G , C ⦆
+      Γ′  = ⟨ C , v ⟩at z ∣ Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+    {fresh-z? : auto∶ z ∉ xs ++ ids Γ₀} (let fresh-z = fresh-z? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Action] ([C-Init] fresh-z) refl
+
+      open H₄ {Rˢ} 𝕣 t α t′ ⟨G⟩C Γ₀ toSpend v z R≈ Γ→Γ′ ∃Γ≈ using (λˢ; T)
+
+      λᶜ = submit T
+    in
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[4]⋯ {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} {R≈? = R≈} Γ″ {Γ≈}{p} =
+  [4] {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} (R≈ ¡) (Γ″ , Γ≈ ¡) (p ¡)
+
+[5]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    {i : Index c} (let open ∣SELECT c i)
+  → let
+      Γ = ⟨ c , v ⟩at x ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {D≡A:D′? : auto∶ A ∈ authDecorations d} (let D≡A:D′ = D≡A:D′? ¡)
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = auth-control⦅ A , x ▷ d ⦆
+      Γ′  = ⟨ c , v ⟩at x ∣ A auth[ x ▷ d ] ∣ Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Action] ([C-AuthControl] D≡A:D′) refl
+
+      open H₅ {Rˢ} 𝕣 t α t′ c v x Γ₀ A i R≈ Γ→Γ′ ∃Γ≈ D≡A:D′ using (λˢ; T; pubK)
+
+      λᶜ = B →∗∶ SIGᵖ pubK T
+    in
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[5]⋯ {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} {R≈? = R≈} Γ″ {Γ≈} =
+  [5] {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} (R≈ ¡) (Γ″ , Γ≈ ¡)
+
+open import Prelude.Newtype
+≫Null : ∀ {A} → Pred₀ (List A)
+≫Null = newtype¹ Null
+instance Dec-≫Null : ∀ {A} ⦃ _ : DecEq A ⦄ → ≫Null {A} ⁇¹
+         Dec-≫Null {x = xs} .dec = mk? (Null? xs)
+
+[6]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    {ds : DepositRefs} (let (_ , vs , xs) = unzip₃ ds)
+    {ss : List (Participant × Secret × ℕ)} (let (_ , as , _)  = unzip₃ ss)
+    {i : Index c} (let open ∣SELECT c i; As , ts = decorations d)
+  → let
+      -- (i) xs = x₁⋯xₖ
+      Γ₁  = || map (uncurry₃ ⟨_has_⟩at_) ds
+      Δ   = || map (uncurry₃ _∶_#_) ss
+      Γ₂  = Δ ∣ Γ₀
+      Γ₁₂ = Γ₁ ∣ Γ₂
+      Γ   = ⟨ c , v ⟩at y ∣ (Γ₁ ∣ Γ₂)
+      Γₜ  = Γ at t
+    in
+    {t≡? : auto∶ t ≡ maximum t ts} (let t≡ = t≡? ¡)
+    {d≡? : auto∶ d ≡⋯∶ put xs &reveal as if p ⇒ c′} (let d≡ = d≡? ¡)
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = put⦅ xs , as , y ⦆
+      Γ′  = ⟨ c′ , v + sum vs ⟩at y′ ∣ Γ₂
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+    {fresh-y′? : auto∶ y′ ∉ y L.∷ ids Γ₁₂} (let fresh-y′ = fresh-y′? ¡)
+    {p⟦Δ⟧≡? : auto∶ ⟦ p ⟧ᵖ Δ ≡ just true} (let p⟦Δ⟧≡ = p⟦Δ⟧≡? ¡)
+    {As≡∅? : auto∶ ≫Null As} (let As≡∅ = (As≡∅? ¡) .unmk)
+  → let
+      ∀≤t : All (_≤ t′) ts
+      ∀≤t = ⟪ (λ ◆ → All (_≤ ◆) ts) ⟫ t≡ ~: ∀≤max t ts
+
+      put→ : ⟨ [ d∗ ] , v ⟩at y ∣ Γ₁₂ —[ α ]→ Γ′
+      put→ = ⟪ (λ ◆ → (⟨ [ ◆ ] , v ⟩at y ∣ (Γ₁ ∣ Γ₂) —[ α ]→ Γ′)) ⟫ d≡
+              ~: [C-PutRev] {ds = ds} {ss = ss} fresh-y′ p⟦Δ⟧≡
+
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Timeout] As≡∅ ∀≤t put→ refl
+
+      open H₆ {Rˢ} 𝕣 t α t′ c v y ds ss Γ₂ c′ y′ i p R≈ Γ→Γ′ ∃Γ≈ d≡ using (λˢ; T)
+
+      λᶜ = submit T
+    in
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[6]⋯ {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} {t≡? = p₁}{p₂}{R≈} Γ″ {Γ≈}{p₃}{p₄}{p₅} =
+  [6] {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} (R≈ ¡) (p₁ ¡) (p₂ ¡) (Γ″ , Γ≈ ¡) (p₃ ¡) (p₄ ¡) (p₅ ¡)
+
+[7]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)}
+    (let Δ = map drop₃   Δ×h̅
+         h̅ = map select₃ Δ×h̅)
+    {⟨G⟩C} (let open ∣AD ⟨G⟩C) {k⃗ : 𝕂²′ ⟨G⟩C}
+  → let
+      Γ = ⟨ A ∶ a # just n ⟩ ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {m≡ : auto∶ ∣ m ∣ᵐ ≤ η}
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = auth-rev⦅ A , a ⦆
+      Γ′  = A ∶ a # n ∣ Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Action] [C-AuthRev] refl
+
+      a∈ : a ∈ secrets Rˢ
+      a∈ = namesˡ⦅end⦆⊆ Rˢ
+          $ ∈namesˡ-resp-≈ a {Γ}{cfg (Rˢ .end)} (↭-sym $ R≈ .proj₂) 𝟘
+    in
+  ∀ B {_ : auto∶ (B , m , sechash′ {a} a∈) ∈ oracleInteractionsᶜ Rᶜ}
+    {∃α? : auto∶ auth-commit⦅ A , ⟨G⟩C , Δ ⦆ ∈ labelsʳ Rˢ}
+    (let ∃α : auth-commit⦅ A , ⟨G⟩C , Δ ⦆ ∈ labelsʳ Rˢ
+         ∃α = ∃α? ¡)
+    {_ : auto∶ a ∈ secrets G}
+  → let
+      open H₇ 𝕣 t α t′ A a n Γ₀ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
+      open H₇′ 𝕣 t α t′ Δ h̅ k⃗ ∃α using (C,h̅,k̅)
+      λᶜ = B →∗∶ m
+    in
+  ∀ B′ {B? : auto∶ B′ →∗∶ C,h̅,k̅ ∈ toList Rᶜ} (let ∃B = -, B? ¡)
+    {_ : auto∶ All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-front $ ∃B .proj₂)} →
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[7]⋯ {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} {m≡ = p₁}{R≈} Γ″ {Γ≈} _ {p₂}{p₃}{p₄} _ {p₅}{p₆} =
+  [7] {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} (p₁ ¡) (R≈ ¡) (Γ″ , Γ≈ ¡) (p₂ ¡) (p₃ ¡) (p₄ ¡) _ (p₅ ¡) (p₆ ¡)
+
+[8]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    {i : Index c} (let open ∣SELECT c i; As , ts = decorations d)
+    {vcis : VIContracts} (let vs , cs , xs = unzip₃ vcis; v = sum vs)
+  → let
+      Γ = ⟨ c , v ⟩at y ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {t≡? : auto∶ t ≡ maximum t ts} (let t≡ = t≡? ¡)
+    {d≡? : auto∶ d ≡⋯∶ split (zip vs cs)} (let d≡ = d≡? ¡)
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+    {fresh-xs? : auto∶ All (_∉ y L.∷ ids Γ₀) xs} (let fresh-xs = fresh-xs? ¡)
+    {As≡∅? : auto∶ Null As} (let As≡∅ = As≡∅? ¡)
+  → let
+      α   = split⦅ y ⦆
+      Γ′  = || map (uncurry₃ $ flip ⟨_,_⟩at_) vcis ∣ Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+  → let
+      ∀≤t : All (_≤ t′) ts
+      ∀≤t = ⟪ (λ ◆ → All (_≤ ◆) ts) ⟫ t≡ ~: ∀≤max t ts
+
+      split→ : ⟨ [ d∗ ] , v ⟩at y ∣ Γ₀ —[ α ]→ Γ′
+      split→ = ⟪ (λ ◆ → ⟨ [ ◆ ] , v ⟩at y ∣ Γ₀ —[ α ]→ Γ′) ⟫ d≡
+            ~: [C-Split] {vcis = vcis} fresh-xs
+
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Timeout] As≡∅ ∀≤t split→ refl
+
+      open H₈ {Rˢ} 𝕣 t α t′ c v y Γ₀ i vcis R≈ Γ→Γ′ ∃Γ≈ d≡ using (λˢ; T)
+
+      λᶜ = submit T
+    in
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[8]⋯ {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} {t≡? = p₁}{p₂}{R≈}{p₃}{p₄} Γ″ {Γ≈} =
+  [8] {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} (p₁ ¡) (R≈ ¡) (p₂ ¡) (p₃ ¡) (p₄ ¡) (Γ″ , Γ≈ ¡)
+
+[9]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    {i : Index c} (let open ∣SELECT c i; As , ts = decorations d)
+  → let
+      Γ = ⟨ c , v ⟩at y ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {d≡? : auto∶ d ≡⋯∶ withdraw A} (let d≡ = d≡? ¡)
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = withdraw⦅ A , v , y ⦆
+      Γ′  = ⟨ A has v ⟩at x ∣ Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+    {fresh-x? : auto∶ x ∉ y L.∷ ids Γ₀} (let fresh-x = fresh-x? ¡)
+    {As≡∅? : auto∶ ≫Null As} (let As≡∅ = (As≡∅? ¡) .unmk)
+    {∀≤t? : auto∶ All (_≤ t) ts} (let ∀≤t = ∀≤t? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Timeout] As≡∅ ∀≤t
+        (⟪ (λ ◆ → ⟨ [ ◆ ] , v ⟩at y ∣ Γ₀ —[ α ]→ Γ′) ⟫ d≡ ~: [C-Withdraw] fresh-x)
+        refl
+
+      open H₉ {Rˢ} 𝕣 t α t′ c v y Γ₀ A x i R≈ Γ→Γ′ ∃Γ≈ d≡ using (λˢ; T)
+
+      λᶜ = submit T
+    in
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[9]⋯ {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} {d≡? = p₁}{R≈} Γ″ {Γ≈}{p₂}{p₃}{p₄} =
+  [9] {Rˢ = Rˢ}{𝕣∗}{⟨G⟩C} (p₁ ¡) (R≈ ¡) (Γ″ , Γ≈ ¡) (p₂ ¡) (p₃ ¡) (p₄ ¡)
+
+[10]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+  → let
+      Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = auth-join⦅ A , x ↔ x′ ⦆
+      Γ′  = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Action] [DEP-AuthJoin] refl
+
+      n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
+      n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
+    in
+  ∀ B T {BT? : auto∶ flip Any (toList Rᶜ) $ λ l →
+               (l ≡ B →∗∶ (T ♯))
+             × (inputs  T ≡ (hashTxⁱ <$> [ txout′ {x} (n⊆ 𝟘) ⨾ txout′ {x′} (n⊆ 𝟙) ]))
+             × (outputs T ≡ [ (v + v′) redeemable-by K̂ A ])}
+    (let ∃B : ∃ λ B → ∃ λ T → flip Any (toList Rᶜ) $ λ l →
+              (l ≡ B →∗∶ (T ♯))
+            × (inputs  T ≡ (hashTxⁱ <$> [ txout′ {x} (n⊆ 𝟘) ⨾ txout′ {x′} (n⊆ 𝟙) ]))
+            × (outputs T ≡ [ (v + v′) redeemable-by K̂ A ])
+         ∃B = B , T , BT? ¡)
+  → let
+      T : ∃Tx
+      T = 2 , 1 , ∃B .proj₂ .proj₁
+
+      m′ = SIG (K̂ A) T
+      λᶜ = B →∗∶ m′
+
+      open H₁₀ {Rˢ} 𝕣 t α t′ A v x v′ x′ Γ₀ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
+    in
+    {_ : auto∶ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front $ ∃B .proj₂ .proj₂)} →
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[10]⋯ {Rˢ = Rˢ}{𝕣∗} {R≈? = R≈} Γ″ {Γ≈} B T {p₁}{p₂} =
+  [10] {Rˢ = Rˢ}{𝕣∗} (R≈ ¡) (Γ″ , Γ≈ ¡) (B , T , p₁ ¡) (p₂ ¡)
+
+[11]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+  → let
+      Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′
+        ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = join⦅ x ↔ x′ ⦆
+      Γ′  = ⟨ A has (v + v′) ⟩at y ∣ Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+    {fresh-y? : auto∶ y ∉ x L.∷ x′ ∷ ids Γ₀}
+    (let fresh-y = fresh-y? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Action] ([DEP-Join] fresh-y) refl
+
+      n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
+      n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
+
+      T : ∃Tx
+      T  = 2 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
+        { inputs  = hashTxⁱ <$> [ txout′ {x} (n⊆ 𝟘) ⨾ txout′ {x′} (n⊆ 𝟙) ]
+        ; wit     = wit⊥
+        ; relLock = V.replicate 0
+        ; outputs = [ (v + v′) redeemable-by K̂ A ]
+        ; absLock = 0 }
+      λᶜ = submit T
+
+      open H₁₁ {Rˢ} 𝕣 t α t′ A v x v′ x′ y Γ₀ R≈ (T at 0F) Γ→Γ′ ∃Γ≈ using (λˢ)
+    in
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[11]⋯ {Rˢ = Rˢ}{𝕣∗} {R≈? = R≈} Γ″ {Γ≈} {p₁} =
+  [11] {Rˢ = Rˢ}{𝕣∗} (R≈ ¡) (Γ″ , Γ≈ ¡) (p₁ ¡)
+
+[12]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+  → let
+      Γ = ⟨ A has (v + v′) ⟩at x ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = auth-divide⦅ A , x ▷ v , v′ ⦆
+      Γ′  = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Action] [DEP-AuthDivide] refl
+
+      n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
+      n⊆  = namesʳ⦅end⦆⊆ Rˢ
+          ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
+    in
+  ∀ B T {BT? : auto∶ flip Any (toList Rᶜ) $ λ l →
+               (l ≡ B →∗∶ (T ♯))
+             × (inputs  T ≡ [ hashTxⁱ (txout′ {x} $ n⊆ 𝟘) ])
+             × (outputs T ≡ [ v redeemable-by K̂ A ⨾ v′ redeemable-by K̂ A ])}
+        (let ∃B = B , T , BT? ¡)
+  → let
+      T : ∃Tx
+      T = 1 , 2 , ∃B .proj₂ .proj₁
+
+      m′ = SIG (K̂ A) T
+      λᶜ = B →∗∶ m′
+
+      open H₁₂ {Rˢ} 𝕣 t α t′ A v v′ x Γ₀ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
+    in
+    {_ : auto∶ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front $ ∃B .proj₂ .proj₂)} →
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[12]⋯ {Rˢ = Rˢ}{𝕣∗} {R≈? = R≈} Γ″ {Γ≈} B T {p₁}{p₂} =
+  [12] {Rˢ = Rˢ}{𝕣∗} (R≈ ¡) (Γ″ , Γ≈ ¡) (B , T , p₁ ¡) (p₂ ¡)
+
+[13]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+  → let
+      Γ = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = divide⦅ x ▷ v , v′ ⦆
+      Γ′  = ⟨ A has v ⟩at y ∣ ⟨ A has v′ ⟩at y′ ∣ Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+    {fresh-ys? : auto∶ All (_∉ x L.∷ ids Γ₀ ) [ y ⨾ y′ ]}
+    (let fresh-ys = fresh-ys? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Action] ([DEP-Divide] fresh-ys) refl
+
+      n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
+      n⊆ = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
+
+      T  = 1 , 2 , sig⋆ (V.replicate [ K̂ A ]) record
+        { inputs  = [ hashTxⁱ (txout′ {x} $ n⊆ 𝟘) ]
+        ; wit     = wit⊥
+        ; relLock = V.replicate 0
+        ; outputs = [ v redeemable-by K̂ A ⨾ v′ redeemable-by K̂ A ]
+        ; absLock = 0 }
+      λᶜ = submit T
+
+      open H₁₃ {Rˢ} 𝕣 t α t′ A v v′ x Γ₀ y y′ R≈ (T at 0F) (T at 1F) Γ→Γ′ ∃Γ≈ using (λˢ)
+    in
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[13]⋯ {Rˢ = Rˢ}{𝕣∗} {R≈? = R≈} Γ″ {Γ≈} {p₁} =
+  [13] {Rˢ = Rˢ}{𝕣∗} (R≈ ¡) (Γ″ , Γ≈ ¡) (p₁ ¡)
+
+[14]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+  → let
+      Γ = ⟨ A has v ⟩at x ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = auth-donate⦅ A , x ▷ᵈ B′ ⦆
+      Γ′  = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Action] [DEP-AuthDonate] refl
+
+      n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
+      n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
+    in
+  ∀ B T {BT? : auto∶ flip Any (toList Rᶜ) $ λ l →
+            (l ≡ B →∗∶ (T ♯))
+          × (inputs  T ≡ [ hashTxⁱ (txout′ {x} $ n⊆ 𝟘) ])
+          × (outputs T ≡ [ v redeemable-by K̂ B ])}
+        (let ∃B = B , T , BT? ¡)
+  → let
+      T : ∃Tx
+      T = 1 , 1 , ∃B .proj₂ .proj₁
+
+      m′ = SIG (K̂ A) T
+      λᶜ = B →∗∶ m′
+
+      open H₁₄ {Rˢ} 𝕣 t α t′ A v x Γ₀ B′ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
+    in
+    {_ : auto∶ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front $ ∃B .proj₂ .proj₂)} →
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[14]⋯ {Rˢ = Rˢ}{𝕣∗} {R≈? = R≈} Γ″ {Γ≈} B T {p₁}{p₂} =
+  [14] {Rˢ = Rˢ}{𝕣∗} (R≈ ¡) (Γ″ , Γ≈ ¡) (B , T , p₁ ¡) (p₂ ¡)
+
+[15]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+  → let
+      Γ = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = donate⦅ x ▷ᵈ B′ ⦆
+      Γ′  = ⟨ B′ has v ⟩at y ∣ Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+    {fresh-y? : auto∶ y ∉ x L.∷ ids Γ₀} (let fresh-y = fresh-y? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Action] ([DEP-Donate] fresh-y) refl
+
+      n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
+      n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
+
+      -- (iii) submit transaction T
+      T  = 1 , 1 , sig⋆ (V.replicate [ K̂ A ]) record
+        { inputs  = [ hashTxⁱ (txout′ {x} $ n⊆ 𝟘) ]
+        ; wit     = wit⊥
+        ; relLock = V.replicate 0
+        ; outputs = [ v redeemable-by K̂ B′ ]
+        ; absLock = 0 }
+      λᶜ = submit T
+
+      -- (v) extend txout′ with y↦T₀ (removing x↦T₀), sechash = sechash′, κ = κ′
+      open H₁₅ {Rˢ} 𝕣 t α t′ A v x B′ Γ₀ y R≈ (T at 0F) Γ→Γ′ ∃Γ≈ using (λˢ)
+    in
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[15]⋯ {Rˢ = Rˢ}{𝕣∗} {R≈? = R≈} Γ″ {Γ≈} {p₁} =
+  [15] {Rˢ = Rˢ}{𝕣∗} (R≈ ¡) (Γ″ , Γ≈ ¡) (p₁ ¡)
+
+instance
+  Dec-≁₁₁ : ∀ {λˢ Rˢ λᶜ Rᶜ} {𝕣∗ : ℝ∗ Rˢ} →
+    (∀ Γₜ′ (λˢ′ : 𝕃 Rˢ Γₜ′)
+      → λˢ′ .proj₁ .proj₁ ≢ λˢ .proj₁ .proj₁
+      → (Γₜ′ ∷ 𝕣∗ ⊣ λˢ′ ✓) ≁₁₁ (λᶜ ∷ Rᶜ ✓)) ⁇
+  Dec-≁₁₁ {λˢ}{Rˢ}{λᶜ}{Rᶜ}{𝕣∗} .dec = {!!}
+
+[16]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    {ds : DepositRefs} (let k = length ds; xs = map (proj₂ ∘ proj₂) ds)
+    {j : Index ds} (let A = (ds ‼ j) .proj₁; j′ = ‼-map {xs = ds} j)
+  → let
+      Δ  = || map (uncurry₃ ⟨_has_⟩at_) ds
+      Γ  = Δ ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = auth-destroy⦅ A , xs , j′ ⦆
+      Γ′  = Δ ∣ A auth[ xs , j′ ▷ᵈˢ y ] ∣ Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+    {fresh-y? : auto∶ y ∉ ids Γ₀} (let fresh-y = fresh-y? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Action] ([DEP-AuthDestroy] fresh-y) refl
+
+      open H₁₆ {Rˢ} 𝕣 t α t′ ds Γ₀  j A y R≈ Γ→Γ′ ∃Γ≈ using (λˢ; xs↦)
+    in
+  ∀ (T : Tx i 0)
+    {_ : auto∶ (hashTxⁱ <$> codom xs↦) ⊆′ V.toList (inputs T)}
+    B {T∈? : auto∶ (B →∗∶ (T ♯)) ∈ toList Rᶜ} (let T∈ = T∈? ¡)
+    (let T∈ = T∈? ¡)
+  → let
+      m = SIG (K̂ A) T
+      λᶜ = B →∗∶ m
+    in
+    {_ : auto∶ All (λ l → ∀ B → l ≢ B →∗∶ m) (Any-front T∈)}
+    {_ : auto∶ ∀ Γₜ′ (λˢ′ : 𝕃 Rˢ Γₜ′)
+      → λˢ′ .proj₁ .proj₁ ≢ λˢ .proj₁ .proj₁
+      → (Γₜ′ ∷ 𝕣∗ ⊣ λˢ′ ✓) ≁₁₁ (λᶜ ∷ Rᶜ ✓)} →
+    ──────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₂ (λᶜ ∷ Rᶜ ✓)
+[16]⋯ {Rˢ = Rˢ}{𝕣∗}{ds}{j} {R≈? = R≈} Γ″ {Γ≈} {p₁} T {p₂} B {p₃}{p₄}{p₅} =
+  [16] {Rˢ = Rˢ}{𝕣∗}{ds}{j} (R≈ ¡) (Γ″ , Γ≈ ¡) (p₁ ¡) T ((p₂ ¡) .unmk⊆) (B , p₃ ¡) (p₄ ¡) (p₅ ¡)
+
+[17]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    {ds : DepositRefs} (let xs = map (proj₂ ∘ proj₂) ds)
+    {j : Index ds}
+  → let
+      Δ  = || flip map (enumerate ds) (λ{ (i , Aᵢ , vᵢ , xᵢ) →
+                ⟨ Aᵢ has vᵢ ⟩at xᵢ ∣ Aᵢ auth[ xs , ‼-map {xs = ds} i ▷ᵈˢ y ] })
+      Γ  = Δ ∣ Γ₀
+      Γₜ = Γ at t
+    in
+    {R≈? : auto∶ Rˢ ≈⋯ Γₜ} (let R≈ = R≈? ¡)
+  → let
+      α   = destroy⦅ xs ⦆
+      Γ′  = Γ₀
+      t′  = t
+      Γₜ′ = Γ′ at t′
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ′} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Action] [DEP-Destroy] refl
+
+      open H₁₇ {Rˢ} 𝕣 t α t′ ds Γ₀ y R≈ Γ→Γ′ ∃Γ≈ using (λˢ; xs↦)
+    in
+  ∀ (T : Tx i 0)
+    {_ : auto∶ (hashTxⁱ <$> codom xs↦) ⊆′ V.toList (inputs T)}
+  → let
+      λᶜ = submit (_ , _ , T)
+    in
+    {_ : auto∶ ∀ Γₜ′ (λˢ′ : 𝕃 Rˢ Γₜ′)
+      → λˢ′ .proj₁ .proj₁ ≢ λˢ .proj₁ .proj₁
+      → (Γₜ′ ∷ 𝕣∗ ⊣ λˢ′ ✓) ≁₁₁ (λᶜ ∷ Rᶜ ✓)} →
+    ─────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₂ (λᶜ ∷ Rᶜ ✓)
+[17]⋯ {Rˢ = Rˢ}{𝕣∗}{ds}{j} {R≈? = R≈} Γ″ {Γ≈} T {p₁}{p₂} =
+  [17] {Rˢ = Rˢ}{𝕣∗}{ds}{j} (R≈ ¡) (Γ″ , Γ≈ ¡) T ((p₁ ¡) .unmk⊆) (p₂ ¡)
+
+[18]⋯ :
+  ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
+    (δ>0 : δ > 0)
+  → let
+      Γₜ@(Γ at t) = Rˢ .end
+      α   = delay⦅ δ ⦆
+      t′  = t + δ
+      Γₜ′ = Γ at t′
+      λᶜ  = delay δ
+    in
+  ∀ Γ″ {Γ≈? : auto∶ Γ″ ≈ᶜ Γ} (let Γₜ″ = Γ″ at t′; ∃Γ≈ = Γ″ , Γ≈? ¡)
+  → let
+      Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′
+      Γ→Γ′ = [Delay] δ>0
+
+      open H₁₈ {Rˢ} 𝕣 t α t′ Γ (≈ᵗ-refl {Γₜ}) Γ→Γ′ ∃Γ≈ using (λˢ)
+    in
+    ─────────────────────────────────────────────────────────────
+    (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
+[18]⋯ {Rˢ = Rˢ}{𝕣∗} δ>0 Γ″ {Γ≈} =
+  [18] {Rˢ = Rˢ}{𝕣∗} δ>0 (Γ″ , Γ≈ ¡)

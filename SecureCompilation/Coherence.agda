@@ -26,20 +26,13 @@ open import SecureCompilation.ModuleParameters using (⋯)
 module SecureCompilation.Coherence (⋯ : ⋯) (let open ⋯ ⋯) where
 
 open import SymbolicModel ⋯′ as S
-  hiding (_∎; begin_; d; Γₜ″; G; C)
+  hiding (d; Γₜ″; G; C)
   renaming (_∶_♯_ to _∶_#_; ⟨_∶_♯_⟩ to ⟨_∶_#_⟩)
 open import ComputationalModel ⋯′ finPart keypairs as C
-  hiding (Σ; t; t′; `; ∣_∣; n)
+  hiding (t; t′; `; ∣_∣; n)
 open import Compiler ⋯′ η
 open import SecureCompilation.ComputationalContracts ⋯′
 open import SecureCompilation.Helpers ⋯
-
-private variable
-  ⟨G⟩C ⟨G⟩C′ ⟨G⟩C″ : Ad
-  𝕣  : ℝ Rˢ
-
-_redeemable-by_ : S.Value → KeyPair → ∃TxOutput
-v redeemable-by k = 1 , v locked-by ƛ versig [ k ] [ # 0 ]
 
 -- * Inductive case 1
 data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
@@ -84,29 +77,21 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
   [2] :
     ∀ {Rˢ} {𝕣∗ : ℝ∗ Rˢ} (let 𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣)
       {⟨G⟩C} (open ∣AD ⟨G⟩C)
-      {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)} {k⃗ : 𝕂²′ ⟨G⟩C}
+      {Δ×h̅ : List (Secret × Maybe ℕ × ℤ)}
+      (let h̅ = map select₃ Δ×h̅
+           Δ = map drop₃   Δ×h̅
+           (as , ms) = unzip Δ)
+      {k⃗ : 𝕂²′ ⟨G⟩C} (let k̅ = concatMap (map pub ∘ codom) $ codom k⃗)
     → let
         Γ = ` ⟨G⟩C ∣ Γ₀
         Γₜ = Γ at t
       in
       (R≈ : Rˢ ≈⋯ Γₜ)
     → let
-        C = encodeAd ⟨G⟩C (ad∈⇒Txout {⟨G⟩C}{Γ}{Rˢ} 𝟘 R≈ txout′)
+        Δᶜ = || map (uncurry ⟨ A ∶_#_⟩) Δ
 
-        Δ : List (Secret × Maybe ℕ)
-        Δ = map drop₃ Δ×h̅
-
-        (as , ms) = unzip Δ
-
-        Δᶜ = Cfg ∋ || map (uncurry ⟨ A ∶_#_⟩) Δ
-
-        h̅ : List ℤ -- ≈ Message
-        h̅ = map select₃ Δ×h̅
-
-        k̅ : List ℤ -- ≈ Message
-        k̅ = concatMap (map pub ∘ codom) (codom k⃗)
-
-        C,h̅,k̅ = encode (C , h̅ , k̅)
+        C      = encodeAd ⟨G⟩C (ad∈⇒Txout {⟨G⟩C}{Γ}{Rˢ} 𝟘 R≈ txout′)
+        C,h̅,k̅  = encode (C , h̅ , k̅)
         C,h̅,k̅ₐ = SIG (K A) C,h̅,k̅
 
         α   = auth-commit⦅ A , ⟨G⟩C , Δ ⦆
@@ -115,7 +100,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
         Γₜ′ = Γ′ at t′
         λᶜ  = B →∗∶ C,h̅,k̅ₐ
       in
-      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) → let Γₜ″ = ∃Γ≈ .proj₁ at t′ in
+      (∃Γ≈ : ∃ (_≈ᶜ Γ′)) (let Γₜ″ = ∃Γ≈ .proj₁ at t′)
       -- Hypotheses from [C-AuthCommit]
       (as≡ : as ≡ secretsOfᵖ A G)
       (All∉ : All (_∉ secretsOfᶜᶠ A Γ₀) as)
@@ -134,9 +119,9 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
         open H₂ {Rˢ} 𝕣 t α t′ Γ R≈ A A ⟨G⟩C Δ sechash⁺ k⃗ Γ→Γ′ ∃Γ≈ using (λˢ)
       in
       -- (i) ⟨G⟩C has been previously advertised in Rᶜ
-    ∀ (∃λ : ∃ λ B → (B →∗∶ C) ∈ toList Rᶜ) →
+    ∀ (∃B : ∃ λ B → (B →∗∶ C) ∈ toList Rᶜ) →
       -- ∘ it is the first occurrence of such a broadcast in Rᶜ
-    ∙ All (λ l → ∀ X → l ≢ X →∗∶ C) (Any-tail $ ∃λ .proj₂)
+    ∙ All (λ l → ∀ X → l ≢ X →∗∶ C) (Any-tail $ ∃B .proj₂)
 
       -- (ii) broadcast message in Rᶜ
 
@@ -144,7 +129,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
     ∙ All (λ hᵢ → ∣ hᵢ ∣ᶻ ≡ η) h̅
 
       -- ∘ make sure that λᶜ is the first occurrence of such a message after C in Rᶜ
-    ∙ All (λ l → ∀ X → l ≢ X →∗∶ C,h̅,k̅ₐ) (Any-front $ ∃λ .proj₂)
+    ∙ All (λ l → ∀ X → l ≢ X →∗∶ C,h̅,k̅ₐ) (Any-front $ ∃B .proj₂)
 
       -- (iii) each hᵢ is obtained by querying the oracle,
       --       otherwise we have a dishonestly chosen secret
@@ -187,11 +172,11 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
         λᶜ = B →∗∶ m
       in
       -- (ii) Tᵢₙᵢₜ occurs as a message in Rᶜ
-    ∀ (∃λ : ∃ λ B → (B →∗∶ (T ♯)) ∈ toList Rᶜ) →
+    ∀ (∃B : ∃ λ B → (B →∗∶ (T ♯)) ∈ toList Rᶜ) →
 
       -- (iii) broadcast message in Rᶜ
       -- ∘ λᶜ is the first occurrence of such a message after Tinit in Rᶜ
-    ∙ All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-front $ ∃λ .proj₂)
+    ∙ All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-front $ ∃B .proj₂)
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
@@ -361,10 +346,10 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
         λᶜ = B →∗∶ m
       in
       -- ... with a corresponding broadcast of m′=(C,h̅,k̅) in Rᶜ
-    ∀ (∃λ : ∃ λ B → B →∗∶ C,h̅,k̅ ∈ toList Rᶜ) →
+    ∀ (∃B : ∃ λ B → B →∗∶ C,h̅,k̅ ∈ toList Rᶜ) →
 
       -- (v) λᶜ is the first broadcast of m after the first broadcast of m′
-    ∙ All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-front $ ∃λ .proj₂)
+    ∙ All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-front $ ∃B .proj₂)
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
@@ -471,13 +456,13 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
         n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
         n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
       in
-      (∃λ : ∃ λ B → ∃ λ T → flip Any (toList Rᶜ) $ λ l →
+      (∃B : ∃ λ B → ∃ λ T → flip Any (toList Rᶜ) $ λ l →
           (l ≡ B →∗∶ (T ♯))
         × (inputs  T ≡ (hashTxⁱ <$> [ txout′ {x} (n⊆ 𝟘) ⨾ txout′ {x′} (n⊆ 𝟙) ]))
         × (outputs T ≡ [ (v + v′) redeemable-by K̂ A ]))
     → let
         T : ∃Tx
-        T = 2 , 1 , ∃λ .proj₂ .proj₁
+        T = 2 , 1 , ∃B .proj₂ .proj₁
 
         -- (iii) broadcast transaction T, signed by A
         m′ = SIG (K̂ A) T
@@ -487,7 +472,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
         open H₁₀ {Rˢ} 𝕣 t α t′ A v x v′ x′ Γ₀ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
       in
       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
-    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front $ ∃λ .proj₂ .proj₂)
+    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front $ ∃B .proj₂ .proj₂)
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
@@ -554,13 +539,13 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
         n⊆  = namesʳ⦅end⦆⊆ Rˢ
             ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
       in
-      (∃λ : ∃ λ B → ∃ λ T → flip Any (toList Rᶜ) $ λ l →
+      (∃B : ∃ λ B → ∃ λ T → flip Any (toList Rᶜ) $ λ l →
           (l ≡ B →∗∶ (T ♯))
         × (inputs  T ≡ [ hashTxⁱ (txout′ {x} $ n⊆ 𝟘) ])
         × (outputs T ≡ [ v redeemable-by K̂ A ⨾ v′ redeemable-by K̂ A ]))
     → let
         T : ∃Tx
-        T = 1 , 2 , ∃λ .proj₂ .proj₁
+        T = 1 , 2 , ∃B .proj₂ .proj₁
 
         -- (iii) broadcast transaction T, signed by A
         m′ = SIG (K̂ A) T
@@ -570,7 +555,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
         open H₁₂ {Rˢ} 𝕣 t α t′ A v v′ x Γ₀ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
       in
       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
-    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front $ ∃λ .proj₂ .proj₂)
+    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front $ ∃B .proj₂ .proj₂)
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
@@ -635,13 +620,13 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
         n⊆ : Γ ⊆⦅ ids ⦆ Rˢ
         n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂)
       in
-      (∃λ : ∃ λ B → ∃ λ T → flip Any (toList Rᶜ) $ λ l →
+      (∃B : ∃ λ B → ∃ λ T → flip Any (toList Rᶜ) $ λ l →
           (l ≡ B →∗∶ (T ♯))
         × (inputs  T ≡ [ hashTxⁱ (txout′ {x} $ n⊆ 𝟘) ])
         × (outputs T ≡ [ v redeemable-by K̂ B′ ]))
     → let
         T : ∃Tx
-        T = 1 , 1 , ∃λ .proj₂ .proj₁
+        T = 1 , 1 , ∃B .proj₂ .proj₁
 
         -- (iii) broadcast transaction T, signed by A
         m′ = SIG (K̂ A) T
@@ -651,7 +636,7 @@ data _~₁₁_ : ℝ∗ Rˢ → CRun → Type where
         open H₁₄ {Rˢ} 𝕣 t α t′ A v x Γ₀ B′ R≈ Γ→Γ′ ∃Γ≈ using (λˢ)
       in
       -- (iv) λᶜ is the first broadcast of m′ in Rᶜ after the first broadcast of T
-    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front $ ∃λ .proj₂ .proj₂)
+    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m′) (Any-front $ ∃B .proj₂ .proj₂)
       ──────────────────────────────────────────────────────────────
       (Γₜ″ ∷ 𝕣∗ ⊣ λˢ ✓) ~₁₁ (λᶜ ∷ Rᶜ ✓)
 
@@ -753,14 +738,14 @@ data _~₁₂_ : ℝ∗ Rˢ → CRun → Type where
       --       for some T having txout′(yᵢ) as inputs (+ possibly others)
       (T : Tx i 0)
     → (hashTxⁱ <$> codom xs↦) ⊆ V.toList (inputs T)
-    → (T∈ : Any (λ l → ∃ λ B → l ≡ B →∗∶ (T ♯)) (toList Rᶜ))
+    → (T∈ : ∃ λ B → (B →∗∶ (T ♯)) ∈ toList Rᶜ)
     → let
         -- (iv) broadcast transaction T, signed by A
         m = SIG (K̂ A) T
         λᶜ = B →∗∶ m
       in
       -- (v) λᶜ is the first broadcast of m in Rᶜ after the first broadcast of T
-    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m) (Any-front T∈)
+    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m) (Any-front $ T∈ .proj₂)
       -- (vi) λᶜ does not correspond to any *other* symbolic move
     ∙ (∀ Γₜ′ (λˢ′ : 𝕃 Rˢ Γₜ′)
         → λˢ′ .proj₁ .proj₁ ≢ λˢ .proj₁ .proj₁
@@ -903,11 +888,11 @@ private
   ... | [L] [7]  m≤ R≈ ∃Γ≈ ∃B ∃α a∈ ∃λ first-λᶜ = tt
   ... | [L] [8]  t≡ d≡ R≈ fresh-xs As≡∅ ∃Γ≈ = tt
   ... | [L] [9]  d≡ R≈ ∃Γ≈ frsg-x As≡∅ ∀≤t = tt
-  ... | [L] [10] R≈ ∃Γ≈ ∃λ first-λᶜ = tt
+  ... | [L] [10] R≈ ∃Γ≈ ∃B first-λᶜ = tt
   ... | [L] [11] R≈ ∃Γ≈ fresh-y = tt
-  ... | [L] [12] R≈ ∃Γ≈ ∃λ first-λᶜ = tt
+  ... | [L] [12] R≈ ∃Γ≈ ∃B first-λᶜ = tt
   ... | [L] [13] R≈ ∃Γ≈ fresh-ys = tt
-  ... | [L] [14] R≈ ∃Γ≈ ∃λ first-λᶜ = tt
+  ... | [L] [14] R≈ ∃Γ≈ ∃B first-λᶜ = tt
   ... | [L] [15] R≈ ∃Γ≈ fresh-y = tt
   ... | [R] [16] R≈ ∃Γ≈ fresh-y T ⊆ins T∈ first-λᶜ ¬coh = tt
   ... | [R] [17] R≈ ∃Γ≈ T ⊆ins ¬coh = tt

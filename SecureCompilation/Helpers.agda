@@ -1,10 +1,11 @@
 -- {-# OPTIONS --auto-inline #-}
 open import Prelude.Init hiding (T)
-open L.Mem using (∈-++⁺ˡ; ∈-++⁺ʳ)
+open L.Mem using (_∈_; ∈-++⁺ˡ; ∈-++⁺ʳ)
+open import Prelude.Membership hiding (_∈_)
+open import Prelude.Membership.Patterns
 open import Prelude.Lists
 open import Prelude.Lists.Collections
 open import Prelude.Lists.Dec
-open import Prelude.Membership
 open import Prelude.Null
 open import Prelude.Ord
 open import Prelude.Setoid
@@ -15,8 +16,6 @@ open import Prelude.Traces
 open import Prelude.Nary
 open import Prelude.DecEq
 
-open import Bitcoin.BasicTypes using (HashId)
-open import Prelude.Serializable HashId
 open import Bitcoin.Crypto
 
 open import SecureCompilation.ModuleParameters using (⋯)
@@ -29,7 +28,9 @@ open import SymbolicModel ⋯′ as S
          ; Γ₀; Γ; Γ′; Γ″; Γₜ; Γₜ′; Γₜ″; R; R′; Δ; d; v; vcs
          )
 open import ComputationalModel ⋯′ finPart keypairs as C
-  using (Tx; ∃Tx; TxInput′; _∙value; K̂; CRun; oracleInteractionsᶜ; Message; _at_)
+  hiding ( `; ∣_∣; R′; ∎
+         ; {-variables-} tx
+         )
 open import Compiler ⋯′ η
 open import Compiler.Subterms ⋯′
 open import SecureCompilation.ComputationalContracts ⋯′
@@ -40,13 +41,15 @@ postulate
   ∣_∣ᶻ : ℤ → ℕ
   ∣_∣ᵐ : Message → ℕ
 
+CheckInteractions : List OracleInteraction → Pred₀ (Secret × Maybe ℕ × ℤ)
+CheckInteractions os = λ where
+  (_ , just Nᵢ , hᵢ) →
+    ∃ λ B → ∃ λ mᵢ → ((B , mᵢ , hᵢ) ∈ os) × (∣ mᵢ ∣ᵐ ≡ η + Nᵢ)
+  (_ , nothing , hᵢ) →
+    hᵢ ∉ map select₃ (filter ((η ≤?_) ∘ ∣_∣ᵐ ∘ select₂) os)
+
 CheckOracleInteractions : CRun → List (Secret × Maybe ℕ × ℤ) → Set
-CheckOracleInteractions Rᶜ = let os = oracleInteractionsᶜ Rᶜ in
-  All λ where
-    (_ , just Nᵢ , hᵢ) →
-      ∃ λ B → ∃ λ mᵢ → ((B , mᵢ , hᵢ) L.Mem.∈ os) × (∣ mᵢ ∣ᵐ ≡ η + Nᵢ)
-    (_ , nothing , hᵢ) →
-      hᵢ ∉ map (proj₂ ∘ proj₂) (filter ((η ≤?_) ∘ ∣_∣ᵐ ∘ proj₁ ∘ proj₂) os)
+CheckOracleInteractions Rᶜ = All (CheckInteractions $ oracleInteractionsᶜ Rᶜ)
 
 -- Convenient wrapper for calling the BitML compiler.
 
@@ -228,7 +231,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
           where
             κ″ : advertisements (A auth[ ♯▷ ad ]) ↦′ 𝕂²′
             κ″ x∈ with does (A ∈? Hon) | x∈
-            ... | true  | here refl = k⃗
+            ... | true  | 𝟘 = k⃗
             ... | false | ()
 
         Γ″ = ∃Γ≈ .proj₁; Γ≈ = ∃Γ≈ .proj₂
@@ -308,7 +311,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
               (committedA : nub-participants ad ⊆ committedParticipants ad Γ) where
       private
         𝕘 : 𝔾 ad
-        𝕘 = LIFT₀ 𝕣 t Γ R≈ ad (here refl) committedA
+        𝕘 = LIFT₀ 𝕣 t Γ R≈ ad 𝟘 committedA
       -- abstract
       T : ∃Tx
       T = -, -, COMPILE 𝕘 .proj₁
@@ -362,7 +365,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
                 p∈′ rewrite committedPartG≡ {ad} partG = p∈
       private
         𝕘 : 𝔾 ad
-        𝕘 = LIFT₀ 𝕣 t Γ R≈ ad (here refl) committedA
+        𝕘 = LIFT₀ 𝕣 t Γ R≈ ad 𝟘 committedA
 
         $T : ∃Tx
         $T = -, -, COMPILE 𝕘 .proj₁
@@ -473,7 +476,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         T×pubK =
           let
             -- (ii) {G}C is the ancestor of ⟨C, v⟩ₓ in Rˢ
-            ⟨G⟩C , vad , ad∈ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
+            ⟨G⟩C , vad , ad∈ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ 𝟘
             ⟨ G ⟩ C = ⟨G⟩C; partG = G ∙partG
 
             d∈ : d ∈ subterms ⟨G⟩C
@@ -513,7 +516,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       where
       private
         $T : ∃Tx
-        $T = let ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
+        $T = let ⟨G⟩C″ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ 𝟘
                  d∈ : d ∈ subterms ⟨G⟩C″
                  d∈ = c⊆ (L.Mem.∈-lookup i)
                  _ , ∀d∗ = COMPILE (LIFTᶜ 𝕣 anc)
@@ -698,7 +701,7 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
         $T =
           let
             -- (ii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
-            ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
+            ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ 𝟘
 
             d∈ : d ∈ subterms ⟨G⟩C′
             d∈ = c⊆ (L.Mem.∈-lookup i)
@@ -812,19 +815,12 @@ module _ {R} (𝕣 : ℝ R) t α t′ where
       Γ′ = Cfg ∋ ⟨ A has v ⟩at x ∣ Γ₀
     module H₉ (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
               (d≡ : d ≡⋯∶ withdraw A) where
-  -- module H₉ c v y Γ₀ A x (i : Index c)
-  --   (let open ∣SELECT c i
-  --        Γ  = ⟨ c , v ⟩at y ∣ Γ₀
-  --        Γ′ = ⟨ A has v ⟩at x ∣ Γ₀)
-  --   (R≈ : R ≈⋯ Γ at t) (Γ→Γ′ : Γ at t —[ α ]→ₜ Γ′ at t′) (∃Γ≈ : ∃ (_≈ Γ′))
-  --   (d≡ : d ≡⋯∶ withdraw A)
-  --   where
       -- abstract
       T : ∃Tx
       T =
           let
             -- (ii) {G}C′ is the ancestor of ⟨D+C,v⟩y in Rˢ
-            ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ (here refl)
+            ⟨G⟩C′ , _ , _ , c⊆ , anc = ANCESTOR {R = R} {Γ = Γ} R≈ 𝟘
 
             d∈ : d ∈ subterms ⟨G⟩C′
             d∈ = c⊆ (L.Mem.∈-lookup i)

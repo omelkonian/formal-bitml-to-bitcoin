@@ -1,61 +1,42 @@
 ----------------------------------------------------------------------------
--- Example contract compilations.
+-- Example proof of coherence.
 ----------------------------------------------------------------------------
-module SecureCompilation.Example where
+module SecureCompilation.CoherenceExample where
 
-open import Prelude.Init hiding (T)
-open L.Mem
-open import Prelude.DecEq
+open import Prelude.Init hiding (T); open SetAsType
 open import Prelude.Lists
-open import Prelude.Lists.Dec
-open import Prelude.Applicative
-open import Prelude.Semigroup
-open import Prelude.Nary
-open import Prelude.Validity
-open import Prelude.Decidable
-open import Prelude.ToN
+open import Prelude.Membership.Patterns
 open import Prelude.Functor
-open import Prelude.Lists.Collections
-open import Prelude.Membership hiding (_∈_; _∉_; mapWith∈)
-open import Prelude.ToList
-open import Prelude.Traces
-open import Prelude.InferenceRules
-open import Prelude.Serializable
+open import Prelude.Decidable
+open import Prelude.Num
 
 -- Bitcoin
-module BTC where
-  open import Bitcoin public
-    using (_`=_; _`<_; _`∧_; `; `true; ∣_∣)
-open import Bitcoin
-  hiding ( t
-         ; _`=_; _`<_; _`∧_; `; `true; ∣_∣
-         )
+open import Bitcoin hiding (t; Value)
 
 -- BitML
-open import BitML.Example.Setup using (Participant; Honest; A; B)
-module BML where
-  open import BitML Participant Honest public
-    using (⟦_⟧_; _`=_; _`∧_; `_; `true; _`<_; _∣_)
-open import BitML Participant Honest
-  hiding ( t; a; v; A; B; x; y; x′; y′; Γ₀; Γₜ₀; Δ; Γₜ; Γₜ′; as; α; Γ; Γ′
-         ; ∣_∣; `
-         ; ⟦_⟧_; _`=_; _`∧_; `_; `true; _`<_; _∣_
+open import BitML.Example.TimedCommitment
+  using (Participant; A; B; Honest)
+import BitML.BasicTypes as BitML-params
+⋯ = BitML-params.⋯_,_⋯ Participant Honest
+open import BitML ⋯
+  hiding ( C; G; t; a; v; A; B; x; y; Γ₀; Γₜ₀; Δ; Γₜ; Γₜ′; as; α; Γ; Γ′
+         ; _`=_; _`∧_; _`∨_; `_; `true; _`<_
          )
 
 -- BitML compiler
-η = 1024
-open import SecureCompilation.Compiler Participant Honest η
-open import SecureCompilation.ComputationalContracts Participant Honest
+η = ℕ ∋ 128
+open import Compiler ⋯ η
 
--- [TODO] move to `formal-bitcoin`
-tx↝ : TxInput′ → TxInput
-tx↝ record {tx′ = tx; index′ = i} = record {txId = tx ♯; index = toℕ i}
+-- postulated cryptography
+module ∣K ad where
+  open ∣AD ad public
 
-open import SymbolicModel.Run.Base Participant Honest as S
+  postulate
+    K  : partG ↦ KeyPair
+    K² : subterms C ↦ partG ↦ KeyPair
+
+open import SymbolicModel ⋯ as S
   hiding (Rˢ; Rˢ′)
-open import SymbolicModel.Helpers Participant Honest
-open import SymbolicModel.Mappings Participant Honest
-open import SymbolicModel.Accessors Participant Honest
 
 finPart : Finite Participant
 finPart = 2 , Fun.mk↔
