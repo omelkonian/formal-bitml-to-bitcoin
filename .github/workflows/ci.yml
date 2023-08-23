@@ -17,6 +17,6 @@ jobs:
             omelkonian/formal-bitml#5246660
           main: Main
           token: ${{ secrets.GITHUB_TOKEN }}
-          rts: -K40M -H1G -M24G -A128M
+          rts: -K40M -H1G -M8G -A128M
           measure-typechecking: true
           ribbon: true
