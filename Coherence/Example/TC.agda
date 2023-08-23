@@ -326,11 +326,10 @@ module Step₈ where
   coh : Rˢ ~ Rᶜ
   coh = -, step₁ (≪.coh .proj₂)
     ([L3] mkℍ {h = h} (A , 𝟘) [])
-    where
-      h : H₃-args
-      h = mk {⟨G⟩C}{Γ₀}{0}
-            (auto .unmk⊆) 𝟘
-            (≪.Rᶜ ⨾ ≪.Rˢ ⨾ ≪.𝕣∗ ⊣ auto ≈ Γ′ ⊣ auto)
+    where h : H₃-args
+          h = mk {⟨G⟩C}{Γ₀}{0}
+                 (auto .unmk⊆) 𝟘
+                 (≪.Rᶜ ⨾ ≪.Rˢ ⨾ ≪.𝕣∗ ⊣ auto ≈ Γ′ ⊣ auto)
   𝕣∗ = coh .proj₁
 
 module Step₉ where
@@ -360,11 +359,10 @@ module Step₉ where
   coh : Rˢ ~ Rᶜ
   coh = -, step₁ (≪.coh .proj₂)
     ([L3] mkℍ {h = h} (A , 𝟙) [ (λ _ → label≢ SIG≢) ] )
-    where
-      h : H₃-args
-      h = mk {⟨G⟩C}{Γ₀}{0}{B}{y}{0 𝐁}
-            committedA 𝟙
-            (≪.Rᶜ ⨾ ≪.Rˢ ⨾ ≪.𝕣∗ ⊣ auto ≈ Γ′ ⊣ auto)
+    where h : H₃-args
+          h = mk {⟨G⟩C}{Γ₀}{0}{B}{y}{0 𝐁}
+                 committedA 𝟙
+                 (≪.Rᶜ ⨾ ≪.Rˢ ⨾ ≪.𝕣∗ ⊣ auto ≈ Γ′ ⊣ auto)
   𝕣∗ = coh .proj₁
 
 module Step₁₀ where
@@ -393,11 +391,10 @@ module Step₁₀ where
   coh : Rˢ ~ Rᶜ
   coh = -, step₁ (≪.coh .proj₂)
     ([L4] mkℍ {h = h})
-    where
-      h : H₄-args
-      h = mk {⟨G⟩C}{⟨ A ∶ a ♯ just 9 ⟩}{0}{x₁}
-             fresh-x₁
-             (≪.Rᶜ ⨾ ≪.Rˢ ⨾ ≪.𝕣∗ ⊣ auto ≈ Γ′ ⊣ auto)
+    where h : H₄-args
+          h = mk {⟨G⟩C}{⟨ A ∶ a ♯ just 9 ⟩}{0}{x₁}
+                 fresh-x₁
+                 (≪.Rᶜ ⨾ ≪.Rˢ ⨾ ≪.𝕣∗ ⊣ auto ≈ Γ′ ⊣ auto)
   𝕣∗ = coh .proj₁
 
 module Step₁₁ where
@@ -413,14 +410,13 @@ module Step₁₁ where
 
   Rˢ = (Γ′ at0) ⟨ Γ→ ⟩←—— ≪.Rˢ
 
-  λᶜ = A →∗∶ encode a
+  m  = encode a
+  λᶜ = A →∗∶ m
   Rᶜ = λᶜ ∷ ≪.Rᶜ ✓
-
-  postulate instance Tx≢String : ∀ {i o} → Tx i o ≢′ String
 
   coh : _ ~ Rᶜ
   coh = -, step₁ (≪.coh .proj₂)
-    ([L7] mkℍ {h = h} (A , ≪≪.txoutGC , 𝟝) 𝟘 m≥ (A , 𝟘)
+    ([L7] mkℍ {h}{A}{a} (A , ≪≪.txoutGC , 𝟝) 𝟘 m≥ (A , 𝟘)
       [ (λ _ ())
       ⨾ (λ _ → label≢ SIG≢encode)
       ⨾ (λ _ → label≢ SIG≢encode)
@@ -430,10 +426,10 @@ module Step₁₁ where
     where
       h : H₇-args
       h = mk {⟨G⟩C}{A}{a}{9}{⟨ C , 1 𝐁 ⟩at x₁}{0} K² [ a , just 9 , a♯ ]
-             (≪.Rᶜ ⨾ ≪.Rˢ ⨾ ≪.𝕣∗ ⊣ auto ≈ Γ′ ⊣ auto)
-             𝟙
+             (≪.Rᶜ ⨾ ≪.Rˢ ⨾ ≪.𝕣∗ ⊣ auto ≈ Γ′ ⊣ auto) 𝟙
 
       postulate m≥ : ∣ encode a ∣ᵐ Nat.≥ η
+
   𝕣∗ = coh .proj₁
 
 module Step₁₂ where
@@ -453,37 +449,35 @@ module Step₁₂ where
   λᶜ = submit T
   Rᶜ = λᶜ ∷ ≪.Rᶜ ✓
 
-  coh : _ ~ Rᶜ
+  coh : _ ~ _
   coh = -, step₁ (≪.coh .proj₂)
     ([L6] mkℍ {h = h})
-    where
-      h : H₆-args
-      h = mk {C}{1 𝐁}{x₁}{[ withdraw A ]}{x₂}{A ∶ a ♯ 9}{0}{i = 0F}
-             refl refl auto refl refl
-             (≪.Rᶜ ⨾ _ ⨾ _ ⊣ auto ≈ Γ′ ⊣ auto)
+    where h : H₆-args
+          h = mk {C}{1 𝐁}{x₁}{[ withdraw A ]}{x₂}{∅ᶜ}{0}
+                 {ds = []} {ss = [ A , a , 9 ]} {i = 0F}
+                 refl refl auto refl refl
+                 (≪.Rᶜ ⨾ _ ⨾ ≪.𝕣∗ ⊣ auto ≈ Γ′ ⊣ auto)
   𝕣∗ = coh .proj₁
 
--- module Step₁₃ where
---   module ≪ = Step₁₂
+module Step₁₃ where
+  module ≪ = Step₁₂
 
---   Γ Γ′ : Cfg
---   Γ  = ⟨ [ withdraw A ] , 1 𝐁 ⟩at x₂ ∣ A ∶ a ♯ 9
---   Γ′ = ⟨ A has 1 𝐁 ⟩at x₃ ∣ A ∶ a ♯ 9
+  Γ Γ′ : Cfg
+  Γ  = ⟨ [ withdraw A ] , 1 𝐁 ⟩at x₂ ∣ A ∶ a ♯ 9
+  Γ′ = ⟨ A has 1 𝐁 ⟩at x₃ ∣ A ∶ a ♯ 9
 
---   Γ→ : Γ at0 —[ α ]→ₜ Γ′ at0
---   Γ→ = Timeout {i = 0} [C-Withdraw]
+  Γ→ : Γ at0 —[ withdraw⦅ A , 1 𝐁 , x₂ ⦆ ]→ₜ Γ′ at0
+  Γ→ = Timeout {i = 0} C-Withdraw
 
---   Rˢ = (Γ′ at0) ⟨ Γ→ ⟩←—— ≪.Rˢ
+  Rˢ = (Γ′ at0) ⟨ Γ→ ⟩←—— ≪.Rˢ
 
---   λᶜ = submit (-, -, T′ᵃ)
---   Rᶜ = λᶜ ∷ ≪.Rᶜ ✓
+  λᶜ = submit (-, -, T′ᵃ)
+  Rᶜ = λᶜ ∷ ≪.Rᶜ ✓
 
---   coh : Rˢ ~ Rᶜ
---   coh = -, step₁ (≪.coh .proj₂)
---     ([L9] mkℍ {h = h})
---     where
---       h : H₉-args
---       h = mk {[ withdraw A ]}{1 𝐁}{x₂}{A ∶ a ♯ 9}{A}{x₃}{0}{i = 0F}
---             refl auto refl []
---             (≪.Rᶜ ⨾ ≪.Rˢ ⨾ ≪.𝕣∗ ⊣ auto ≈ Γ′ ⊣ auto)
---   𝕣∗ = coh .proj₁
+  coh : _ ~ _
+  coh = -, step₁ (≪.coh .proj₂)
+    ([L9] mkℍ {h = h})
+    where h : H₉-args
+          h = mk {[ withdraw A ]}{1 𝐁}{x₂}{A ∶ a ♯ 9}{A}{x₃}{0}{i = 0F}
+                 refl auto refl []
+                 (≪.Rᶜ ⨾ _ ⨾ ≪.𝕣∗ ⊣ auto ≈ Γ′ ⊣ auto)

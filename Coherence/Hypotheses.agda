@@ -886,24 +886,24 @@ record H₇-args : Type where
 module H₇ (⋯ : H₇-args) (let open H₇-args ⋯) where
   λˢ : ℾᵗ Γₜ′
   λˢ = LIFTˢ 𝕣 Γ R≈ Γ′ id id id
+  private
+    a∈Γ : a ∈ secrets (Rˢ ∙cfg)
+    a∈Γ = ∈namesˡ-resp-≈ a {Γ}{Rˢ ∙cfg} (↭-sym $ R≈ .proj₂) 𝟘
+  open ℾ (ℝ∗⇒ℾ 𝕣∗) using (sechashΓ)
 
-  txoutᶜ : Txout ad × Txout C
-  txoutᶜ = auth-commit∈⇒Txout ∃α 𝕣
+  sechash⦅a⦆ : HashId
+  sechash⦅a⦆ = sechashΓ {a} a∈Γ
 
-  𝕣∗′ : ℝ∗ Rˢ′
-  𝕣∗′ = Γₜ″ ∷ 𝕣∗ ⊣ 𝕒 , λˢ ✓
+  -- txoutᶜ : Txout ad × Txout C
+  -- txoutᶜ = auth-commit∈⇒Txout ∃α 𝕣
 
 data _⨾_⨾_~ℍ[7]~_⨾_ : StepRel where
   mkℍ : ∀ {h : H₇-args} {B} {mˢ : String} (let m = encode mˢ)
     → let
         open H₇-args h renaming (ad to ⟨G⟩C)
 
-        a∈R : a ∈ secrets Rˢ
-        a∈R = namesˡ⦅end⦆⊆ Rˢ
-            $ ∈namesˡ-resp-≈ a {Γ}{cfg (Rˢ .end)} (↭-sym $ R≈ .proj₂) 𝟘
-
         -- (iii) txout = txout′, sechash = sechash′, κ = κ′
-        open H₇ h using (λˢ; txoutᶜ; 𝕣∗′)
+        open H₇ h using (λˢ; sechash⦅a⦆)
         -- (i) some participant B broadcasts message m
         λᶜ = B →∗∶ m
       in
@@ -917,7 +917,7 @@ data _⨾_⨾_~ℍ[7]~_⨾_ : StepRel where
     ∙ ∣ m ∣ᵐ ≥ η
 
       -- (ii) in Rᶜ we find ⋯ (B → O ∶ m) (O → B : sechash′(a)) for some B ⋯
-    ∙ (∃ λ B → (B , m , sechash′ {a} a∈R) ∈ oracleInteractionsᶜ Rᶜ)
+    ∙ (∃ λ B → (B , m , sechash⦅a⦆) ∈ oracleInteractionsᶜ Rᶜ)
 
       -- (v) λᶜ is the first broadcast of m after the first broadcast of m′
     ∙ All (λ l → ∀ X → l ≢ X →∗∶ m) (Any-front $ ∃λ .proj₂ .proj₂)
@@ -1488,7 +1488,7 @@ module H₁₆ (⋯ : H₁₆-args) (let open H₁₆-args ⋯) where
       xs⊆ = begin
         xs           ⊆⟨ namesʳ-∥map-authDestroy ds ⟩
         ids Δ        ⊆⟨ mapMaybe-⊆ isInj₂ $ ∈-collect-++⁺ˡ Δ Γ₀ ⟩
-        ids Γ        ⊆⟨ ∈namesʳ-resp-≈ _ {Γ}{cfg (R .end)} (↭-sym $ proj₂ R≈) ⟩
+        ids Γ        ⊆⟨ ∈namesʳ-resp-≈ _ {Γ}{R ∙cfg} (↭-sym $ proj₂ R≈) ⟩
         ids (R .end) ⊆⟨ namesʳ⦅end⦆⊆ R ⟩
         ids R        ∎ where open ⊆-Reasoning Secret
   --
@@ -1583,7 +1583,7 @@ module H₁₇ (⋯ : H₁₇-args) (let open H₁₇-args ⋯) where
       xs⊆ = begin
         xs           ⊆⟨ namesʳ-∥map-destroy ds ⟩
         ids Δ        ⊆⟨ mapMaybe-⊆ isInj₂ $ ∈-collect-++⁺ˡ Δ Γ₀ ⟩
-        ids Γ        ⊆⟨ ∈namesʳ-resp-≈ _ {Γ}{cfg (R .end)} (↭-sym $ proj₂ R≈) ⟩
+        ids Γ        ⊆⟨ ∈namesʳ-resp-≈ _ {Γ}{R ∙cfg} (↭-sym $ proj₂ R≈) ⟩
         ids (R .end) ⊆⟨ namesʳ⦅end⦆⊆ R ⟩
         ids R        ∎ where open ⊆-Reasoning Secret
   --

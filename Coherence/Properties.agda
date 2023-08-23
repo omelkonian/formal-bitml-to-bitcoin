@@ -17,6 +17,7 @@ postulate instance
   ∃Tx≢Ad    : ∃Tx            ≢′ Advertisementᶜ
   Ad≢Tx     : Advertisementᶜ ≢′ Tx i o
   String≢Tx : String         ≢′ Tx i o
+  Tx≢String : Tx i o         ≢′ String
 
 module _ {Rˢ Γₜ Rᶜ} {𝕣∗ : ℝ∗ Rˢ} {λˢ : 𝕃 Rˢ Γₜ} where
 
