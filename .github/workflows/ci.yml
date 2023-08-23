@@ -1,6 +1,6 @@
 name: CI
 on:
-  schedule: [{cron: '0 0 * * *'}]
+  # schedule: [{cron: '0 0 * * *'}]
   push: {branches: master}
 jobs:
   build-deploy:
@@ -13,10 +13,10 @@ jobs:
           stdlib-version: 1.7.2
           libraries: |
             omelkonian/formal-prelude#ab01ae5
-            omelkonian/formal-bitcoin#83f78ec
+            omelkonian/formal-bitcoin#60d3e23
             omelkonian/formal-bitml#5246660
           main: Main
           token: ${{ secrets.GITHUB_TOKEN }}
-          rts: -K256M -H1G -M8G -A128M
+          rts: -K40M -H1G -M24G -A128M
           measure-typechecking: true
           ribbon: true

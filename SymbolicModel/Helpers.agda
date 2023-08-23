@@ -65,29 +65,20 @@ _∷_⊣≡_✓ {R} Γₜ 𝕣 𝕝≡ = Γₜ ∷ 𝕣 ⊣ 𝕃≡⇒𝕃 {R} �
 
 -- lifting mappings from last configuration to enclosing runs
 -- i.e. Γ →⦅ Txout ⟩ Γ′ ———→ R ⇒⟨ Txout ⦆ R′
-LIFTˢ : ∀ (r : ℝ R) t α (t′ : Time) Γ (R≈ : R ≈⋯ Γ at t) Γ′ →
-  ∙ Γ at t —[ α ]→ₜ Γ′ at t′
-  → (∃Γ≈ : ∃ (_≈ᶜ Γ′)) →
+
+LIFTˢ : ∀ {R}{t}{t′} (r : ℝ R) Γ (R≈ : R ≈⋯ Γ at t) Γ′ →
   ∙ Γ →⦅ Txout ⦆ Γ′
   ∙ Γ →⦅ Sechash ⦆ Γ′
   ∙ Γ →⦅ 𝕂² ⦆ Γ′
     ────────────────────────
-    𝕃 R (∃Γ≈ .proj₁ at t′)
-LIFTˢ {R} r t α t′ Γ R≈@(_ , Γ≈) Γ′ Γ→Γ′ (Γ″ , Γ≈″) txout↝ sechash↝ κ↝
-  = 𝕒 , [txout: txoutΓ′ ∣sechash: sechashΓ′ ∣κ: κΓ′ ]
+    ℾᵗ (Γ′ at t′)
+LIFTˢ {R} r Γ (_ , Γ≈) Γ′ txout↝ sechash↝ κ↝
+  = [txout: txoutΓ′ ∣sechash: sechashΓ′ ∣κ: κΓ′ ]
   where
-    open ℝ r; Γₜ = Γ at t; Γₜ′ = Γ′ at t′; Γₜ″ = Γ″ at t′
-
-    eq : Γₜ″ ≈ Γₜ′ × R .end ≈ Γₜ
-    eq = (refl , Γ≈″) , R≈
-
-    𝕒 : 𝔸 R Γₜ″
-    𝕒 = α , Γₜ , Γₜ′ , Γ→Γ′ , eq
-
-    R′ = Γₜ″ ∷ R ⊣ 𝕒
+    open ℝ r
 
     txoutΓ′ : Txout Γ′
-    txoutΓ′ = txout↝ $ Txout≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R)
+    txoutΓ′ = txout↝ $ Txout≈ {R ∙cfg}{Γ} Γ≈ (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R)
 
     -- pv↝ :
     --   ∙ ValuePreserving  {Γ} txout′
@@ -100,10 +91,10 @@ LIFTˢ {R} r t α t′ Γ R≈@(_ , Γ≈) Γ′ Γ→Γ′ (Γ″ , Γ≈″) t
     --   ∘ {!!}
 
     sechashΓ′ : Sechash Γ′
-    sechashΓ′ = sechash↝ $ Sechash≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ sechash′ $ namesˡ⦅end⦆⊆ R)
+    sechashΓ′ = sechash↝ $ Sechash≈ {R ∙cfg}{Γ} Γ≈ (weaken-↦ sechash′ $ namesˡ⦅end⦆⊆ R)
 
     κΓ′ : 𝕂² Γ′
-    κΓ′ = κ↝ (𝕂²≈ {cfg (R .end)}{Γ} Γ≈ (weaken-↦ κ′ $ ads⦅end⦆⊆ R))
+    κΓ′ = κ↝ (𝕂²≈ {R ∙cfg}{Γ} Γ≈ (weaken-↦ κ′ $ ads⦅end⦆⊆ R))
 
 ANCESTOR : ∀ {c Γ} →
   ∙ R ≈⋯ Γ at t
@@ -127,18 +118,18 @@ LIFT₀ : ∀ (r : ℝ R) (t : Time) Γ (R≈ : R ≈⋯ Γ at t) ad →
     𝔾 ad
 LIFT₀ {R} r t Γ R≈@(_ , Γ≈) ad ad∈ committedA = vad , txout₀ , sechash₀ , κ₀
   where
+  module _
+    (let Γᵢ′ , Γᵢ , _ , _ , xy∈ , (x≈ , _) , ℍ = ad∈≈⇒ℍ {R}{Γ} R≈ ad∈)
+    (let _ , $vad , honG , _ = ℍ)
+    where
     open ℝ r
 
-    ℍ-Ad = ad∈≈⇒ℍ {R}{Γ} R≈ ad∈
-
     vad : Valid ad
-    vad = let _ , _ , _ , _ , _ , _ , _ , vad , _ = ℍ-Ad in vad
+    vad = $vad
 
     txout₀ : Txout (ad .G)
     txout₀ =
       let
-        Γᵢ′ , Γᵢ , _ , _ , xy∈ , (x≈ , _) , ℍ = ℍ-Ad
-
         Γᵢ∈ , _ = ∈-allTransitions⁻ (R ∙trace′) xy∈
 
         txoutΓᵢ : Txout Γᵢ
@@ -152,22 +143,14 @@ LIFT₀ {R} r t Γ R≈@(_ , Γ≈) ad ad∈ committedA = vad , txout₀ , secha
              $ committed⇒ℍ[C-AuthCommit]∗ {R}{Γ}{t}{ad} R≈ committedA sechash′
 
     κ₀ : 𝕂²′ ad
-    κ₀ = weaken-↦ κ′ (ads⦅end⦆⊆ R ∘ ∈ads-resp-≈ _ {Γ}{cfg (R .end)} (↭-sym $ proj₂ R≈))
-                     (∈-collect-++⁺ʳ (` ad) Γ ad∈Hon)
-      where
+    κ₀ =
+      let
         ad∈Hon : ad ∈ authorizedHonAds Γ
-        ad∈Hon =
-          let
-            _ , _ , _ , _ , _ , _ , (_ , _ , honG , _) = ℍ-Ad
-            honA = L.Any.lookup honG
-
-            hon : honA ∈ Hon
-            hon = L.Any.lookup-result honG
-
-            honA∈ : honA ∈ nub-participants ad
-            honA∈ = L.Mem.∈-lookup (L.Any.index honG)
-          in
-            committed⇒authAd hon {Γ = Γ} $ committedA honA∈
+        ad∈Hon = committed⇒authAd (L.Any.lookup-result honG) {Γ = Γ}
+               $ committedA (L.Mem.∈-lookup $ L.Any.index honG)
+      in
+        weaken-↦ κ′ (ads⦅end⦆⊆ R ∘ ∈ads-resp-≈ _ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂))
+          $ ∈-collect-++⁺ʳ (` ad) Γ ad∈Hon
 
 LIFTᶜ : ∀ (𝕣 : ℝ Rˢ) {ad c} →
   ∙ ∃[ Rˢ ∋ʳ Ancestor⦅ ad ↝ c ⦆ ]

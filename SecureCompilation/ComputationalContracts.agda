@@ -53,27 +53,10 @@ infix  0 ⟨_⟩_
 infixr 9 _∶_ after_∶_
 infix  8 put_&reveal_if_⇒_
 
-postulate TODO : ∀ {X : Type ℓ} → X
-instance
-  postulate
-    Serializable-Branchᶜ : Serializable Branchᶜ
-    Serializable-Preconditionᶜ : Serializable Preconditionᶜ
-    Serializable-Advertisementᶜ : Serializable Advertisementᶜ
-{-
-  Serializable-TxBranch : Serializable TxBranch
-  Serializable-TxBranch .encode tc = encode (reifyᶜ tc)
-  Serializable-TxBranch .encode-injective = TODO
-  Serializable-TxBranch .decode = fmap abstractᶜ ∘ decode
-  Serializable-TxBranch .encode-decode m x .proj₁ = TODO
-  Serializable-TxBranch .encode-decode m x .proj₂ = TODO
-
-  Serializable-Branch : Serializable (∃ λ (c : Branch) → Txout c)
-  Serializable-Branch .encode (c , txout) = encode (mkTxBranch c txout)
-  Serializable-Branch .encode-injective = TODO
-  Serializable-Branch .decode = {!!} -- fmap {!!} ∘ decode -- fmap abstractᶜ ∘ decode
-  Serializable-Branch .encode-decode m x .proj₁ = TODO
-  Serializable-Branch .encode-decode m x .proj₂ = TODO
--}
+postulate instance
+  Serializable-Branchᶜ : Serializable Branchᶜ
+  Serializable-Preconditionᶜ : Serializable Preconditionᶜ
+  Serializable-Advertisementᶜ : Serializable Advertisementᶜ
 
 -- ** De-bruijn contracts (indices instead of identifiers)
 module _ (n : ℕ) where
@@ -216,6 +199,8 @@ mutual
   reifyᵛᶜˢ ((v , cs) ∷ vcs) = (v , reifyᶜˢ cs) ∷ reifyᵛᶜˢ vcs
 
 open import Prelude.Setoid
+private postulate TODO : ∀ {X : Type ℓ} → X -- omit proofs of view laws
+
 instance
   Setoid-TxBranch : ISetoid TxBranch
   Setoid-TxBranch .relℓ = 0ℓ
