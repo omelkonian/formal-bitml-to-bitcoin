@@ -1,4 +1,4 @@
-open import Prelude.Init
+open import Prelude.Init; open SetAsType
 open import Prelude.DecEq
 open import Prelude.Lists
 open import Prelude.Setoid
@@ -7,7 +7,6 @@ open import Prelude.Lists.Collections
 open import Prelude.Validity
 open import Prelude.Traces
 open import Prelude.InferenceRules
-open import Prelude.Decidable
 
 open import BitML.BasicTypes using (⋯)
 
@@ -16,101 +15,11 @@ module SymbolicModel.Helpers (⋯ : ⋯) (let open ⋯ ⋯) where
 open import Compiler.Mappings ⋯
 open import SymbolicModel.Run ⋯
   hiding ({-variables-} Γₜ; Γₜ′; Γₜ″; R′)
-open import SymbolicModel.Collections ⋯
 open import SymbolicModel.Mappings ⋯
-open import SymbolicModel.Accessors ⋯
+open import SymbolicModel.Properties ⋯
 
--- [BUG] See issue #5464
-_≈ᶜ_ = _≈_ ⦃ Setoid-Cfg ⦄
-
--- Well-formed traces that additionally carry mappings.
-data ℝ∗ : Run → Set where
-  _∎⊣_✓ : ∀ {Γₜ} →
-
-    ∙ ℾᵗ Γₜ
-    → (init : Initial Γₜ) →
-      ───────────────────
-      ℝ∗ (Γₜ ∎⊣ init)
-
-  _∷_⊣_✓ :
-    ∀ Γₜ →
-    ∙ ℝ∗ R
-    → (λˢ : 𝕃 R Γₜ) →
-      ───────────────────────
-      ℝ∗ (Γₜ ∷ R ⊣ λˢ .proj₁)
-
-ℝ∗-∅ˢ : ℝ∗ ∅ˢ
-ℝ∗-∅ˢ = ℾᵗ-∅ᵗ ∎⊣ auto ✓
-
-_∷_⊣≡_✓ :
-  ∀ Γₜ →
-  ∙ ℝ∗ R
-  → (λˢ : 𝕃≡ R Γₜ) →
-    ────────────────────────
-    ℝ∗ (Γₜ ∷ R ⊣≡ λˢ .proj₁)
-
-_∷_⊣≡_✓ {R} Γₜ 𝕣 𝕝≡ = Γₜ ∷ 𝕣 ⊣ 𝕃≡⇒𝕃 {R} 𝕝≡ ✓
-
-ℝ∗⇒ℝ : ℝ∗ ⊆¹ ℝ
-ℝ∗⇒ℝ {R} = λ where
-  (ℽ ∎⊣ init ✓)  → ℝ-base {init = init} ℽ
-  (_ ∷ 𝕣 ⊣ λˢ ✓) → ℝ-step (ℝ∗⇒ℝ 𝕣) λˢ
-
-ℝ∗⇒ℾᵗ : ℝ∗ R → ℾᵗ (R .end)
-ℝ∗⇒ℾᵗ (ℽ ∎⊣ _ ✓) = ℽ
-ℝ∗⇒ℾᵗ (_∷_⊣_✓ {R} _ _ λˢ) = 𝕃⇒ℾᵗ {R} λˢ
-
-ℝ∗⇒ℾ : ℝ∗ R → ℾ (R ∙cfg)
-ℝ∗⇒ℾ = ℾᵗ⇒ℾ ∘ ℝ∗⇒ℾᵗ
-
--- lifting mappings from last configuration to enclosing runs
--- i.e. Γ →⦅ Txout ⟩ Γ′ ———→ R ⇒⟨ Txout ⦆ R′
-
-LIFTˢ : ∀ {R}{t}{t′} (r : ℝ R) Γ (R≈ : R ≈⋯ Γ at t) Γ′ →
-  ∙ Γ →⦅ Txout ⦆ Γ′
-  ∙ Γ →⦅ Sechash ⦆ Γ′
-  ∙ Γ →⦅ 𝕂² ⦆ Γ′
-    ────────────────────────
-    ℾᵗ (Γ′ at t′)
-LIFTˢ {R} r Γ (_ , Γ≈) Γ′ txout↝ sechash↝ κ↝
-  = [txout: txoutΓ′ ∣sechash: sechashΓ′ ∣κ: κΓ′ ]
-  where
-    open ℝ r
-
-    txoutΓ′ : Txout Γ′
-    txoutΓ′ = txout↝ $ Txout≈ {R ∙cfg}{Γ} Γ≈ (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R)
-
-    -- pv↝ :
-    --   ∙ ValuePreserving  {Γ} txout′
-    --   ∙ ValuePreserving↝ {Γ}{Γ′} txout↝
-    --     ──────────────────────────────────
-    --     ValuePreserving txoutΓ′
-    -- pv↝ pv pvΓ
-    --   = pvΓ (Txout≈ {R ∙cfg}{Γ} Γ≈ (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R))
-    --   ∘ ValuePreserving-Txout≈ {R ∙cfg}{Γ} Γ≈ (weaken-↦ txout′ $ namesʳ⦅end⦆⊆ R)
-    --   ∘ {!!}
-
-    sechashΓ′ : Sechash Γ′
-    sechashΓ′ = sechash↝ $ Sechash≈ {R ∙cfg}{Γ} Γ≈ (weaken-↦ sechash′ $ namesˡ⦅end⦆⊆ R)
-
-    κΓ′ : 𝕂² Γ′
-    κΓ′ = κ↝ (𝕂²≈ {R ∙cfg}{Γ} Γ≈ (weaken-↦ κ′ $ ads⦅end⦆⊆ R))
-
-ANCESTOR : ∀ {c Γ} →
-  ∙ R ≈⋯ Γ at t
-  ∙ ⟨ c , v ⟩at x ∈ᶜ Γ
-    ─────────────────────
-    ∃ λ ad
-    → Valid ad
-    × ad ∈ advertisements R
-    × c ⊆ subterms ad
-    × ∃[ R ∋ʳ Ancestor⦅ ad ↝ c ⦆ ]
-ANCESTOR {R = R@(record {trace = _ , tr})} {Γ = Γ} R≈ c∈ =
-  let ad , ∃H@(_ , _ , _ , _ , _ , _ , _ , ad↝c) = c∈≈⇒Ancestor {R}{Γ} R≈ c∈
-      _ , vad , ad∈ = ℍ[C-Init]⇒∃ℍ[C-AuthInit] (R .init) tr (∃-weakenP tr proj₁ ∃H)
-  in  ad , vad , ad∈ , h-sub∙↝∗ {ad} ad↝c , ∃H
-
--- lifting mapping from the current run to the original advertisement (needed to invoke the compiler)
+-- lifting mapping from the current run to the original advertisement
+-- (needed to invoke the compiler)
 LIFT₀ : ∀ (r : ℝ R) (t : Time) Γ (R≈ : R ≈⋯ Γ at t) ad →
   ∙ ` ad ∈ᶜ Γ
   ∙ nub-participants ad ⊆ committedParticipants ad Γ

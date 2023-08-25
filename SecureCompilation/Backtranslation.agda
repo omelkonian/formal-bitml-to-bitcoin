@@ -26,52 +26,51 @@ open import Prelude.Tactics.Existentials
 open import Bitcoin using (KeyPair)
 open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.Backtranslation (⋯ : ⋯) (let open ⋯ : ⋯) where
+module SecureCompilation.Backtranslation (⋯ : ⋯) (let open ⋯ ⋯) where
 
 open import SymbolicModel ⋯′ as S
   hiding (Rˢ′; d)
 open import SymbolicModel.Stripping ⋯′
 open import ComputationalModel ⋯′ finPart keypairs as C
-  hiding (Initial; Σ; t; t′; `; ∣_∣; n)
-open import SecureCompilation.Helpers ⋯
-open import SecureCompilation.Coherence ⋯ as SC
-open import SecureCompilation.Backtranslation.Parsing ⋯
-  using (parseRun)
+  hiding (Σ; t; t′; `; ∣_∣; n)
+open import Coherence ⋯ as SC
+-- open import SecureCompilation.Backtranslation.Parsing ⋯
+--   using (parseRun)
 
-module _ {A} (A∈ : A ∈ S.Hon) where
+-- module _ {A} (A∈ : A ∈ S.Hon) where
 
-  open import SecureCompilation.Backtranslation.Unparsing ⋯ A
-    using (unparseMoves)
+--   open import SecureCompilation.Backtranslation.Unparsing ⋯ A
+--     using (unparseMoves)
 
-  ℵ : 𝕍 (S.ParticipantStrategy A) → 𝕍 (C.ParticipantStrategy A)
-  ℵ (Σˢ , 𝕧ˢ@(_ , rule-abiding , _)) = Σᶜ , 𝕧ᶜ
-    where
-      go : CRun → C.Labels
-      go Rᶜ =
-        let
-          Rᶜ∗ : CRun
-          Rᶜ∗ = Rᶜ -- ∗
+--   ℵ : 𝕍 (S.ParticipantStrategy A) → 𝕍 (C.ParticipantStrategy A)
+--   ℵ (Σˢ , 𝕧ˢ@(_ , rule-abiding , _)) = Σᶜ , 𝕧ᶜ
+--     where
+--       go : CRun → C.Labels
+--       go Rᶜ =
+--         let
+--           Rᶜ∗ : CRun
+--           Rᶜ∗ = Rᶜ -- ∗
 
-          -- (1) parse the (stripped) run Rᶜ∗, so to obtain a corresponding
-          -- symbolic (stripped) run Rˢ∗
-          Rˢ , Rˢ~Rᶜ = parseRun Rᶜ∗
-          Rˢ∗ = Rˢ ∗
+--           -- (1) parse the (stripped) run Rᶜ∗, so to obtain a corresponding
+--           -- symbolic (stripped) run Rˢ∗
+--           Rˢ , Rˢ~Rᶜ = parseRun Rᶜ∗
+--           Rˢ∗ = Rˢ ∗
 
-          -- (3) evaluate Λˢ = Σˢ(Rˢ∗)
-          Λˢ : S.Labels
-          Λˢ = Σˢ .S.Σ Rˢ∗
+--           -- (3) evaluate Λˢ = Σˢ(Rˢ∗)
+--           Λˢ : S.Labels
+--           Λˢ = Σˢ .S.Σ Rˢ∗
 
-          Λˢ′ : List (∃ λ α → ∃ (Rˢ ——[ α ]→_))
-          Λˢ′ = mapWith∈ Λˢ (-,_ ∘ rule-abiding {R = Rˢ})
+--           Λˢ′ : List (∃ λ α → ∃ (Rˢ ——[ α ]→_))
+--           Λˢ′ = mapWith∈ Λˢ (-,_ ∘ rule-abiding {R = Rˢ})
 
-          -- (4) convert the symbolic actions Λˢ into computational actions Λᶜ
-          -- when Λˢ contains A:{G}C,Δ or A:{G}C,x follow stipulation protocol
-          Λᶜ : C.Labels
-          Λᶜ = unparseMoves Rˢ~Rᶜ Λˢ′
-        in
-          Λᶜ
+--           -- (4) convert the symbolic actions Λˢ into computational actions Λᶜ
+--           -- when Λˢ contains A:{G}C,Δ or A:{G}C,x follow stipulation protocol
+--           Λᶜ : C.Labels
+--           Λᶜ = unparseMoves Rˢ~Rᶜ Λˢ′
+--         in
+--           Λᶜ
 
-      Σᶜ : C.ParticipantStrategy A
-      Σᶜ = record {Σ = go}
+--       Σᶜ : C.ParticipantStrategy A
+--       Σᶜ = record {Σ = go}
 
-      postulate 𝕧ᶜ : Valid Σᶜ
+--       postulate 𝕧ᶜ : Valid Σᶜ

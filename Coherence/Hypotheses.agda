@@ -53,9 +53,6 @@ open import SecureCompilation.ComputationalContracts ⋯′
 open import Coherence.Helpers ⋯
 
 -- shorthands
-SRun : Type
-SRun = ∃ ℝ∗
-
 StepRel : Type₁
 StepRel = (Γₜ : Cfgᵗ) {Rˢ : S.Run}
         → ℝ∗ Rˢ
@@ -86,9 +83,9 @@ record ℍ-Run {Γₜ α Γₜ′} (Γ→ : Γₜ —[ α ]→ₜ Γₜ′) : Ty
     𝕣∗ : ℝ∗ Rˢ
     R≈ : Rˢ ≈⋯ Γₜ
     Γ″ : Cfg
-    Γ≈ : Γ″ ≈ᶜ Γ′
+    Γ≈ : Γ″ ≈ Γ′
   Γₜ″ = Cfgᵗ ∋ Γ″ at t′
-  ∃Γ≈ = ∃ (_≈ᶜ Γ′) ∋ Γ″ , Γ≈
+  ∃Γ≈ = ∃ (_≈ Γ′) ∋ Γ″ , Γ≈
   𝕣   = ℝ∗⇒ℝ 𝕣∗
   open ℝ 𝕣 public
   𝕒 : 𝔸 Rˢ Γₜ″

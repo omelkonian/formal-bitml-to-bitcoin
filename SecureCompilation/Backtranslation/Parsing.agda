@@ -27,15 +27,14 @@ open import Prelude.Tactics.Existentials
 open import Bitcoin using (KeyPair)
 open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.Backtranslation.Parsing (⋯ : ⋯) (let open ⋯ : ⋯) where
+module SecureCompilation.Backtranslation.Parsing (⋯ : ⋯) (let open ⋯ ⋯) where
 
 open import SymbolicModel ⋯′ as S
   hiding (Rˢ′; d)
 open import ComputationalModel ⋯′ finPart keypairs as C
-  hiding (Initial; Σ; t; t′; `; ∣_∣; n)
+  hiding (Σ; t; t′; `; ∣_∣; n)
 
-open import SecureCompilation.Helpers ⋯
-open import SecureCompilation.Coherence ⋯ as SC
+open import Coherence ⋯ as SC
 
 open import SecureCompilation.Backtranslation.Parsing.Views ⋯
 

@@ -3,7 +3,7 @@
 -----------------------------------------------
 
 {-# OPTIONS --allow-unsolved-metas #-}
-open import Prelude.Init hiding (T)
+open import Prelude.Init hiding (T); open SetAsType
 open L.Mem using (_∈_; ∈-map⁻; ∈-++⁺ˡ; ∈-++⁺ʳ; ∈-++⁻)
 open import Prelude.Lists
 open import Prelude.Lists.Dec
@@ -25,11 +25,9 @@ open import Prelude.General
 open import Prelude.Tactics.Existentials
 open import Prelude.Views
 
-open import Bitcoin using (KeyPair; HashId)
-open import Prelude.Serializable HashId
 open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.Backtranslation.Parsing.Views (⋯ : ⋯) (let open ⋯ : ⋯) where
+module SecureCompilation.Backtranslation.Parsing.Views (⋯ : ⋯) (let open ⋯ ⋯) where
 
 open import SymbolicModel ⋯′ as S
   hiding (Rˢ′; d; Σ)
@@ -37,8 +35,11 @@ open import ComputationalModel ⋯′ finPart keypairs as C
   hiding (Σ; t; t′; `; ∣_∣; n)
 
 open import SecureCompilation.ComputationalContracts ⋯′
-open import SecureCompilation.Helpers ⋯
-open import SecureCompilation.Coherence ⋯ as SC
+open import Compiler ⋯′ η
+open import Coherence ⋯ as SC
+
+-- [BUG] See issue #5464
+_≈ᶜ_ = _≈_ ⦃ Setoid-Cfg ⦄
 
 module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
   𝕣 = ℝ∗⇒ℝ 𝕣∗
@@ -77,33 +78,33 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
     -- THESE DO NOT HOLD
     -- postulate
     --   instance
-    --     Squashed-⊆ : ∀ {A : Set ℓ} {xs ys : List A} → Squashed (xs ⊆ ys)
-    --     Squashed-∈ : ∀ {A : Set ℓ} {x : A} {xs : List A} → Squashed (x ∈ xs)
-    --     Squashed-∉ : ∀ {A : Set} {x : A} {xs : List A} → Squashed (x ∉ xs)
-        -- Squashed-↭ : ∀ {A : Set ℓ} {xs ys : List A} → Squashed (xs ↭ ys)
+    --     Squashed-⊆ : ∀ {A : Type ℓ} {xs ys : List A} → Squashed (xs ⊆ ys)
+    --     Squashed-∈ : ∀ {A : Type ℓ} {x : A} {xs : List A} → Squashed (x ∈ xs)
+    --     Squashed-∉ : ∀ {A : Type} {x : A} {xs : List A} → Squashed (x ∉ xs)
+        -- Squashed-↭ : ∀ {A : Type ℓ} {xs ys : List A} → Squashed (xs ↭ ys)
 
     module _ (⟨G⟩C : Ad) where
-      ℍ[1]₀ : Set
+      ℍ[1]₀ : Type
       ℍ[1]₀ = let ⟨ G ⟩ C = ⟨G⟩C; partG = nub-participants G; Γ = Rˢ ∙cfg in
           Valid ⟨G⟩C
-        × Any (_∈ S.Hon) partG
+        × Any (_∈ Hon) partG
         × (⟨G⟩C ⊆⦅ deposits ⦆ Γ)
 
       ℍ[1]?₀ : Dec ℍ[1]₀
       ℍ[1]?₀ = let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G in
               Valid? ⟨G⟩C
-        ×-dec any? (_∈? S.Hon) partG
+        ×-dec any? (_∈? Hon) partG
         ×-dec (deposits ⟨G⟩C ⊆? deposits (Rˢ ∙cfg))
 
-      ℍ[1] : Set
+      ℍ[1] : Type
       ℍ[1] = let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G; Γ = Rˢ ∙cfg in
         ∃ λ (vad : Valid ⟨G⟩C)
-        → Any (_∈ S.Hon) partG
+        → Any (_∈ Hon) partG
         × ∃ λ (d⊆ : ⟨G⟩C ⊆⦅ deposits ⦆ Γ) →
         let
           txoutΓ = Txout Γ ∋ 𝕣 ∙txoutEnd_
           txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
-          txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
+          txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad ∙names-⊆)
           C = encodeAd ⟨G⟩C (txoutG , txoutC)
         in
          m₀ ≡ C
@@ -121,8 +122,8 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
       EQ₁ : ∀ (txoutG : Txout ⟨G⟩C) (vad vad′ : Valid ⟨G⟩C) →
         let
           ⟨ _ ⟩ C = ⟨G⟩C
-          txoutC  = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad  .names-⊆)
-          txoutC′ = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad′ .names-⊆)
+          txoutC  = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad  ∙names-⊆)
+          txoutC′ = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad′ ∙names-⊆)
         in
           txoutC ≗↦ txoutC′
       EQ₁ txoutG vad vad′ = {!!}
@@ -133,10 +134,10 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
           txoutΓ = Txout Γ ∋ 𝕣 ∙txoutEnd_
 
           txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
-          txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
+          txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad ∙names-⊆)
 
           txoutG′ = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆′)
-          txoutC′ = Txout C ∋ weaken-↦ txoutG′ (mapMaybe-⊆ isInj₂ $ vad′ .names-⊆)
+          txoutC′ = Txout C ∋ weaken-↦ txoutG′ (mapMaybe-⊆ isInj₂ $ vad′ ∙names-⊆)
         in (txoutG ≗↦ txoutG′)
          × (txoutC ≗↦ txoutC′)
       EQ vad vad′ d⊆ d⊆′ = {!!}
@@ -146,7 +147,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
         case Valid? ⟨G⟩C of λ where
         (no ¬vad) → no λ (vad , _) → ¬vad vad
         (yes vad) →
-          case any? (_∈? S.Hon) partG of λ where
+          case any? (_∈? Hon) partG of λ where
           (no ¬hon) → no λ (_ , hon , _) → ¬hon hon
           (yes hon) →
             case deposits ⟨G⟩C ⊆? deposits Γ of λ where
@@ -155,7 +156,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
               let
                 txoutΓ = Txout Γ ∋ 𝕣 ∙txoutEnd_
                 txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
-                txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
+                txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad ∙names-⊆)
                 C = encodeAd ⟨G⟩C (txoutG , txoutC)
               in
               case m₀ ≟ C of λ where
@@ -165,13 +166,13 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
       -- ℍ[1]? = let ⟨ G ⟩ C = ⟨G⟩C ; partG = nub-participants G in
       --   {!(Valid? ⟨G⟩C) ∃-dec λ vad → ?!}
         -- (Valid? ⟨G⟩C) ∃-dec λ vad
-        -- → any? (_∈? S.Hon) partG
+        -- → any? (_∈? Hon) partG
         -- ×-dec (deposits ⟨G⟩C ⊆? deposits (Rˢ ∙cfg)) ∃-dec λ d⊆ →
         -- let
         --   Γ = Rˢ ∙cfg
         --   txoutΓ = Txout Γ ∋ 𝕣 ∙txoutEnd_
         --   txoutG = Txout G ∋ weaken-↦ txoutΓ (deposits⊆⇒namesʳ⊆ {⟨G⟩C}{Γ} d⊆)
-        --   txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad .names-⊆)
+        --   txoutC = Txout C ∋ weaken-↦ txoutG (mapMaybe-⊆ isInj₂ $ vad ∙names-⊆)
         --   C = encodeAd ⟨G⟩C (txoutG , txoutC)
         -- in
         --  m₀ ≟ C
@@ -179,7 +180,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
     ∃ℍ[1] = ∃ λ ⟨G⟩C → ℍ[1] ⟨G⟩C
 
     -- T0D0: bundle _~_ proofs immediately in the view
-    data DecodeBroadcastResponse : Set where
+    data DecodeBroadcastResponse : Type where
 
       [1] : ∀ ⟨G⟩C →
 
@@ -232,7 +233,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
 
 {-
     module _ ⟨G⟩C Δ×h̅ (k⃗ : 𝕂²′ ⟨G⟩C) A Γ₀ t where
-      ℍ[2] : Set
+      ℍ[2] : Type
       ℍ[2] =
         let
           ⟨ G ⟩ C = ⟨G⟩C
@@ -342,7 +343,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
       ℍ[2] ⟨G⟩C Δ×h̅ k⃗ A Γ₀ t
 
     module _ (⟨G⟩C : Ad) Γ₀ t A v x where
-      ℍ[3] : Set
+      ℍ[3] : Type
       ℍ[3] =
           let ⟨ G ⟩ C = ⟨G⟩C; partG = G ∙partG; Γ = ` ⟨G⟩C ∣ Γ₀; Γₜ = Γ at t in
           ∃ λ (R≈ : Rˢ ≈⋯ Γₜ)
@@ -394,7 +395,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
       ℍ[3] ⟨G⟩C Γ₀ t A v x
 {-
     module _ A v x Γ₀ t c (i : Index c) where
-      ℍ[5] : Set
+      ℍ[5] : Type
       ℍ[5] =
         let open ∣SELECT c i; Γ = ⟨ c , v ⟩at x ∣ Γ₀; Γₜ = Γ at t in
         ∃ λ (D≡A:D′ : A ∈ authDecorations d) →
@@ -440,7 +441,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
       ℍ[5] A v x Γ₀ t c i
 
     module _ ⟨G⟩C A a n Γ₀ t (Δ×h̅ : List (Secret × Maybe ℕ × ℤ)) (k⃗ : 𝕂²′ ⟨G⟩C) where
-      ℍ[7] : Set
+      ℍ[7] : Type
       ℍ[7] =
           let Γ = ⟨ A ∶ a ♯ just n ⟩ ∣ Γ₀; Γₜ = Γ at t; ⟨ G ⟩ C = ⟨G⟩C in
           (∣ m₀ ∣ᵐ ≤ η)
@@ -478,7 +479,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
       ℍ[7] ⟨G⟩C A a n Γ₀ t Δ×h̅ k⃗
 
     module _ A v x v′ x′ Γ₀ t where
-      ℍ[10] : Set
+      ℍ[10] : Type
       ℍ[10] =
           let Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ Γ₀; Γₜ = Γ at t in
           ∃ λ (R≈ : Rˢ ≈⋯ Γₜ)
@@ -513,7 +514,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
       ℍ[10] A v x v′ x′ Γ₀ t
 
     module _ A v v′ x Γ₀ t where
-      ℍ[12] : Set
+      ℍ[12] : Type
       ℍ[12] =
           let Γ = ⟨ A has (v + v′) ⟩at x ∣ Γ₀; Γₜ = Γ at t in
           ∃ λ (R≈ : Rˢ ≈⋯ Γₜ)
@@ -543,7 +544,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
       ℍ[12] A v v′ x Γ₀ t
 
     module _ A v x Γ₀ t B′ where
-      ℍ[14] : Set
+      ℍ[14] : Type
       ℍ[14] =
           let Γ = ⟨ A has v ⟩at x ∣ Γ₀; Γₜ = Γ at t in
         ∃ λ (R≈ : Rˢ ≈⋯ Γₜ)
@@ -573,7 +574,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
       ℍ[14] A v x Γ₀ t B′
 
     module _ ds j y Γ₀ t B i where
-      ℍ[16] : Set
+      ℍ[16] : Type
       ℍ[16] =
           let
             xs = map (proj₂ ∘ proj₂) ds
@@ -620,7 +621,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
       ℍ[16] ds j y Γ₀ t B i
 -}
 
-    data DecodeBroadcastResponse : Set where
+    data DecodeBroadcastResponse : Type where
 
       [1] : ∀ ⟨G⟩C →
 
@@ -782,7 +783,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
 
     module _ (⟨G⟩C : Ad) z Γ₀ t where
 
-      ℍ[4] : Set
+      ℍ[4] : Type
       ℍ[4] =
           let
             ⟨ G ⟩ C = ⟨G⟩C; partG = G ∙partG
@@ -854,7 +855,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
 {-
     module _ c (i : Index c) (ds : List (Participant × S.Value × Id)) (ss : List (Participant × Secret × ℕ)) v y p c′ y′ Γ₀ t where
 
-      ℍ[6] : Set
+      ℍ[6] : Type
       ℍ[6] = let open ∣SELECT c i; As , ts = decorations d in
           let
             -- (i) xs = x₁⋯xₖ
@@ -905,7 +906,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
 
     module _ c (i : Index c) (vcis : List (S.Value × Contracts × Id)) y Γ₀ t where
 
-      ℍ[8] : Set
+      ℍ[8] : Type
       ℍ[8] =
           let open ∣SELECT c i; As , ts = decorations d in
           let vs , cs , xs = unzip₃ vcis; v = sum vs in
@@ -947,7 +948,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
 
     module _ c (i : Index c) v y A x Γ₀ t where
 
-      ℍ[9] : Set
+      ℍ[9] : Type
       ℍ[9] =
         let open ∣SELECT c i; As , ts = decorations d in
         let Γ = ⟨ c , v ⟩at y ∣ Γ₀; Γₜ = Γ at t in
@@ -984,7 +985,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
 
     module _ A v x v′ x′ y Γ₀ t where
 
-      ℍ[11] : Set
+      ℍ[11] : Type
       ℍ[11] =
           let Γ = ⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ A auth[ x ↔ x′ ▷⟨ A , v + v′ ⟩ ] ∣ Γ₀; Γₜ = Γ at t in
           ∃ λ (R≈ : Rˢ ≈⋯ Γₜ)
@@ -1022,7 +1023,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
 
     module _ A v v′ x y y′ Γ₀ t where
 
-      ℍ[13] : Set
+      ℍ[13] : Type
       ℍ[13] =
           let Γ = ⟨ A has (v + v′) ⟩at x ∣ A auth[ x ▷⟨ A , v , v′ ⟩ ] ∣ Γ₀; Γₜ = Γ at t in
           ∃ λ (R≈ : Rˢ ≈⋯ Γₜ)
@@ -1058,7 +1059,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
 
     module _ A v x B′ y Γ₀ t where
 
-      ℍ[15] : Set
+      ℍ[15] : Type
       ℍ[15] =
           let Γ = ⟨ A has v ⟩at x ∣ A auth[ x ▷ᵈ B′ ] ∣ Γ₀; Γₜ = Γ at t in
           ∃ λ (R≈ : Rˢ ≈⋯ Γₜ)
@@ -1094,7 +1095,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
 
     module _ ds (j : Index ds) y Γ₀ t i where
 
-      ℍ[17] : Set
+      ℍ[17] : Type
       ℍ[17] =
           let
             xs = map (proj₂ ∘ proj₂) ds
@@ -1132,7 +1133,7 @@ module _ (Rˢ : S.Run) (𝕣∗ : ℝ∗ Rˢ) (Rᶜ : CRun) where
     ∃ℍ[17] = ∃ λ ds → ∃ λ j → ∃ λ y → ∃ λ Γ₀ → ∃ λ t → ∃ λ i →
       ℍ[17] ds j y Γ₀ t i
 -}
-    data DecodeTxResponse : Set where
+    data DecodeTxResponse : Type where
 
       [4] : ∀ ⟨G⟩C z Γ₀ t →
 

@@ -1,7 +1,7 @@
 ------------------------------------------------------------------------
 -- Symbolic strategies.
 ------------------------------------------------------------------------
-open import Prelude.Init hiding (Σ)
+open import Prelude.Init hiding (Σ); open SetAsType
 open import Prelude.DecEq
 open import Prelude.Membership
 open import Prelude.Validity
@@ -14,10 +14,9 @@ open import BitML.BasicTypes using (⋯)
 module SymbolicModel.Strategy (⋯ : ⋯) (let open ⋯ ⋯) where
 
 open import SymbolicModel.Run ⋯
-open import SymbolicModel.Collections ⋯
 open import SymbolicModel.Stripping ⋯
 
-record ParticipantStrategy (A : Participant) : Set where
+record ParticipantStrategy (A : Participant) : Type where
   field Σ : Run → Labels
 open ParticipantStrategy public
 
@@ -47,10 +46,10 @@ instance
        -- → ∃[ R″ ] (Γₜ ∷⟦ α ⟧ R ——[ α ]→ R″)
        -- → α ∈ Σ ((Γₜ ∷⟦ α ⟧ R) ∗))
 
-HonestStrategies : Set
+HonestStrategies : Type
 HonestStrategies = ∀ {A} → A ∈ Hon → ParticipantStrategy A
 
-HonestMoves : Set
+HonestMoves : Type
 HonestMoves = List (Participant × Labels)
 
 variable
@@ -62,7 +61,7 @@ instance
 
 module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
 
-  record AdversaryStrategy : Set where
+  record AdversaryStrategy : Type where
     field Σₐ : Run → HonestMoves → Label
   open AdversaryStrategy public
 
@@ -107,7 +106,7 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
               -----------------------------
             → α ≡ Σₐ (R ∗) [])
 
-  Strategies : Set
+  Strategies : Type
   Strategies = AdversaryStrategy -- adversarial strategy
              × HonestStrategies  -- participant strategies
 
@@ -121,7 +120,7 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
   runAdversary (S† , S) R = Σₐ S† (R ∗) (runHonestAll R S)
 
   infix -1 _-conforms-to-_
-  data _-conforms-to-_ : Run → Strategies → Set where
+  data _-conforms-to-_ : Run → Strategies → Type where
 
     base : (init : Initial Γ)
            ---------------------------

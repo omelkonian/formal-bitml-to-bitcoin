@@ -20,8 +20,6 @@ module SymbolicModel.ValuePreservation (⋯ : ⋯) where
 open import Compiler.Mappings ⋯
 open import SymbolicModel.Run ⋯ as S
   hiding (_∎; begin_)
-open import SymbolicModel.Accessors ⋯
-open import SymbolicModel.Collections ⋯
 open import SymbolicModel.Mappings ⋯
 
 open ≡-Reasoning

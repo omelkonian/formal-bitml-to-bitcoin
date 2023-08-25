@@ -56,44 +56,6 @@ open import SecureCompilation.ComputationalContracts ⋯′
 open import Coherence.Helpers ⋯
 open import Coherence.Hypotheses ⋯
 
--- decision procedures
-_∈Hon⇒?_ : ∀ A ms → Dec (A ∈ Hon → All (Is-just {A = ℕ}) ms)
-A ∈Hon⇒? ms
-  with A ∈? Hon
-... | no A∉  = yes λ A∈ → ⊥-elim $ A∉ A∈
-... | yes A∈
-  with all? (M.Any.dec λ _ → yes tt) ms
-... | no ¬p = no λ p → ¬p (p A∈)
-... | yes p = yes λ _ → p
-
-instance
-  Dec-≢-→∗∶ : ∀ {λᶜ}{m} → (∀ A → λᶜ ≢ A →∗∶ m) ⁇
-  Dec-≢-→∗∶ {λᶜ}{m} .dec
-    with λᶜ in eq
-  ... | submit _ = yes λ _ ()
-  ... | delay _  = yes λ _ ()
-  ... | _ →O∶ _  = yes λ _ ()
-  ... | O→ _ ∶ _ = yes λ _ ()
-  ... | A →∗∶ m′
-    with m ≟ m′
-  ... | yes refl = no λ ¬eq → ¬eq A refl
-  ... | no m≢    = yes λ where _ refl → m≢ refl
-
-  Dec-CheckOracle : ∀ {os} → CheckInteractions os ⁇¹
-  Dec-CheckOracle {os} {x} .dec
-    with x
-  ... | _ , nothing , hᵢ = hᵢ ∉? map select₃ (filter ((η ≤?_) ∘ ∣_∣ᵐ ∘ select₂) os)
-  ... | _ , just Nᵢ , hᵢ
-    with ¿ Any (λ (_ , m , h) → (h ≡ hᵢ) × (∣ m ∣ᵐ ≡ η + Nᵢ)) os ¿
-  ... | no  x∉ = no λ (_ , _ , x∈ , m≡) → L.All.lookup (¬Any⇒All¬ os x∉) x∈ (refl , m≡)
-  ... | yes x∈
-    with L.Any.lookup x∈ | ∈-lookup {xs = os} (L.Any.index x∈) | lookup-index x∈
-  ... | A , m , _ | x∈ | refl , q = yes (A , m , x∈ , q)
-
-  Dec-∃B : ∀ {m : Message} {λs : CLabels}
-         → (∃ λ B → (B →∗∶ m) ∈ λs) ⁇
-  Dec-∃B {m}{λs} .dec = ∃[ λs ∋? m ]
-
 -- shorthands
 record ℍ-Run? {Γₜ α Γₜ′} (Γ→ : Γₜ —[ α ]→ₜ Γₜ′) ($Γ″ : Cfg) : Type where
   constructor mk?

@@ -1,8 +1,8 @@
-open import Prelude.Init
+open import Prelude.Init; open SetAsType
 open import Bitcoin
 
 module ComputationalModel.KeyPairs
-  (Participant : Set)
+  (Participant : Type)
   (keypairs : Participant → KeyPair × KeyPair)
   where
 

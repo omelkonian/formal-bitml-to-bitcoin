@@ -2,10 +2,18 @@ module ComputationalModel.Serialization where
 
 open import Prelude.Init; open SetAsType
 open import Prelude.Newtype
+open import Prelude.FromN
 
 open import Bitcoin
 open import Prelude.Serializable HashId public
 
+-- ** messages
+Message = HashId
+
+∣_∣ᵐ : Message → ℕ
+∣ m ∣ᵐ = Nat.Bin.size (fromℕ Integer.∣ m ∣)
+
+-- ** assume serialization of the types we will be encoding
 private variable
   X : Type ℓ; Y : Type ℓ′; P : X → Type ℓ′
   A B : Type
@@ -25,9 +33,11 @@ postulate instance
   Serialiazable-Tx     : Serializable (Tx i o)
 
 private
-  _ = Serializable ∃Tx    ∋ it
-  _ = Serializable HashId ∋ it
+  _ = Serializable ∃Tx     ∋ it
+  _ = Serializable HashId  ∋ it
+  _ = Serializable Message ∋ it
 
+-- wrapper around propositional inequality, needed for instance search
 _≢′_ : ∀ {A : Type ℓ} → Rel A _
 _≢′_ = newtype² _≢_
 

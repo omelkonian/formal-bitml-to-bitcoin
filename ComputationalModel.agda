@@ -1,5 +1,5 @@
 open import Prelude.Init
-open import Prelude.Lists
+open import Prelude.Lists.Finite
 open import Prelude.DecEq
 
 import Bitcoin.Crypto as BTC
@@ -18,5 +18,6 @@ open import Bitcoin public
 
 open import ComputationalModel.Serialization public
 open import ComputationalModel.KeyPairs Participant keypairs public
+open import ComputationalModel.Run ⋯ finPart keypairs public
 open import ComputationalModel.Strategy ⋯ finPart keypairs public
 open import ComputationalModel.Lemmas ⋯ finPart keypairs public

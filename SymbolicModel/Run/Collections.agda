@@ -1,25 +1,24 @@
 ------------------------------------------------------------------------
 -- Collecting elements out of symbolic runs.
 ------------------------------------------------------------------------
-open import Prelude.Init
+open import Prelude.Init; open SetAsType
 open import Prelude.Lists
 open import Prelude.DecEq
 open import Prelude.Membership
 open import Prelude.Closures
 open import Prelude.Traces
 open import Prelude.Setoid
+open import Prelude.ToList
 open import Prelude.Lists.Collections
 
 open import BitML.BasicTypes
 
-module SymbolicModel.Collections (⋯ : ⋯) (let open ⋯ ⋯) where
+module SymbolicModel.Run.Collections (⋯ : ⋯) (let open ⋯ ⋯) where
 
-open import SymbolicModel.Run ⋯
+open import SymbolicModel.Run.Base ⋯
   hiding ( _∎; begin_)
 
-open ≡-Reasoning
-
-private variable X : Set
+private variable X : Type
 
 instance
   HXʳ : ⦃ ∀ {Γₜ Γₜ′} → (Γₜ —↠ₜ Γₜ′) has X ⦄ → Run has X
@@ -31,6 +30,57 @@ authorizedHonAdsʳ = advertisements
 
 labelsʳ : Run → Labels
 labelsʳ = labels
+
+-- ** properties
+start∈allCfgsᵗ : R .start ∈ allTCfgs⁺ R
+start∈allCfgsᵗ {R = record {trace = _ , Γ↞}} with Γ↞
+... | _ ∎ₜ              = here refl
+... | _ —→ₜ⟨ _ ⟩ _ ⊢ tr = here refl
+
+end∈allCfgsᵗ : ∀ R → R .end ∈ allTCfgs⁺ R
+end∈allCfgsᵗ = go ∘ _∙trace′
+  module ⟫end∈allCfgsᵗ where
+    go : (tr : Γₜ —[ αs ]↠ₜ Γₜ′) → Γₜ′ ∈ allStatesᵗ⁺ tr
+    go (_ ∎ₜ)              = here refl
+    go (_ —→ₜ⟨ _ ⟩ _ ⊢ tr) = there (go tr)
+
+open ≡-Reasoning
+
+allTCfgs≡ : ∀ {x}
+  → (Γ← : x —[ α ]→ₜ Γₜ′)
+  → (eq : Γₜ ≈ Γₜ′ × R .end ≈ x)
+  → allTCfgs (Γₜ ⟨ Γ← ⟩←—— R ⊣ eq)
+  ≡ allTCfgs R ∷ʳ Γₜ
+allTCfgs≡  {α}{Γₜ′}{Γₜ}{R@(record {trace = _ , Γ↞})}{x} Γ← eq =
+  begin
+    allTCfgs (Γₜ ⟨ Γ← ⟩←—— R ⊣ eq)
+  ≡⟨⟩
+    toList (allTCfgs⁺ $ Γₜ ⟨ Γ← ⟩←—— R ⊣ eq)
+  ≡⟨⟩
+    toList (allStatesᵗ⁺ $ Γₜ `⟨ Γ← ⟩←—ₜ eq ⊢ Γ↞)
+  ≡⟨ cong toList $ allStatesᵗ⁺-∷ʳ Γ↞ Γ← eq ⟩
+    toList (allStatesᵗ⁺ Γ↞ ⁺∷ʳ Γₜ)
+  ≡⟨⟩
+    allTCfgs R ∷ʳ Γₜ
+  ∎
+
+allCfgs≡ : ∀ {x}
+  → (Γ← : x —[ α ]→ₜ Γₜ′)
+  → (eq : Γₜ ≈ Γₜ′ × R .end ≈ x)
+  → allCfgs (Γₜ ⟨ Γ← ⟩←—— R ⊣ eq)
+  ≡ allCfgs R ∷ʳ cfg Γₜ
+allCfgs≡  {α}{Γₜ′}{Γₜ}{R@(record {trace = _ , Γ↞})}{x} Γ← eq =
+  begin
+    allCfgs (Γₜ ⟨ Γ← ⟩←—— R ⊣ eq)
+  ≡⟨⟩
+    map cfg (allTCfgs $ Γₜ ⟨ Γ← ⟩←—— R ⊣ eq)
+  ≡⟨ cong (map cfg) (allTCfgs≡ {R = R} Γ← eq) ⟩
+    map cfg (allTCfgs R ∷ʳ Γₜ)
+  ≡⟨ L.map-++-commute cfg (allTCfgs R) [ Γₜ ] ⟩
+    map cfg (allTCfgs R) ++ [ cfg Γₜ ]
+  ≡⟨⟩
+    allCfgs R ∷ʳ cfg Γₜ
+  ∎
 
 ads⦅end⦆⊆ : ∀ R → advertisements (R .end) ⊆ advertisements R
 ads⦅end⦆⊆ R

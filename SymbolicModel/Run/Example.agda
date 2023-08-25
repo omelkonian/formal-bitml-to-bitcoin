@@ -1,17 +1,14 @@
 module SymbolicModel.Run.Example where
 
-open import Prelude.Init; open SetAsType
+open import Prelude.Init
 open import Prelude.DecEq
-open import Prelude.Lists
-open import Prelude.Lists.Dec
 open import Prelude.Decidable
 
 open import BitML.Example.TimedCommitment
   using (Participant; A; B; Honest; x; y; x₃; a; N; TC-stepsₜ)
 open import BitML.BasicTypes using (⋯_,_⋯)
-open import BitML ⋯ Participant , Honest ⋯
-  hiding (A; B; x; y; a)
 open import SymbolicModel.Run.Base ⋯ Participant , Honest ⋯
+  hiding (A; B; x; y; a)
 
 TC-run : Run
 TC-run = record

@@ -1,7 +1,7 @@
 -- {-# OPTIONS --allow-unsolved-metas --allow-incomplete-matches #-}
 -- {-# OPTIONS -v tc:10 #-}
 -- {-# OPTIONS --auto-inline #-}
-open import Prelude.Init
+open import Prelude.Init; open SetAsType
 open import Prelude.Lists
 open import Prelude.DecEq
 open import Prelude.Traces
@@ -90,7 +90,7 @@ txout-preserves-value _ = {!!}
 ... | [R] [17] R≈ ∃Γ≈ T ⊆ins ¬coh = {!!}
 -}
 
--- _∈ᵤₜₓₒ_ : TxInput′ → Blockchain → Set
+-- _∈ᵤₜₓₒ_ : TxInput′ → Blockchain → Type
 -- txi ∈ᵤₜₓₒ b = hashTxⁱ txi ∈ˢ UTXO b
 
 -- lemma6 :

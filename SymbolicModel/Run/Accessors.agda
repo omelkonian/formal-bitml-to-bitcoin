@@ -9,15 +9,19 @@ open import Prelude.Setoid
 open import Prelude.General
 open import Prelude.Membership
 open import Prelude.Lists.Concat
+open import Prelude.Lists.MapMaybe
+open import Prelude.InferenceRules
+open import Prelude.Coercions
 
 open import Bitcoin.Tx.Base using (_∙Value; _∙value)
 open import BitML.BasicTypes using (⋯)
 
-module SymbolicModel.Accessors (⋯ : ⋯) where
+module SymbolicModel.Run.Accessors (⋯ : ⋯) where
 
-open import SymbolicModel.Run ⋯
-  hiding (beginₜ_; begin_; _∎)
-open import SymbolicModel.Collections ⋯
+open import SymbolicModel.Run.Base ⋯
+  hiding (begin_; _∎)
+open import SymbolicModel.Run.Collections ⋯
+open ≡-Reasoning
 
 unquoteDecl _∙Cfg _∙cfg ∙cfg=_ = genAccessor _∙Cfg _∙cfg ∙cfg=_ (quote Cfg)
 instance
@@ -39,7 +43,28 @@ instance
       ... | inj₂ x∈ʳ = go r x∈ʳ
 
   Idsʳ∙Value : (∃ λ (R : Run) → (x ∈ ids R)) ∙Value
-  Idsʳ∙Value ._∙ (R , x∈) = L.Any.satisfied (∈-concatMap⁻ {A = Cfg} ids x∈) ∙value
+  Idsʳ∙Value {x} ._∙ (R , x∈) = {!!}
+{-
+    let y , y∈ , eq = ∈-mapMaybe⁻ isInj₂ {xs = names R} x∈ in
+    let z∈ = ∈-concatMap⁻ collect {y}{allCfgs R} y∈ in
+    let z∈ = ∈-mapMaybe⁺ isInj₂ z∈ in
+    let z , p = L.Any.satisfied z∈ in
+
+    (z , {!∈-mapMaybe⁺ isInj₂ p!}) ∙value
+
+    -- ( ∃ (λ Γ → x ∈ ids Γ)
+    -- ∋ L.Any.satisfied
+    --     ( Any (λ Γ → x ∈ ids Γ) (allCfgs R)
+    --     ∋ ∈-concatMap⁻ {A = Cfg} ids
+    --       (∈-concatMap⁺ ids {!(L.Any.satisfied $ ∈-mapMaybe⁺ isInj₂ z∈) ∙value!})
+    --         -- ∈-concatMap⁻ {A = Cfg} ids
+    --          -- {!∈-mapMaybe⁺ isInj₂ {xs = names R} y∈ eq!}
+    --         --
+    --         --  (∈-mapMaybe⁺ isInj₂ {y} y∈ eq)
+    --     )
+    -- )
+    -- ∙value
+-}
 
 ∈-ids-++⁻⇒∈-ids-++⁺ : ∀ (x∈ : x ∈ ids (Γ ∣ Γ′)) →
   case ∈-ids-++⁻ Γ Γ′ x∈ of λ where
@@ -125,7 +150,7 @@ mutual
       ∈-ids-assoc-⊎ l r Γ′ (inj₁ x∈ˡ)
     ≡⟨⟩
       inj₁ (∈-ids-++⁺ˡ l r x∈ˡ)
-    ∎ where open ≡-Reasoning
+    ∎
   ... | inj₂ x∈ʳ | refl
     = begin
       ( ∈-ids-++⁻ (l ∣ r) Γ′
@@ -151,7 +176,7 @@ mutual
       ) x∈ʳ
     ≡⟨ ∈-ids-assoc-⊎∘inj₂∘∈-ids-++⁺ˡ l r Γ′ _ ⟩
       inj₁ (∈-ids-++⁺ʳ l r x∈ʳ)
-    ∎ where open ≡-Reasoning
+    ∎
 
   postulate
     ∈-ids-++⁻∘∈-ids-++⁺ʳ : ∀ (x∈ : x ∈ ids Γ′)
@@ -170,7 +195,7 @@ mutual
       ) x∈ˡ
     ≡⟨ {!!} ⟩
       inj₂ (∈-ids-++⁺ˡ l r x∈ˡ)
-    ∎ where open ≡-Reasoning
+    ∎
   ... | inj₂ x∈ʳ | refl
     = begin
       ( ∈-ids-++⁻ Γ (l ∣ r)
@@ -179,7 +204,7 @@ mutual
       ) x∈ʳ
     ≡⟨ {!!} ⟩
       inj₂ (∈-ids-++⁺ʳ l r x∈ʳ)
-    ∎ where open ≡-Reasoning
+    ∎
 -}
 
 ∈-ids-++⁺ˡ∙value : ∀ (x∈ : x ∈ ids Γ)
@@ -214,9 +239,6 @@ c∈⇒x∈∙value {Γ = l ∣ r} c∈
   rewrite c∈⇒x∈∘∈ᶜ-++⁺ʳ {Γ′ = r}{l} c∈ʳ
         | ∈-ids-++⁻∘∈-ids-++⁺ʳ {Γ′ = r}{l} (c∈⇒x∈ r c∈ʳ)
         = c∈⇒x∈∙value {Γ = r} c∈ʳ
-
-open import Prelude.InferenceRules
-open import Prelude.Coercions
 
 ≈-base :
   ∙ IsBase Γ

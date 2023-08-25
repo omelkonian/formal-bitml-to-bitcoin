@@ -1,9 +1,7 @@
 ------------------------------------------------------------------------
 -- Lemmas related to BitML's computational model.
 ------------------------------------------------------------------------
-{-# OPTIONS --allow-unsolved-metas #-}
-
-open import Prelude.Init
+open import Prelude.Init; open SetAsType
 open import Prelude.Lists
 open import Prelude.DecEq
 open import Prelude.Ord
@@ -20,6 +18,7 @@ module ComputationalModel.Lemmas
   (keypairs : ∀ (A : Participant) → KeyPair × KeyPair)
   where
 
+open import ComputationalModel.Run ⋯ finPart keypairs
 open import ComputationalModel.Strategy ⋯ finPart keypairs
 
 ----------------------------------------
@@ -28,14 +27,14 @@ open import ComputationalModel.Strategy ⋯ finPart keypairs
 module _ (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
   open AdvM Adv Adv∉
 
-  MaximalRun : Strategies → CRun → Set
+  MaximalRun : Strategies → CRun → Type
   MaximalRun SS R = (R -conforms-to- SS)
                   × (¬ ∃ λ R′ → (R′ -conforms-to- SS)
                               × (length (toList R′) > length (toList R)))
 
-  unique-maximal-run : ∀ {R R′} →
-    ∙ MaximalRun SS R
-    ∙ MaximalRun SS R′
-      ────────────────
-      R ≡ R′
-  unique-maximal-run = {!!}
+  postulate
+    unique-maximal-run : ∀ {R R′} →
+      ∙ MaximalRun SS R
+      ∙ MaximalRun SS R′
+        ────────────────
+        R ≡ R′
