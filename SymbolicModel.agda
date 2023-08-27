@@ -5,7 +5,6 @@ module SymbolicModel (⋯ : ⋯) where
 open import SymbolicModel.Run ⋯ public
 open import SymbolicModel.Mappings ⋯ public
 open import SymbolicModel.Properties ⋯ public
-open import SymbolicModel.Helpers ⋯ public
 open import SymbolicModel.ValuePreservation ⋯ public
 
 -- open import SymbolicModel.Stripping ⋯ public

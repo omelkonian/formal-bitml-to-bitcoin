@@ -5,19 +5,22 @@ open L.Any using (lookup-index)
 open import Prelude.Lists.Mappings
 open import Prelude.Lists.Indexed
 open import Prelude.Lists.Dec
+open import Prelude.Lists.Collections
 open import Prelude.Ord
 open import Prelude.InferenceRules
 open import Prelude.Membership using (_∈?_; _∉?_)
 open import Prelude.Decidable
 open import Prelude.DecEq
 open import Prelude.Nary
+open import Prelude.Validity
+open import Prelude.Traces
 
 open import SecureCompilation.ModuleParameters using (⋯)
 module Coherence.Helpers (⋯ : ⋯) (let open ⋯ ⋯) where
 open import SymbolicModel ⋯′
   hiding (d)
 open import ComputationalModel ⋯′ finPart keypairs
-  hiding (R; t)
+  hiding (R; t; Time; `)
 open import Compiler ⋯′ η
 
 -- Checking past oracle interactions.
@@ -43,6 +46,81 @@ instance
   ... | yes x∈
     with L.Any.lookup x∈ | ∈-lookup {xs = os} (L.Any.index x∈) | lookup-index x∈
   ... | A , m , _ | x∈ | refl , q = yes (A , m , x∈ , q)
+
+-- lifting mappings from the current run to the original advertisement
+-- (needed to invoke the compiler)
+LIFT₀ : ∀ (r : ℝ R) (t : Time) Γ (R≈ : R ≈⋯ Γ at t) ad →
+  ∙ ` ad ∈ᶜ Γ
+  ∙ nub-participants ad ⊆ committedParticipants ad Γ
+    ─────────────────────────────────────────────────
+    𝔾 ad
+LIFT₀ {R} r t Γ R≈@(_ , Γ≈) ad ad∈ committedA = vad , txout₀ , sechash₀ , κ₀
+  where
+  module _
+    (let Γᵢ′ , Γᵢ , _ , _ , xy∈ , (x≈ , _) , ℍ = ad∈≈⇒ℍ {R}{Γ} R≈ ad∈)
+    (let _ , $vad , honG , _ = ℍ)
+    where
+    open ℝ r
+
+    vad : Valid ad
+    vad = $vad
+
+    txout₀ : Txout (ad .G)
+    txout₀ =
+      let
+        Γᵢ∈ , _ = ∈-allTransitions⁻ (R ∙trace′) xy∈
+
+        txoutΓᵢ : Txout Γᵢ
+        txoutΓᵢ = Txout≈ {Γᵢ′}{Γᵢ} x≈
+                $ Txout∈ {R = R} txout′ Γᵢ∈
+      in
+        ℍ[C-Advertise]⇒TxoutG {Γ = Γᵢ}{ad = ad} ℍ txoutΓᵢ
+
+    sechash₀ : Sechash (ad .G)
+    sechash₀ = ℍ[C-AuthCommit]∗⇒SechashG {ad = ad}
+             $ committed⇒ℍ[C-AuthCommit]∗ {R}{Γ}{t}{ad} R≈ committedA sechash′
+
+    κ₀ : 𝕂²′ ad
+    κ₀ =
+      let
+        ad∈Hon : ad ∈ authorizedHonAds Γ
+        ad∈Hon = committed⇒authAd (L.Any.lookup-result honG) {Γ = Γ}
+               $ committedA (L.Mem.∈-lookup $ L.Any.index honG)
+      in
+        weaken-↦ κ′ (ads⦅end⦆⊆ R ∘ ∈ads-resp-≈ _ {Γ}{R ∙cfg} (↭-sym $ R≈ .proj₂))
+          $ ∈-collect-++⁺ʳ (` ad) Γ ad∈Hon
+
+LIFTᶜ : ∀ (𝕣 : ℝ Rˢ) {ad c} →
+  ∙ ∃[ Rˢ ∋ʳ Ancestor⦅ ad ↝ c ⦆ ]
+    ─────────────────────────────
+    𝔾 ad
+LIFTᶜ {R} 𝕣 {ad} ∃H =
+  let
+    ∃R : ∃[ R ∋ʳ ∃ℍ[C-AuthInit]⦅_↝_⦆⦅ ad ⦆ ]
+    ∃R = proj₁ $ ℍ[C-Init]⇒∃ℍ[C-AuthInit] (R .init) (R ∙trace′) $ ∃-weakenP (R ∙trace′) proj₁ ∃H
+
+    x , x′ , _ , _ , xy∈ , (x≈ , _) , _ , _ , _ , _ , Γ≡ , _ , p⊆′ , _  = ∃R
+
+    ad∈ : ` ad ∈ᶜ x
+    ad∈ = ∈ᶜ-resp-≈ {x′}{x} (↭-sym x≈)
+        $ subst (` ad ∈ᶜ_) (sym Γ≡) (here refl)
+
+    p⊆ : (ad .G ∙partG) ⊆ committedParticipants ad x
+    p⊆ = L.Perm.∈-resp-↭ (collectFromList↭ (∣committedParticipants∣.go ad .collect) (↭-sym x≈))
+       ∘ p⊆′
+
+    tr = R ∙trace′
+    tᵢ , _ , xy∈ᵗ = ×∈⇒×∈ᵗ tr xy∈
+    tr′      = splitTraceˡ tr xy∈ᵗ
+    R′       = splitRunˡ R xy∈ᵗ
+
+    𝕣′ : ℝ R′
+    𝕣′ = ℝ⊆ xy∈ᵗ 𝕣
+
+    R≈′ : R′ ≈⋯ x at tᵢ
+    R≈′ = splitRunˡ-≈⋯ R xy∈ᵗ
+  in
+    LIFT₀ 𝕣′ tᵢ x R≈′ ad ad∈ p⊆
 
 -- Convenient wrappers for calling the BitML compiler.
 COMPILE :
