@@ -6,10 +6,10 @@ module Coherence.Properties (⋯ : ⋯) (let open ⋯ ⋯) where
 
 open import SymbolicModel ⋯′
 open import ComputationalModel ⋯′ finPart keypairs as C
+open import Coherence.ComputationalContracts ⋯′
 open import Coherence.Helpers ⋯
 open import Coherence.Hypotheses ⋯
 open import Coherence.Relation ⋯
-open import SecureCompilation.ComputationalContracts ⋯′
 
 postulate instance
   -- type inequalities

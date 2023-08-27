@@ -4,7 +4,6 @@ open import Prelude.Traces
 open import Prelude.InferenceRules
 open import Prelude.Lists.Mappings
 open import Prelude.Lists.MapMaybe
-open import Prelude.Lists.SuffixSubset
 open import Prelude.Lists.Concat
 open import Prelude.Lists.Membership
 open import Prelude.Membership
@@ -18,7 +17,6 @@ module SymbolicModel.Properties (⋯ : ⋯) (let open ⋯ ⋯) where
 
 open import Compiler.Mappings ⋯
 open import SymbolicModel.Run ⋯
-  hiding (begin_; _∎)
 open import SymbolicModel.Mappings ⋯
 
 ∃[_∋ʳ_] : Run → Rel₀ Cfg → Type
@@ -208,95 +206,3 @@ auth-commit∈⇒TxoutG : ∀ {Δ : List (Secret × Maybe ℕ)} →
     ──────────────────────────────────────
     Txout ad
 auth-commit∈⇒TxoutG {A}{ad} {R} α∈ 𝕣 = auth-commit∈⇒Txout {A}{ad} {R} α∈ 𝕣 .proj₁
-
-Suffix⊆-subst : ∀ {X : Type ℓ} {xs ys zs : List X} (eq : ys ≡ zs) (xs⊆ : xs ⊆ ys)
-  → Suffix⊆ xs⊆
-  → Suffix⊆ (subst (_ L.Mem.∈_) eq ∘ xs⊆)
-Suffix⊆-subst refl _ p = p
-
-txout∷∘namesʳ⦅end⦆⊆ : (Γ→Γ′ : Γₜ —[ α ]→ₜ Γₜ′) (eq : Γₜ″ ≈ Γₜ′ × R .end ≈ Γₜ)
-  → let R′ = Γₜ″ ⟨ Γ→Γ′ ⟩←—— R ⊣ eq in
-  (txoutΓ′ : Txout Γₜ′)
-  (txoutR : Txout R)
-  → ∀ {x : Id} (x∈ : x ∈ namesʳ Γₜ″)
-  --————————————————————————
-  → (txout∷ {R = R} Γ→Γ′ eq txoutΓ′ txoutR) (namesʳ⦅end⦆⊆ R′ x∈)
-  ≡ Txout≈ {Γₜ′ .cfg}{Γₜ″ .cfg} (↭-sym $ eq .proj₁ .proj₂) txoutΓ′ x∈
-txout∷∘namesʳ⦅end⦆⊆ {Γₜ = Γₜ} {Γₜ′ = Γₜ′} {Γₜ″ = Γₜ″} {R = R}
-  Γ→Γ′ eq@((_ , Γ≈) , _) txoutΓ′ txoutR {x} x∈
-  = ++/↦≡-inj₂ n≡ _ _ _ _ is-inj₂
-  where
-    _R′ = Γₜ″ ⟨ Γ→Γ′ ⟩←—— R ⊣ eq
-
-    n≡ : namesʳ _R′ ≡ namesʳ R ++ namesʳ Γₜ″
-    n≡ = namesʳ-←—— {Γₜ = Γₜ″} {R = R} Γ→Γ′ eq
-
-    x∈₁ : x ∈ namesʳ _R′
-    x∈₁ = namesʳ⦅end⦆⊆ _R′ x∈
-
-    x∈₂ : x ∈ namesʳ R ++ namesʳ Γₜ″
-    x∈₂ = subst (x L.Mem.∈_) n≡ x∈₁
-
-    n⊆₀ : names Γₜ″ ⊆ names _R′
-    n⊆₀ = ⊆-concat⁺ $ L.Mem.∈-map⁺ names $ L.Mem.∈-map⁺ cfg $ end∈allCfgsᵗ _R′
-
-    n⊆₁ : namesʳ Γₜ″ ⊆ namesʳ _R′
-    n⊆₁ = mapMaybe-⊆ isInj₂ n⊆₀
-
-    n⊆ : namesʳ Γₜ″ ⊆ namesʳ R ++ namesʳ Γₜ″
-    n⊆ = subst (_ L.Mem.∈_) n≡ ∘ n⊆₁
-
-    suffix-n⊆ : Suffix⊆ n⊆
-    suffix-n⊆
-      = Suffix⊆-subst n≡ n⊆₁
-      $ Suffix⊆-mapMaybe isInj₂ n⊆₀
-      $ Last∈-concat (L.Mem.∈-map⁺ names $ L.Mem.∈-map⁺ cfg $ end∈allCfgsᵗ _R′)
-      $ Last∈-map⁺ names (L.Mem.∈-map⁺ cfg $ end∈allCfgsᵗ _R′)
-      $ Last∈-map⁺ cfg (end∈allCfgsᵗ _R′)
-      $ Last∈-end∈allCfgsᵗ _R′
-
-    is-inj₂ : L.Mem.∈-++⁻ (namesʳ R) {namesʳ Γₜ″} x∈₂ ≡ inj₂ x∈
-    is-inj₂ = Suffix⊆-++⁻ _ _ suffix-n⊆
-
-Txout≈∘Txout≈⁻¹ : ∀ {Γ Γ′ : Cfg} (Γ≈ : Γ ≈ Γ′) (txout : Txout Γ)
-  → Txout≈ {Γ′}{Γ} (↭-sym Γ≈) (Txout≈ {Γ}{Γ′} Γ≈ txout) ≗↦ txout
-Txout≈∘Txout≈⁻¹ {Γ}{Γ′} Γ≈ txout {x} x∈ =
-  begin
-    ( Txout≈ {Γ′}{Γ} (↭-sym Γ≈)
-    $ Txout≈ {Γ}{Γ′} Γ≈ txout
-    ) x∈
-  ≡⟨⟩
-    ( permute-↦ (≈⇒namesʳ↭ {Γ′}{Γ} $ ↭-sym Γ≈)
-    $ Txout≈ {Γ}{Γ′} Γ≈ txout
-    ) x∈
-  ≡⟨⟩
-    ( permute-↦ (≈⇒namesʳ↭ {Γ′}{Γ} $ ↭-sym Γ≈)
-    $ permute-↦ (≈⇒namesʳ↭ {Γ}{Γ′} Γ≈) txout
-    ) x∈
-  ≡⟨ cong (λ ◆ → (permute-↦ ◆ $ permute-↦ (≈⇒namesʳ↭ {Γ}{Γ′} Γ≈) txout) x∈)
-          (sym $ ↭-sym∘≈⇒namesʳ↭ {Γ}{Γ′} Γ≈) ⟩
-    ( permute-↦ (↭-sym $ ≈⇒namesʳ↭ {Γ}{Γ′} Γ≈)
-    $ permute-↦ (≈⇒namesʳ↭ {Γ}{Γ′} Γ≈) txout
-    ) x∈
-  ≡⟨ permute-↦∘permute-↦˘ (≈⇒namesʳ↭ {Γ}{Γ′} Γ≈) txout x∈ ⟩
-    txout x∈
-  ∎ where open ≡-Reasoning
-
--- Txout≈∘lift∘Txout≈⁻¹ : ∀ {Γ Γ′ : Cfg} (Γ≈ : Γ ≈ Γ′) (txout : Txout Γ)
---   (namesʳ≡ : Γ′ ≡⦅ namesʳ ⦆ Γ″)
---   → ( Txout≈ {Γ″}{Γ} (↭-sym Γ≈)
---     $ (lift Γ′ —⟨ namesʳ ⟩— Γ″ ⊣ namesʳ≡)
---     $ Txout≈ {Γ}{Γ′} Γ≈ txout
---     )
---   ≗↦ txout
--- Txout≈∘lift∘Txout≈⁻¹ {Γ}{Γ′} Γ≈ txout {x} x∈ =
-
-++/↦-Txout≈∘Txout≈⁻¹ : ∀ {Γ₀ Γ Γ′ : Cfg} (Γ≈ : Γ ≈ Γ′)
-  (txoutˡ : Txout Γ₀)
-  (txoutʳ : Txout Γ)
-  →  (txoutˡ ++/↦ (Txout≈ {Γ′}{Γ} (↭-sym Γ≈) $ Txout≈ {Γ}{Γ′} Γ≈ txoutʳ))
-  ≗↦ (txoutˡ ++/↦ txoutʳ)
-++/↦-Txout≈∘Txout≈⁻¹ {Γ₀}{Γ}{Γ′} Γ≈ txoutˡ txoutʳ {x} x∈
-  with L.Mem.∈-++⁻ (namesʳ Γ₀) x∈
-... | inj₁ _  = refl
-... | inj₂ y∈ = Txout≈∘Txout≈⁻¹ {Γ}{Γ′} Γ≈ txoutʳ y∈

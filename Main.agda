@@ -6,8 +6,6 @@ open import Compiler.Example
 open import SymbolicModel
 open import ComputationalModel
 
-open import SecureCompilation.ComputationalContracts
-
 open import Coherence
 
 -- ** typechecking these needs around 10GB of RAM, fails on CI

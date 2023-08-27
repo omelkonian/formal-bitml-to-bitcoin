@@ -34,7 +34,6 @@ open import SymbolicModel ⋯′ as S
 open import ComputationalModel ⋯′ finPart keypairs as C
   hiding (Σ; t; t′; `; ∣_∣; n)
 
-open import SecureCompilation.ComputationalContracts ⋯′
 open import Compiler ⋯′ η
 open import Coherence ⋯ as SC
 

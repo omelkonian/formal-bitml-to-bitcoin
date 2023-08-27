@@ -52,7 +52,7 @@ open import ComputationalModel ⋯′ finPart keypairs
          )
   renaming (Label to CLabel; Labels to CLabels)
 open import Compiler ⋯′ η
-open import SecureCompilation.ComputationalContracts ⋯′
+open import Coherence.ComputationalContracts ⋯′
 open import Coherence.Helpers ⋯
 open import Coherence.Hypotheses ⋯
 

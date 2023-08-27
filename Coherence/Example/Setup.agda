@@ -28,7 +28,6 @@ import BitML.BasicTypes as BitML-params
 -- Compiler
 η = ℕ ∋ 128
 open import Compiler ⋯′ η public
-open import SecureCompilation.ComputationalContracts ⋯′ public
 
 -- Bitcoin: computational model
 
