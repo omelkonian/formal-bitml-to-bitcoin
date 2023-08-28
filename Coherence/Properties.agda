@@ -36,7 +36,10 @@ module _ {Rˢ Γₜ Rᶜ} {𝕣∗ : ℝ∗ Rˢ} {λˢ : 𝕃 Rˢ Γₜ} where
     ... | [L2] mkℍ _ _ _ _ _ _ _ = label≢ (SIG≢encode {y = T})
     ... | [L3] mkℍ _ _ = label≢ (SIG≢encode {y = T})
     ... | [L4] mkℍ = λ ()
-    ... | [L5] mkℍ = label≢ (SIG≢encode {y = T})
+    ... | [L5] mkℍ {h} _ _
+      = label≢
+      $ subst (_≢ encode T) (sym $ H₅.m≡ h)
+      $ SIG≢encode {y = T}
     ... | [L6] mkℍ = λ ()
     ... | [L7] mkℍ _ _ _ _ _ = label≢ encode≢
     ... | [L8] mkℍ = λ ()

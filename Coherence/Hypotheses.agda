@@ -634,13 +634,13 @@ record H₅-args : Type where
   open ∣SELECT c i public
   field
     -- D ≡ A ∶ D′
-    D≡A:D′ : A ∈ authDecorations d
+    d≡ : A ∈ authDecorations d
     -- Hypotheses from [C-AuthControl], already in hypothesis `D≡A:D′`
   open Transition
     ( (⟨ c , v ⟩at x ∣ Γ₀) ⨾ t
       —— auth-control⦅ A , x ▷ d ⦆ —→
       (⟨ c , v ⟩at x ∣ A auth[ x ▷ d ] ∣ Γ₀) ⨾ t
-    ⊣ Act ([C-AuthControl] D≡A:D′)
+    ⊣ Act ([C-AuthControl] d≡)
     ) public hiding (t)
   field 𝕙r : ℍ-Run Γ→
   open ℍ-Run 𝕙r public
@@ -649,12 +649,19 @@ module H₅ (⋯ : H₅-args) (let open H₅-args ⋯) where
   private
     -- (ii) {G}C is the ancestor of ⟨C, v⟩ₓ in Rˢ
     T×K = COMPILE-ANCESTOR {Γ = Γ} {i = i} R≈ 𝟘 𝕣
+    T   = BranchTx d∗ ∋ T×K .proj₁
+    Kᵈ  = KeyPair     ∋ T×K .proj₂ d≡
+    ∃T  = ∃Tx         ∋ Inᵈ d∗ , Outᵈ d∗ , T
+  abstract
+    m ⌞T⌟ : Message
+    m   = SIG Kᵈ ∃T
+    ⌞T⌟ = encode T
 
-  T : BranchTx (d ∗)
-  T = T×K .proj₁
+    m≡ : m   ≡ SIG Kᵈ ∃T
+    m≡ = refl
 
-  Kᵈ : KeyPair
-  Kᵈ = T×K .proj₂ D≡A:D′
+    T≡ : ⌞T⌟ ≡ encode T
+    T≡ = refl
 
   -- (iv) txout = txout′, sechash = sechash′, κ = κ′
   λˢ : ℾᵗ Γₜ′
@@ -663,13 +670,19 @@ module H₅ (⋯ : H₅-args) (let open H₅-args ⋯) where
 data _⨾_⨾_~ℍ[5]~_⨾_ : StepRel where
   mkℍ :
     -- (i) Rˢ contains ⟨C , v⟩ₓ with C = D + ∑ᵢ Dᵢ
-    ∀ {h : H₅-args} (open H₅-args h)
-      {B : Participant}
+    ∀ {h : H₅-args} (open H₅-args h) {B}
     → let
-        open H₅ h using (λˢ; Kᵈ; T)
-        λᶜ = B →∗∶ SIG Kᵈ (∃Tx ∋ -, -, T)
+        open H₅ h using (λˢ; m; ⌞T⌟)
+        λᶜ = B →∗∶ m
       in
-        Γₜ″ ⨾ 𝕣∗ ⨾ (𝕒 , λˢ) ~ℍ[5]~ λᶜ ⨾ Rᶜ
+      -- (v) Rᶜ contains B→∗:T for some B...
+    ∀ (∃B : ∃ λ B → B →∗∶ ⌞T⌟ ∈ toList Rᶜ) →
+
+      -- ...and m is the first signature of T after that
+    ∙ All (λ l → ∀ B → l ≢ B →∗∶ m) (Any-front $ ∃B .proj₂)
+
+      ─────────────────────────────────────────────────────
+      Γₜ″ ⨾ 𝕣∗ ⨾ (𝕒 , λˢ) ~ℍ[5]~ λᶜ ⨾ Rᶜ
 
 -- ** Contract actions: put
 record H₆-args : Type where
@@ -906,7 +919,7 @@ data _⨾_⨾_~ℍ[7]~_⨾_ : StepRel where
       in
       -- ... with a corresponding broadcast of m′=(C,h̅,k̅) in Rᶜ
       -- T0D0: should we search for a signature of this message instead?
-    ∀ (∃λ : ∃ λ B → ∃ λ txoutᶜ →
+    ∀ (∃λ : ∃ λ B → ∃ λ (txoutᶜ : Txout ⟨G⟩C × Txout C) →
           let C,h̅,k̅ = encode (encodeAd ⟨G⟩C txoutᶜ , h̅ , k̅)
           in  B →∗∶ SIG (K B) C,h̅,k̅ ∈ toList Rᶜ) →
 
