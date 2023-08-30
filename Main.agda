@@ -16,5 +16,7 @@ open import Coherence
 -- open import Coherence.Example.WithdrawDSL
 -- open import Coherence.Example.TC-DSL
 
--- ** [WIP]
--- open import SecureCompilation
+open import Coherence.ValuePreservation
+-- open import SecureCompilation.Lemma6
+
+open import SecureCompilation

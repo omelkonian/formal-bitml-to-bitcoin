@@ -18,16 +18,15 @@ open import Prelude.Nary
 
 open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.Lemma6 (⋯ : ⋯) (let open ⋯ : ⋯) where
+module SecureCompilation.Lemma6 (⋯ : ⋯) (let open ⋯ ⋯) where
 
 open import SymbolicModel ⋯′ as S
   hiding (d; α; Γ; Γ′; Γ″; Γₜ; Γₜ′; t; t′)
 open import ComputationalModel ⋯′ finPart keypairs as C
   hiding (∣_∣; `; t; t′)
 open import Compiler ⋯′ η
--- open import SecureCompilation.Args ⋯′
-open import SecureCompilation.Helpers ⋯
-open import SecureCompilation.Coherence ⋯
+open import Coherence ⋯
+open import Coherence.ValuePreservation ⋯
 
 txout-preserves-value : ∀ {𝕣∗ : ℝ∗ Rˢ} →
   ∙ 𝕣∗ ~′ Rᶜ
@@ -37,8 +36,9 @@ txout-preserves-value
   (step₁ {Rˢ = Rˢ}{𝕣∗}{λˢ = (α , Γ at t , _ at t′ , Γ→Γ′ , _ , R≈) , _} Rˢ~Rᶜ coh)
   with coh
 ... | [L] [1] {⟨G⟩C = ⟨G⟩C} _ ∃Γ≈ _ _ _
-  = value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ)
-  where open H₁ (ℝ∗⇒ℝ 𝕣∗) t α t Γ R≈ ⟨G⟩C Γ→Γ′ ∃Γ≈
+  = ?
+  -- = value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ)
+  -- where open H₁ (ℝ∗⇒ℝ 𝕣∗) t α t Γ R≈ ⟨G⟩C Γ→Γ′ ∃Γ≈
 ... | [L] [2] {⟨G⟩C = ⟨G⟩C} {A = A} {Δ×h̅ = Δ×h̅ } {k⃗ = k⃗} R≈ ∃Γ≈ as≡ All∉ Hon⇒ _ _ _ _ _
   = value-preserving⇒ (txout-preserves-value Rˢ~Rᶜ)
   where
