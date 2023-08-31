@@ -8,6 +8,7 @@ open import Prelude.Validity
 open import Prelude.Bifunctor
 open import Prelude.Ord
 open import Prelude.Traces
+open import Prelude.InferenceRules
 
 open import BitML.BasicTypes using (⋯)
 
@@ -119,18 +120,16 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
   runAdversary : Strategies → Run → Label
   runAdversary (S† , S) R = Σₐ S† (R ∗) (runHonestAll R S)
 
-  infix -1 _-conforms-to-_
-  data _-conforms-to-_ : Run → Strategies → Type where
+  infix -1 _∼ˢ_
+  data _∼ˢ_ : Run → Strategies → Type where
 
-    base : (init : Initial Γ)
-           ---------------------------
-         → let Γ₀ = Γ at 0 in
-           record {start = Γ₀; end = Γ₀; trace = -, (Γ₀ ∎ₜ); init = init , refl}
-             -conforms-to- SS
+    base :
+      ∀ (init : Initial Γ) →
+        ───────────────────────────────
+        (Γ at 0) ∎⊣ (init , refl) ∼ˢ SS
 
-    step :
-      let α = runAdversary SS R in
-        R -conforms-to- SS
-      → (R→ : R ——[ α ]→ Γₜ)
-        ----------------------------
-      → (Γₜ ⟨ R→ ⟩←—— R ⊣ ≈ᵗ-refl {Γₜ} , ≈ᵗ-refl {R .end}) -conforms-to- SS
+    step : let α = runAdversary SS R in
+      ∙ R ∼ˢ SS
+      → (R→ : R ——[ α ]→ Γₜ) →
+        ─────────────────────────
+        (Γₜ ⟨ R→ ⟩←—— R ⊣≡) ∼ˢ SS

@@ -24,7 +24,7 @@ open import Prelude.General
 
 open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.Backtranslation.Unparsing
+module SecureCompilation.Unparsing
   (⋯ : ⋯) (let open ⋯ ⋯)
   (A₀ : Participant) -- whose strategy we are currently translating
   where

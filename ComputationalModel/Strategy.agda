@@ -10,6 +10,7 @@ open import Prelude.Validity
 open import Prelude.ToList
 open import Prelude.InferenceRules
 open import Prelude.Traces
+open import Prelude.Null
 
 open import Bitcoin
 open import BitML.BasicTypes using (⋯)
@@ -125,14 +126,15 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
   runAdversary : Strategies → CRun → Label
   runAdversary (S† , S) R = Σₐ S† (stripᶜ Adv R) (runHonestAll R S)
 
-  infix -1 _-pre-conforms-to-_
-  data _-pre-conforms-to-_ : CRun → Strategies → Type where
+  infix -1 _⋯∼ᶜ_ _∼ᶜ_
 
+  data _⋯∼ᶜ_ : CRun → Strategies → Type where
+    -- (1)
     base : ∀ {R} →
       Initial R
-      ────────────────────────
-      R -pre-conforms-to- SS
-
+      ─────────
+      R ⋯∼ᶜ SS
+    -- (2)
     step : ∀ {R} →
       let
         (S† , S) = SS
@@ -140,12 +142,12 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
         Λ = map proj₂ moves
         α = Σₐ S† (stripᶜ Adv R) moves
       in
-      ∙ R -pre-conforms-to- SS
-      ∙ oracleMessages [ α ] ≡ []
-      ∙ concatMap oracleMessages Λ ≡ []
-        ───────────────────────────────
-        α ∷ R ✓ -pre-conforms-to- SS
-
+      ∙ R ⋯∼ᶜ SS
+      ∙ Null (oracleMessages [ α ])
+      ∙ Null (concatMap oracleMessages Λ)
+        ─────────────────────────────────
+        α ∷ R ✓ ⋯∼ᶜ SS
+    -- (3)
     oracle-adv : ∀ {R} {m hm : Message} →
       let
         (S† , S) = SS
@@ -153,30 +155,29 @@ module AdvM (Adv : Participant) (Adv∉ : Adv ∉ Hon) where
         Λ = map proj₂ moves
         α = Σₐ S† (stripᶜ Adv R) moves
       in
-        R -pre-conforms-to- SS
-      → α ≡ Adv →O∶ m
-      → concatMap oracleMessages Λ ≡ []
-      → (∀ {hm′} →
-          (Adv →O∶ m , O→ Adv ∶ hm′ ) ∈ oracleRequests Adv (toList R)
-          ──────────
+      ∙ R ⋯∼ᶜ SS
+      ∙ α ≡ Adv →O∶ m
+      ∙ Null (concatMap oracleMessages Λ)
+      ∙ (∀ {hm′} →
+          (Adv →O∶ m , O→ Adv ∶ hm′) ∈ oracleRequests Adv (R ∙toList)
+          ───────────────────────────────────────────────────────────
           hm ≡ hm′)
-        ──────────────────────────────────────────────────────────────
-        (Adv →O∶ m) ∷ (O→ Adv ∶ hm) ∷ R ✓ ✓ -pre-conforms-to- SS
-
+        ──────────────────────────────────────────
+        (Adv →O∶ m) ∷ (O→ Adv ∶ hm) ∷ R ✓ ✓ ⋯∼ᶜ SS
+    -- (4)
     oracle-hon : ∀ {R} {A} {A∈ : A ∈ Hon} {m hm : Message} →
       let
         (_ , S) = SS
         Λ = Σ (S A∈) (stripᶜ A R)
       in
-      ∙ R -pre-conforms-to- SS
+      ∙ R ⋯∼ᶜ SS
       ∙ L.head (oracleMessages Λ) ≡ just (Adv →O∶ m)
       ∙ (∀ {hm′} →
-           (A →O∶ m , O→ A ∶ hm′ ) ∈ oracleRequests A (toList R)
-           ──────────
-           hm ≡ hm′)
-        ───────────────────────────────────────────────────────
-        (A →O∶ m) ∷ (O→ A ∶ hm) ∷ R ✓ ✓ -pre-conforms-to- SS
+          (A →O∶ m , O→ A ∶ hm′ ) ∈ oracleRequests A (R ∙toList)
+          ──────────
+          hm ≡ hm′)
+        ─────────────────────────────────────────────────────────
+        (A →O∶ m) ∷ (O→ A ∶ hm) ∷ R ✓ ✓ ⋯∼ᶜ SS
 
-  infix -1 _-conforms-to-_
-  _-conforms-to-_ : CRun → Strategies → Type
-  R -conforms-to- SS = ∃[ R′ ] (Prefix≡ (toList R) (toList R′) × (R′ -pre-conforms-to- SS))
+  _∼ᶜ_ : CRun → Strategies → Type
+  R ∼ᶜ SS = ∃[ R′ ] (Prefix≡ (toList R) (toList R′) × (R′ ⋯∼ᶜ SS))

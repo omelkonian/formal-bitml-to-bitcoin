@@ -7,18 +7,20 @@ open import Prelude.Validity
 
 open import SecureCompilation.ModuleParameters using (⋯)
 
-module SecureCompilation.Backtranslation (⋯ : ⋯) (let open ⋯ ⋯) where
+module SecureCompilation.StrategyTranslation (⋯ : ⋯) (let open ⋯ ⋯) where
 
 open import SymbolicModel ⋯′ as S
 open import SymbolicModel.Stripping ⋯′
 open import ComputationalModel ⋯′ finPart keypairs as C
 open import Coherence ⋯
 open import SecureCompilation.Parsing ⋯
-  using (parseRun)
+  using (parseRun~)
+
+postulate instance _ : Strippable CRun
 
 module _ {A} (A∈ : A ∈ Hon) where
 
-  open import SecureCompilation.Backtranslation.Unparsing ⋯ A
+  open import SecureCompilation.Unparsing ⋯ A
     using (unparseMoves)
 
   ℵ : 𝕍 (S.ParticipantStrategy A) → 𝕍 (C.ParticipantStrategy A)
@@ -27,11 +29,10 @@ module _ {A} (A∈ : A ∈ Hon) where
       go : CRun → C.Labels
       go Rᶜ =
         let
-          Rᶜ∗ : CRun
-          Rᶜ∗ = Rᶜ -- ∗
+          Rᶜ∗ = Rᶜ ∗
 
           -- (1) parse run Rᶜ∗ to obtain a corresponding symbolic run Rˢ∗
-          Rˢ , Rˢ~Rᶜ = parseRun Rᶜ∗
+          Rˢ , Rˢ~Rᶜ = parseRun~ Rᶜ∗
           Rˢ∗ = Rˢ ∗
 
           -- (3) evaluate Λˢ = Σˢ(Rˢ∗)
