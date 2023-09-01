@@ -14,8 +14,8 @@ open import BitML.BasicTypes using (⋯)
 
 module SymbolicModel.Strategy (⋯ : ⋯) (let open ⋯ ⋯) where
 
-open import SymbolicModel.Run ⋯
-open import SymbolicModel.Stripping ⋯
+open import SymbolicModel ⋯ public
+open import SymbolicModel.Stripping ⋯ public
 
 record ParticipantStrategy (A : Participant) : Type where
   field Σ : Run → Labels

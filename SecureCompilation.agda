@@ -1,10 +1,9 @@
-open import Prelude.Init
+module SecureCompilation where
 
-open import SecureCompilation.ModuleParameters using (⋯)
-
-module SecureCompilation (⋯ : ⋯) (let open ⋯ ⋯) where
-
-open import SecureCompilation.Parsing ⋯ public
-open import SecureCompilation.Unparsing ⋯ public
-open import SecureCompilation.StrategyTranslation ⋯ public
-open import SecureCompilation.ComputationalSoundness ⋯ public
+open import SecureCompilation.ModuleParameters
+open import SymbolicModel.Strategy
+open import ComputationalModel.Strategy
+open import SecureCompilation.Parsing
+open import SecureCompilation.Unparsing
+open import SecureCompilation.StrategyTranslation
+open import SecureCompilation.ComputationalSoundness

@@ -12,7 +12,7 @@ open import Prelude.InferenceRules
 open import Prelude.Traces
 open import Prelude.Null
 
-open import Bitcoin
+open import Bitcoin using (KeyPair)
 open import BitML.BasicTypes using (⋯)
 
 module ComputationalModel.Strategy
@@ -21,9 +21,7 @@ module ComputationalModel.Strategy
   (keypairs : Participant → KeyPair × KeyPair)
   where
 
-open import ComputationalModel.KeyPairs Participant keypairs
-open import ComputationalModel.Serialization
-open import ComputationalModel.Run ⋯ finPart keypairs
+open import ComputationalModel ⋯ finPart keypairs public
 
 -- Consistent update of the blockchain, in a run where certain
 -- components of the transaction have been made public.

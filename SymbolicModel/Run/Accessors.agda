@@ -23,6 +23,7 @@ open import SymbolicModel.Run.Base ⋯
 open import SymbolicModel.Run.Collections ⋯
 open ≡-Reasoning
 
+infix 100 _∙cfg
 unquoteDecl _∙Cfg _∙cfg ∙cfg=_ = genAccessor _∙Cfg _∙cfg ∙cfg=_ (quote Cfg)
 instance
   Cfgᵗ∙Cfg : Cfgᵗ ∙Cfg

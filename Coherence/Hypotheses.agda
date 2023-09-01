@@ -34,15 +34,11 @@ open import SymbolicModel ⋯′ as S
          ; x; x′; y; y′; z; xs
          ; a; as
          ; v; v′; vs
-         ; α; p; Σ
+         ; α; p
          )
 open import ComputationalModel ⋯′ finPart keypairs
   hiding ( `; ∣_∣; _`∧_; _`∨_; _`=_; _`<_; `true; ∎
          ; Run; Time; Value; DecEq-Label
-         ; HonestMoves; HonestStrategies; ParticipantStrategy
-         ; Valid-Strategy; moves
-         ; Σ
-         ; module AdvM
          {-variables-}
          ; R; R′; R″; Rᶜ
          ; tx; i; t; t′; n; m; m′; λᶜ
@@ -98,6 +94,9 @@ record ℍ-Run {Γₜ α Γₜ′} (Γ→ : Γₜ —[ α ]→ₜ Γₜ′) : Ty
   R≈′ = refl , Γ≈
 
   R = Rˢ; R′ = Rˢ′
+
+infix 0 _⨾≋_
+pattern _⨾≋_ 𝕣∗ Γ″ = _ ⨾ _ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ″ ⊣ ↭-refl
 
 -- ** Stipulation: advertisting a contract
 record H₁-args : Type where
@@ -1433,9 +1432,9 @@ data _⨾_⨾_~ℍ[17]~_⨾_ : StepRel where
         -- remove {⋯ xᵢ ↦ (Tᵢ,j) ⋯} from txout′
         open H₁₇ h using (λˢ; xs↦)
       in
-    ∀ {i : ℕ}
-      (T    : Tx i 0)
-      (ins⊆ : (hashTxⁱ <$> codom xs↦) ⊆ V.toList (inputs T))
+    ∀ {i o}
+      (T    : Tx i o)
+      (ins⊆ : (hashTxⁱ <$> codom xs↦) ⊆ V.toList (T .inputs))
     → let
         -- (iii) submit transaction T
         λᶜ = submit (_ , _ , T)

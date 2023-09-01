@@ -35,15 +35,11 @@ open import SymbolicModel ⋯′ as S
          ; x; x′; y; y′; z; xs
          ; a; as
          ; v; v′; vs
-         ; α; p; Σ
+         ; α; p
          )
 open import ComputationalModel ⋯′ finPart keypairs
   hiding ( `; ∣_∣; _`∧_; _`∨_; _`=_; _`<_; `true; ∎
          ; Run; Time; Value; DecEq-Label
-         ; HonestMoves; HonestStrategies; ParticipantStrategy
-         ; Valid-Strategy; moves
-         ; Σ
-         ; module AdvM
          {-variables-}
          ; R; R′; R″; Rᶜ
          ; tx; i; t; t′; n; m; m′; λᶜ

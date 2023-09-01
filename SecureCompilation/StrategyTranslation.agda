@@ -9,9 +9,8 @@ open import SecureCompilation.ModuleParameters using (⋯)
 
 module SecureCompilation.StrategyTranslation (⋯ : ⋯) (let open ⋯ ⋯) where
 
-open import SymbolicModel ⋯′ as S
-open import SymbolicModel.Stripping ⋯′
-open import ComputationalModel ⋯′ finPart keypairs as C
+open import SymbolicModel.Strategy ⋯′ as S
+open import ComputationalModel.Strategy ⋯′ finPart keypairs as C
 open import Coherence ⋯
 open import SecureCompilation.Parsing ⋯
   using (parseRun~)

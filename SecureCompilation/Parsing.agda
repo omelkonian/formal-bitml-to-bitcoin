@@ -18,7 +18,7 @@ module SecureCompilation.Parsing (⋯ : ⋯) (let open ⋯ ⋯) where
 open import SymbolicModel ⋯′ as S
   hiding (Rˢ′; d; Γₜ″)
 open import ComputationalModel ⋯′ finPart keypairs as C
-  hiding (Σ; t; t′; `; ∣_∣; n)
+  hiding (t; t′; `; ∣_∣; n)
 
 open import Coherence ⋯ as SC
 open import SecureCompilation.Parsing.Dec ⋯
@@ -77,7 +77,7 @@ parseRun~ (_ ∷ Rᶜ ✓) | A₀ →∗∶ m₀
   = -, -, step₁ Rˢ~Rᶜ
     ([R16⊣ ¬H[1-14] Rˢ 𝕣∗ Rᶜ A₀ m₀ ¬1 ¬2 ¬3 ¬5 ¬7 ¬10 ¬12 ¬14 _ _ ] ✓16)
 ... | no ¬16
-  = -, -, step₂ Rˢ~Rᶜ ([3] $ ¬H16⇒≁₁ Rˢ 𝕣∗ Rᶜ A₀ m₀ ¬16)
+  = -, -, step₂ Rˢ~Rᶜ ([3] $′ ¬H16⇒≁₁ Rˢ 𝕣∗ Rᶜ A₀ m₀ ¬1 ¬2 ¬3 ¬5 ¬7 ¬10 ¬12 ¬14 ¬16)
 parseRun~ (_ ∷ Rᶜ ✓) | submit T₀
   with dec-H₄ Rˢ 𝕣∗ Rᶜ T₀
 ... | yes (_ , _ , ✓4)
@@ -116,7 +116,7 @@ parseRun~ (_ ∷ Rᶜ ✓) | submit T₀
   where
     open ℝ (ℝ∗⇒ℝ 𝕣∗)
     ins♯ : ∃inputs T₀ ♯ (hashTxⁱ <$> codom txout′)
-    ins♯ = ¬H17⇒♯ Rˢ 𝕣∗ Rᶜ T₀ ¬17
+    ins♯ = ¬H17⇒♯ Rˢ 𝕣∗ Rᶜ T₀ ¬4 ¬6 ¬8 ¬9 ¬11 ¬13 ¬15 ¬17
 
 parseRun : CRun → S.Run
 parseRun = proj₁ ∘ parseRun~

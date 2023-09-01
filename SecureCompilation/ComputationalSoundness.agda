@@ -13,8 +13,8 @@ open import SecureCompilation.ModuleParameters using (⋯)
 
 module SecureCompilation.ComputationalSoundness (⋯ : ⋯) (let open ⋯ ⋯) where
 
-open import SymbolicModel ⋯′ as S
-open import ComputationalModel ⋯′ finPart keypairs as C
+open import SymbolicModel.Strategy ⋯′ as S
+open import ComputationalModel.Strategy ⋯′ finPart keypairs as C
 open import Coherence ⋯
 open import SecureCompilation.Parsing ⋯
 open import SecureCompilation.Unparsing ⋯
@@ -58,9 +58,9 @@ module _
       R~ˢ : Rˢ ∼ˢ Σˢₐ , Σˢ
       R~ˢ with ⟫ R~ᶜ
       -- T0D0: induction in tandem with `parseRun~` needed here
-      ... | ⟫ base {R} cinit = {!base ?!}
-      ... | ⟫ step {R} h1 h2 h3 = {!step ? ?!}
-      ... | ⟫ oracle-adv {R}{m}{hm} h1 h2 h3 h4 = {!step ?!}
+      ... | ⟫ base {R} cinit = {!?!}
+      ... | ⟫ step {R} h1 h2 h3 = {!?!}
+      ... | ⟫ oracle-adv {R}{m}{hm} h1 h2 h3 h4 = {!!}
       ... | ⟫ oracle-hon {R}{A}{A∈}{m}{hm} h1 h2 h3 = {!!}
 
   Theorem2 Rᶜ R~ᶜ =

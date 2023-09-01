@@ -2,8 +2,8 @@
 -- Converting symbolic moves to computational ones.
 ---------------------------------------------------
 
--- {-# OPTIONS --allow-unsolved-metas #-}
-open import Prelude.Init hiding (T)
+{-# OPTIONS --allow-unsolved-metas #-}
+open import Prelude.Init hiding (T); open SetAsType
 open L.Mem using (_∈_; ∈-map⁻)
 open import Prelude.Lists
 open import Prelude.Lists.Dec
@@ -33,118 +33,159 @@ open import Compiler ⋯′ η
 open import SymbolicModel ⋯′ as S
   hiding (Rˢ′; d)
 open import ComputationalModel ⋯′ finPart keypairs as C
-  hiding (Σ; t; t′; `; ∣_∣; n)
+  hiding (t; t′; `; ∣_∣; n)
 open import Coherence ⋯
 
-postulate
-  unparseMove :
-    ∙ Rˢ ~ Rᶜ
-    ∙ Rˢ ——[ α ]→ Γₜ
-      ─────────────────────────────
-      ∃ λ λᶜ → ∃ λ (𝕒 : 𝔸 Rˢ Γₜ) →
-        (Γₜ ∷ Rˢ ⊣ 𝕒) ~ (λᶜ ∷ Rᶜ ✓)
--- ** too slow
+unparseMove :
+  ∙ Rˢ ~ Rᶜ
+  ∙ Rˢ ——[ α ]→ Γₜ
+    ─────────────────────────────
+    ∃ λ λᶜ → ∃ λ (𝕒 : 𝔸 Rˢ Γₜ) →
+      (Γₜ ∷ Rˢ ⊣ 𝕒) ~ (λᶜ ∷ Rᶜ ✓)
+
+unparseMove
+  {Rˢ  = record {end = Γ at _}}
+  {α   = advertise⦅ ⟨G⟩C ⦆}
+  {Γₜ  = Γ′@(` .⟨G⟩C ∣ Γ) at _}
+  (𝕣∗ , Rˢ~Rᶜ)
+  ([Action] ([C-Advertise] vad hon d⊆) refl)
+  = -, -, -, step₁ Rˢ~Rᶜ
+      ([L1] mkℍ  {mk {⟨G⟩C}{Γ} vad hon d⊆ (𝕣∗ ⨾≋ Γ′)}
+                 {A = A₀})
+unparseMove
+  {Rˢ = record {end = Γ@(` .⟨G⟩C ∣ Γ₀) at _}}
+  {α  = auth-commit⦅ A , ⟨G⟩C , Δ ⦆}
+  {Γₜ = Γ′@(.Γ ∣ Δᶜ ∣ .A auth[ ♯▷ .⟨G⟩C ]) at _}
+  (𝕣∗ , Rˢ~Rᶜ)
+  ([Action] ([C-AuthCommit] as≡ All∉ Hon⇒) refl)
+  = {!!}
+{- ** T0D0: step (5) of stipulation protocol
+  = -, -, -, step₁ Rˢ~Rᶜ
+      ([L2] mkℍ {mk {⟨G⟩C}{Γ₀}{t}{A}
+                    ? ? as≡ All∉ Hon⇒
+                    (𝕣∗ ⨾≋ Γ′)}
+                ? ? ? ? ? ? ?)
+-}
+unparseMove
+  {Rˢ = record {end = (` .ad ∣ Γ₀) at _}}
+  {α  = auth-init⦅ A , ad , x ⦆}
+  {Γₜ = Γ′@(` .ad ∣ .Γ₀ ∣ .A auth[ .x ▷ˢ .ad ]) at _}
+  (𝕣∗ , Rˢ~Rᶜ)
+  ([Action] ([C-AuthInit] committedA A∈per) refl)
+  = {!!}
+{- ** T0D0: step (4) of stipulation protocol
+  = -, -, -, step₁ Rˢ~Rᶜ
+      ([L3] mkℍ {mk {ad}{Γ₀}{t}{A}{x} committedA A∈per
+                    (𝕣∗ ⨾≋ Γ′)}
+                ? ?)
+-}
+unparseMove
+  {Rˢ  = record {end = (.(` (⟨ G ⟩ C)) ∣ Γ₀ ∣ _ ∣ _) at _}}
+  {α   = init⦅ G , C ⦆}
+  {Γₜ  = Γ′ at _}
+  (𝕣∗ , Rˢ~Rᶜ)
+  ([Action] ([C-Init] fresh-z) refl)
+  = -, -, -, step₁ Rˢ~Rᶜ
+      ([L4] mkℍ {mk {⟨ G ⟩ C}{Γ₀} fresh-z (𝕣∗ ⨾≋ Γ′)})
+unparseMove
+  {α   = put⦅ _ , _ , _ ⦆}
+  {Γₜ  = Γ′ at _}
+  (𝕣∗ , Rˢ~Rᶜ)
+  stepₜ@([Timeout] As≡∅ ∀≤t _ refl)
+  with  ds , ss , _ , _ , _ , Γ₀ , _ , d≡
+     ,  refl , refl , refl , refl , refl , refl
+     ,  fresh-z , p≡ ← match-putₜ stepₜ tt
+  = -, -, -, step₁ Rˢ~Rᶜ
+       ([L6] mkℍ {mk  {Γ₀ = Γ₀} {ds = ds} {ss = ss}
+                      (∀≤⇒≡max ∀≤t) d≡ fresh-z p≡ As≡∅
+                      (𝕣∗ ⨾≋ Γ′)})
+unparseMove
+  {Rˢ  = record {end = (⟨ c , v ⟩at .y ∣ Γ₀) at _}}
+  {α   = split⦅ y ⦆}
+  {Γₜ  = Γ′ at _}
+  (𝕣∗ , Rˢ~Rᶜ)
+  stepₜ@([Timeout] As≡∅ ∀≤t _ refl)
+  with  vcis , _ , _ , d≡
+     ,  refl , refl , refl , refl
+     ,  fresh-xs ← match-splitₜ stepₜ tt
+  = -, -, -, step₁ Rˢ~Rᶜ
+      ([L8] mkℍ {mk  {Γ₀ = Γ₀} {vcis = vcis}
+                     (∀≤⇒≡max ∀≤t) d≡ fresh-xs As≡∅
+                     (𝕣∗ ⨾≋ Γ′)})
+unparseMove
+  {α  = withdraw⦅ _ , _ , _ ⦆}
+  {Γₜ = Γ′ at _}
+  (𝕣∗ , Rˢ~Rᶜ)
+  stepₜ@([Timeout] As≡∅ ∀≤t _ refl)
+  with Γ₀ , x , d≡ , refl , refl , refl , refl , fresh-x ← match-withdrawₜ stepₜ tt
+  = -, -, -, step₁ Rˢ~Rᶜ
+      ([L9] mkℍ {mk {Γ₀ = Γ₀} d≡ fresh-x As≡∅ ∀≤t (𝕣∗ ⨾≋ Γ′)})
+unparseMove
+  {Rˢ = record {end = (⟨ .A has v ⟩at .x ∣ ⟨ .A has v′ ⟩at .x′ ∣ Γ₀) at _}}
+  {α  = auth-join⦅ A , x ↔ x′ ⦆}
+  {Γₜ = Γ′ at _}
+  (𝕣∗ , Rˢ~Rᶜ)
+  ([Action] [DEP-AuthJoin] refl)
+  = -, -, -, step₁ Rˢ~Rᶜ
+      ([L10] mkℍ {mk {Γ₀ = Γ₀} (𝕣∗ ⨾≋ Γ′)}
+                 {B = A₀}
+                 {!!} {!!})
 {-
-unparseMove
-  {Rˢ@(record {end = Γₜ@(Γ at t)})}
-  {Rᶜ}
-  {advertise⦅ ⟨G⟩C ⦆}
-  {Γₜ′@(Γ′@(` .⟨G⟩C ∣ .Γ) at .t)}
-  (𝕣∗ , Rˢ~Rᶜ)
-  ([Action] ([C-Advertise] vad hon d⊆) refl) =
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([L1] mkℍ {mk {⟨G⟩C}{Γ}{t} vad hon d⊆
-                    (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)}
-                {A = ?})
-unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(` .⟨G⟩C ∣ Γ₀)
-    at t)})}
-  {Rᶜ}
-  {auth-commit⦅ A , ⟨G⟩C , Δ ⦆}
-  {Γₜ′@(Γ′@(.Γ ∣ Δᶜ ∣ .A auth[ ♯▷ .⟨G⟩C ]) at .t)}
-  (𝕣∗ , Rˢ~Rᶜ)
-  ([Action] ([C-AuthCommit] as≡ All∉ Hon⇒) refl) =
   let
+    𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣
+
     R≈ : Rˢ ≈⋯ Γₜ
     R≈ = refl , ↭-refl
 
     ∃Γ≈ : ∃ (_≈ Γ′)
     ∃Γ≈ = Γ′ , ↭-refl
+
+    n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
+    n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
+    x∈  = n⊆ (here refl)
+    x∈′ = n⊆ (there $′ here refl)
+
+    -- ∃λ : Any (λ l → ∃ λ B → ∃ λ T
+    --      → (l ≡ B →∗∶ [ T ♯ ])
+    --      × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ [])
+    --      × (outputs T ≡ [ 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
+    --      ) (toList Rᶜ)
+    -- ∃λ = {!!}
+
+    -- T : ∃Tx
+    -- T = 2 , 1 , (L.Any.satisfied ∃λ .proj₂ .proj₂ .proj₁)
+
+    -- m′ = [ SIG (K̂ A) T ]
+
+    -- first-λᶜ : All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
+    -- first-λᶜ = {!!}
   in
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([L2] mkℍ {mk {⟨G⟩C}{Γ₀}{t}{A} ? ? as≡ All∉ Hon⇒
-                    (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)}
-                ? ? ? ? ? ? ?)
+-}
 unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(` .ad ∣ Γ₀)
-    at t)})}
-  {Rᶜ}
-  {auth-init⦅ A , ad , x ⦆}
-  {Γₜ′@(Γ′@(` .ad ∣ .Γ₀ ∣ .A auth[ .x ▷ˢ .ad ]) at .t)}
-  (𝕣∗ , Rˢ~Rᶜ)
-  ([Action] ([C-AuthInit] committedA A∈per) refl) =
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([L3] mkℍ {mk {ad}{Γ₀}{t}{A}{x} committedA A∈per
-                    (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)}
-                ? ?)
-unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@( .(` (⟨ G ⟩ C)) ∣ Γ₀ ∣ _ ∣ _)
-    at t)})}
-  {Rᶜ}
-  {init⦅ G , C ⦆}
-  {Γₜ′@(Γ′@(_) at .t)}
-  (𝕣∗ , Rˢ~Rᶜ)
-  ([Action] ([C-Init] fresh-z) refl) =
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([L4] mkℍ {mk {⟨ G ⟩ C}{Γ₀}{t} fresh-z
-                    (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)})
-unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(⟨ c , v ⟩at .x ∣ Γ₀)
-    at t)})}
-  {Rᶜ}
-  {auth-control⦅ A , x ▷ d ⦆}
-  {Γₜ′@(Γ′@(⟨ .c , .v ⟩at .x ∣ A auth[ .x ▷ d ] ∣ .Γ₀) at .t)}
+  {Rˢ = record {end = (⟨ c , v ⟩at .x ∣ Γ₀) at _}}
+  {α  = auth-control⦅ A , x ▷ d ⦆}
+  {Γₜ = Γ′@(⟨ .c , .v ⟩at .x ∣ A auth[ .x ▷ d ] ∣ .Γ₀) at _}
   (𝕣∗ , Rˢ~Rᶜ)
   ([Action] ([C-AuthControl] d≡) refl) =
     -, -, -, step₁ Rˢ~Rᶜ
-      ([L5] mkℍ {mk {c}{v}{x}{Γ₀}{t}{A}{i = ?} d≡
-                    (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)}
-                ? ?)
+      ([L5] mkℍ {mk {c}{v}{x}{Γ₀} d≡
+                    (𝕣∗ ⨾≋ Γ′)}
+                {B = A₀}
+                {!!} {!!})
 unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(_)
-    at t)})}
-  {Rᶜ}
-  {put⦅ xs , as , y ⦆}
-  {Γₜ′@(Γ′@(_) at .t)}
-  (𝕣∗ , Rˢ~Rᶜ)
-  stepₜ@([Timeout] As≡∅ ∀≤t _ refl)
-  with ds , ss , p , c , v , Γ₀ , z , d≡ , refl , refl , refl , refl , refl , refl
-     , fresh-z , p≡
-     ← match-putₜ stepₜ tt =
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([L6] mkℍ {mk {_}{v}{y}{c}{z}{Γ₀ = Γ₀}{_}{p}{ds}{ss}{i = ?}
-                    (∀≤⇒≡max ∀≤t) d≡ fresh-z p≡ As≡∅
-                    (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)})
-unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(⟨ .A ∶ .a ♯ just n ⟩ ∣ Γ₀)
-    at t)})}
-  {Rᶜ}
-  {auth-rev⦅ A , a ⦆}
-  {Γₜ′@(Γ′@(.A ∶ .a ♯ .n ∣ .Γ₀) at .t)}
+  {Rˢ = record {end = (⟨ .A ∶ .a ♯ just n ⟩ ∣ Γ₀) at _}}
+  {α  = auth-rev⦅ A , a ⦆}
+  {Γₜ = Γ′@(.A ∶ .a ♯ .n ∣ .Γ₀) at _}
   (𝕣∗ , Rˢ~Rᶜ)
   ([Action] [C-AuthRev] refl) =
   -, -, -, step₁ Rˢ~Rᶜ
-      ([L7] mkℍ {mk {ad = ?}{A}{a}{n}{Γ₀}{t} ? ?
-                    (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)
-                    ?}
-                ? ? ? ? ?)
-  -- ([L] [7] {Γ₀ = Γ₀} {B = A₀} m≤ R≈ ∃Γ≈ ∃B ∃α a∈G ∃λ first-λᶜ)
+      ([L7] mkℍ {mk {ad = {!!}} {Γ₀ = Γ₀} {!!} {!!}
+                    (𝕣∗ ⨾≋ Γ′)
+                    {!!}}
+                {B = A₀}
+                {mˢ = {!!}}
+                {!!} {!!} {!!} {!!} {!!})
+{-
   where
     postulate
       _m : Message
@@ -187,98 +228,27 @@ unparseMove
 
     --   ∃λ : Any (λ l → ∃ λ B → l ≡ B →∗∶ C,h̅,k̅) (toList Rᶜ)
     --   first-λᶜ : All (λ l → ∀ X → l ≢ X →∗∶ _m) (Any-tail ∃λ)
+-}
 unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(⟨ c , v ⟩at .y ∣ Γ₀)
-    at t)})}
-  {Rᶜ}
-  {split⦅ y ⦆}
-  {Γₜ′@(Γ′@(_) at .t)}
-  (𝕣∗ , Rˢ~Rᶜ)
-  stepₜ@([Timeout] As≡∅ ∀≤t _ refl)
-  with vcis , Γ₀ , y , d≡ , refl , refl , refl , refl , fresh-xs ← match-splitₜ stepₜ tt =
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([L8] mkℍ {mk {c}{y}{Γ₀}{i = ?}{vcis} (∀≤⇒≡max ∀≤t) d≡ fresh-xs As≡∅
-                    (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)})
-unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(_)
-    at t)})}
-  {Rᶜ}
-  {withdraw⦅ A , v , y ⦆}
-  {Γₜ′@(Γ′@(_) at .t)}
-  (𝕣∗ , Rˢ~Rᶜ)
-  stepₜ@([Timeout] As≡∅ ∀≤t _ refl)
-  with Γ₀ , x , d≡ , refl , refl , refl , refl , fresh-x ← match-withdrawₜ stepₜ tt =
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([L9] mkℍ {mk {Γ₀ = Γ₀} d≡ fresh-x As≡∅ ∀≤t
-                    (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)})
-unparseMove
-  {Rˢ@(record {end = Γₜ@(Γ@(⟨ A has v ⟩at .x ∣ ⟨ A has v′ ⟩at .x′ ∣ Γ₀) at t)})}
-  {Rᶜ}
-  {auth-join⦅ A , x ↔ x′ ⦆}
-  {Γₜ′@(Γ′@(⟨ .A has .v ⟩at .x ∣ ⟨ .A has .v′ ⟩at .x′ ∣ .A auth[ .x ↔ .x′ ▷⟨ .A , .(v + v′) ⟩ ] ∣ Γ₀) at .t)}
-  (𝕣∗ , Rˢ~Rᶜ)
-  ([Action] [DEP-AuthJoin] refl) =
-  let
-    𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣
-
-    R≈ : Rˢ ≈⋯ Γₜ
-    R≈ = refl , ↭-refl
-
-    ∃Γ≈ : ∃ (_≈ Γ′)
-    ∃Γ≈ = Γ′ , ↭-refl
-
-    n⊆ : Γ ⊆⦅ namesʳ ⦆ Rˢ
-    n⊆  = namesʳ⦅end⦆⊆ Rˢ ∘ ∈namesʳ-resp-≈ _ {Γ}{cfg (Rˢ .end)} (↭-sym $ proj₂ R≈)
-    x∈  = n⊆ (here refl)
-    x∈′ = n⊆ (there $′ here refl)
-
-    -- ∃λ : Any (λ l → ∃ λ B → ∃ λ T
-    --      → (l ≡ B →∗∶ [ T ♯ ])
-    --      × (inputs  T ≡ hashTxⁱ (txout′ {x} x∈) ∷ hashTxⁱ (txout′ {x′} x∈′) ∷ [])
-    --      × (outputs T ≡ [ 1 , record {value = v + v′; validator = ƛ (versig [ K̂ A ] [ # 0 ])} ])
-    --      ) (toList Rᶜ)
-    -- ∃λ = {!!}
-
-    -- T : ∃Tx
-    -- T = 2 , 1 , (L.Any.satisfied ∃λ .proj₂ .proj₂ .proj₁)
-
-    -- m′ = [ SIG (K̂ A) T ]
-
-    -- first-λᶜ : All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
-    -- first-λᶜ = {!!}
-  in
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([L10] mkℍ {mk {Γ₀ = Γ₀}
-                     (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)}
-                 ? ?)
-unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(⟨ A has v ⟩at x ∣ ⟨ A has v′ ⟩at x′ ∣ .A auth[ .x ↔ .x′ ▷⟨ .A , .(v + v′) ⟩ ] ∣ Γ₀)
-    at t)})}
-  {Rᶜ}
-  {α@(join⦅ x ↔ x′ ⦆)}
-  {Γₜ′@(Γ′@(⟨ .A has .(v + v′) ⟩at y ∣ .Γ₀) at t′@(.t))}
+  {α = join⦅ _ ↔ _ ⦆}
+  {Γ′@(_ ∣ Γ₀) at _}
   (𝕣∗ , Rˢ~Rᶜ)
   Γ→Γ′@([Action] ([DEP-Join] fresh-y) refl) =
-  let
-    R≈ : Rˢ ≈⋯ Γₜ
-    R≈ = refl , ↭-refl
-
-    ∃Γ≈ : ∃ (_≈ Γ′)
-    ∃Γ≈ = Γ′ , ↭-refl
-  in
     -, -, -, step₁ Rˢ~Rᶜ
       ([L11] mkℍ {mk {Γ₀ = Γ₀} fresh-y
-                     (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)})
+                     (𝕣∗ ⨾≋ Γ′)})
 unparseMove
-  {Rˢ@(record {end = Γₜ@(Γ@(⟨ .A has .(v + v′) ⟩at .x ∣ Γ₀) at t)})}
-  {Rᶜ}
-  {auth-divide⦅ A , x ▷ v , v′ ⦆}
-  {Γₜ′@(Γ′@(⟨ .A has .(v + v′) ⟩at .x ∣ .A auth[ .x ▷⟨ .A , .v , .v′ ⟩ ] ∣ .Γ₀) at .t)}
+  {Rˢ = record {end = (⟨ .A has .(v + v′) ⟩at .x ∣ Γ₀) at _}}
+  {α  = auth-divide⦅ A , x ▷ v , v′ ⦆}
+  {Γₜ = Γ′@(⟨ .A has .(v + v′) ⟩at .x ∣ .A auth[ .x ▷⟨ .A , .v , .v′ ⟩ ] ∣ .Γ₀) at _}
   (𝕣∗ , Rˢ~Rᶜ)
-  Γ→Γ′@([Action] [DEP-AuthDivide] refl) =
+  Γ→Γ′@([Action] [DEP-AuthDivide] refl)
+  = -, -, -, step₁ Rˢ~Rᶜ
+      ([L12] mkℍ {mk {Γ₀ = Γ₀}
+                     (𝕣∗ ⨾≋ Γ′)}
+                 {B = A₀}
+                 {!!} {!!})
+{-
   let
     𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣
 
@@ -307,31 +277,25 @@ unparseMove
     -- first-λᶜ : All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
     -- first-λᶜ = {!!}
   in
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([L12] mkℍ {mk {Γ₀ = Γ₀}
-                    (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)}
-                ? ?)
- -- ([L] [12] {Γ₀ = Γ₀} {B = {!!}} R≈ ∃Γ≈ ∃λ first-λᶜ)
+-}
 unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(⟨ A has .(v + v′) ⟩at .x ∣ .A auth[ .x ▷⟨ .A , .v , .v′ ⟩ ] ∣ Γ₀)
-    at t)})}
-  {Rᶜ}
-  {divide⦅ x ▷ v , v′ ⦆}
-  {Γₜ′@(Γ′@(⟨ .A has .v ⟩at y ∣ ⟨ .A has .v′ ⟩at y′ ∣ .Γ₀) at .t)}
+  {Rˢ = record {end = (⟨ A has .(v + v′) ⟩at .x ∣ _ ∣ Γ₀) at _}}
+  {α  = divide⦅ x ▷ v , v′ ⦆}
+  {Γₜ = Γ′ at _}
   (𝕣∗ , Rˢ~Rᶜ)
-  ([Action] ([DEP-Divide] fresh-ys) refl) =
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([L13] mkℍ {mk {Γ₀ = Γ₀} fresh-ys (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)})
+  ([Action] ([DEP-Divide] fresh-ys) refl)
+  = -, -, -, step₁ Rˢ~Rᶜ
+      ([L13] mkℍ {mk {Γ₀ = Γ₀} fresh-ys (𝕣∗ ⨾≋ Γ′)})
 unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(⟨ .A has v ⟩at .x ∣ Γ₀)
-    at t)})}
-  {Rᶜ}
-  {auth-donate⦅ A , x ▷ᵈ B′ ⦆}
-  {Γₜ′@(Γ′@(⟨ .A has .v ⟩at .x ∣ .A auth[ .x ▷ᵈ .B′ ] ∣ .Γ₀) at .t)}
+  {α  = auth-donate⦅ A , x ▷ᵈ B′ ⦆}
+  {Γₜ = Γ′@(_ ∣ _ ∣ Γ₀) at _}
   (𝕣∗ , Rˢ~Rᶜ)
-  ([Action] [DEP-AuthDonate] refl) =
+  ([Action] [DEP-AuthDonate] refl)
+  = -, -, -, step₁ Rˢ~Rᶜ
+      ([L14] mkℍ {mk {Γ₀ = Γ₀} (𝕣∗ ⨾≋ Γ′)}
+                 {B = A₀}
+                 {!!} {!!})
+{-
   let
     𝕣 = ℝ∗⇒ℝ 𝕣∗; open ℝ 𝕣
 
@@ -360,71 +324,50 @@ unparseMove
     -- first-λᶜ : All (λ l → ¬ ∃ λ B → l ≡ B →∗∶ m′) (Any-tail ∃λ)
     -- first-λᶜ = {!!}
   in
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([L14] mkℍ {mk {Γ₀ = Γ₀} (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)}
-                 ? ?)
-    -- ([L] [14] {Γ₀ = Γ₀} {B = {!!}} R≈ ∃Γ≈ ∃λ first-λᶜ)
+-}
 unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(⟨ A has v ⟩at .x ∣ A auth[ .x ▷ᵈ .B′ ] ∣ Γ₀)
-    at t)})}
-  {Rᶜ}
-  {donate⦅ x ▷ᵈ B′ ⦆}
-  {Γₜ′@(Γ′@(⟨ .B′ has .v ⟩at y ∣ .Γ₀) at .t)}
+  {Rˢ = record {end = (⟨ A has v ⟩at .x ∣ A auth[ .x ▷ᵈ .B′ ] ∣ Γ₀) at _}}
+  {α  = donate⦅ x ▷ᵈ B′ ⦆}
+  {Γₜ = Γ′@(⟨ .B′ has .v ⟩at y ∣ .Γ₀) at _}
   (𝕣∗ , Rˢ~Rᶜ)
   ([Action] ([DEP-Donate] fresh-y) refl) =
-  let
-    R≈ : Rˢ ≈⋯ Γₜ
-    R≈ = refl , ↭-refl
-
-    ∃Γ≈ : ∃ (_≈ Γ′)
-    ∃Γ≈ = Γ′ , ↭-refl
-  in
     -, -, -, step₁ Rˢ~Rᶜ
       ([L15] mkℍ {mk {Γ₀ = Γ₀} fresh-y
-                 (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)})
--- ** unification errors for `destroy` actions, T0D0: fording view
-{-
+                 (𝕣∗ ⨾≋ Γ′)})
 unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(Δ ∣ Γ₀)
-    at t)})}
-  {Rᶜ}
-  {auth-destroy⦅ A , xs , j′ ⦆}
-  {Γₜ′@(Γ′@(.Δ ∣ .A auth[ .xs , .j′ ▷ᵈˢ y ] ∣ .Γ₀) at .t)}
+  {Rˢ = record {end = (Δ ∣ Γ₀) at _}}
+  {α  = auth-destroy⦅ A , xs , j′ ⦆}
+  {Γₜ = Γ′@(.Δ ∣ .A auth[ .xs , .j′ ▷ᵈˢ y ] ∣ .Γ₀) at _}
   (𝕣∗ , Rˢ~Rᶜ)
-  ([Action] ([DEP-AuthDestroy] {y}{Γ₀}{ds}{j} fresh-y) refl) =
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([R16⊣ ? ] mkℍ {mk {y}{Γ₀}{t}{ds} j fresh-y
-                         (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)}
-                     ? ?)
-      -- {Γ₀ = Γ₀} {i = {!!}} {B = A₀} {ds = ds}
+  ([Action] ([DEP-AuthDestroy] {y}{Γ₀}{ds}{j} fresh-y) refl)
+  = -, -, -, step₁ Rˢ~Rᶜ
+      ([R16⊣ {!!} ] mkℍ {mk {Γ₀ = Γ₀} {ds = ds}
+                         j fresh-y
+                         (𝕣∗ ⨾≋ Γ′)}
+                     {B = A₀}
+                     {!!} {!!})
 unparseMove
-  {Rˢ@(record {end = Γₜ@(
-    Γ@(_ ∣ Γ₀)
-    at t)})}
-  {Rᶜ}
-  {destroy⦅ xs ⦆}
-  {Γₜ′@(Γ′@(.Γ₀) at .t)}
+  {Rˢ = record {end = (_ ∣ Γ₀) at _}}
+  {α  = destroy⦅ xs ⦆}
+  {Γₜ = Γ′@(.Γ₀) at _}
   (𝕣∗ , Rˢ~Rᶜ)
-  ([Action] ([DEP-Destroy] {y = y} {Γ = Γ₀} {ds = ds}) refl) =
-    -, -, -, step₁ Rˢ~Rᶜ
+  ([Action] ([DEP-Destroy] {Γ = Γ₀} {ds = ds}) refl)
+  = -, -, -, step₁ Rˢ~Rᶜ
       ([R17⊣ {!!} ]
-        mkℍ {mk {Γ₀}{y}{t}{ds} (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)}
+        mkℍ {mk {Γ₀ = Γ₀} {ds = ds} (𝕣∗ ⨾≋ Γ′)}
+            {i = ?}
+            {o = ?}
             {!!} {!!})
--}
 unparseMove
-  {Rˢ@(record {end = Γₜ@(Γ at t)})}
-  {Rᶜ}
-  {delay⦅ δ ⦆}
-  {Γₜ′@(Γ′@.Γ at .(t + δ))}
+  {Rˢ = record {end = Γ at t}}
+  {α  = delay⦅ δ ⦆}
+  {Γₜ = Γ′@.Γ at .(t + δ)}
   (𝕣∗ , Rˢ~Rᶜ)
-  ([Delay] δ>0) =
-    -, -, -, step₁ Rˢ~Rᶜ
-      ([L18] mkℍ {mk {Γ} δ>0 (Rᶜ ⨾ Rˢ ⨾ 𝕣∗ ⊣ refl , ↭-refl ≈ Γ′ ⊣ ↭-refl)})
--- ** unification errors for `C-Control` rules, T0D0: fording view
--- unparseMove {α = delay⦅ _ ⦆} _ ([Action] ([C-Control] _ _ _ ()) _)
--}
+  ([Delay] δ>0)
+  = -, -, -, step₁ Rˢ~Rᶜ ([L18] mkℍ {mk {Γ} δ>0 (𝕣∗ ⨾≋ Γ′)})
+unparseMove {α = delay⦅ _ ⦆} _ ([Action] ([C-Control] _ _ _ ()) _)
+
+-- ** n-ary version
 unparseMoves : Rˢ ~ Rᶜ → List (∃ λ α → ∃ (Rˢ ——[ α ]→_)) → C.Labels
 unparseMoves Rˢ~Rᶜ = map λ where
   (α , Γₜ , R→) → unparseMove Rˢ~Rᶜ R→ .proj₁

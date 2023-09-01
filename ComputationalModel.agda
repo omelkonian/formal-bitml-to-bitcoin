@@ -19,4 +19,3 @@ open import Bitcoin public
 open import ComputationalModel.Serialization public
 open import ComputationalModel.KeyPairs Participant keypairs public
 open import ComputationalModel.Run ⋯ finPart keypairs public
-open import ComputationalModel.Strategy ⋯ finPart keypairs public
